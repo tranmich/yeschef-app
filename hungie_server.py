@@ -381,14 +381,18 @@ def get_recipe_by_id(recipe_id):
 
 # API Routes
 @app.route('/')
-def serve_frontend():
-    """Serve the frontend"""
-    return send_from_directory('static', 'index.html')
-
-@app.route('/<path:path>')
-def serve_static(path):
-    """Serve static files"""
-    return send_from_directory('static', path)
+def api_root():
+    """API root endpoint"""
+    return jsonify({
+        'message': 'Hungie API Server',
+        'status': 'healthy',
+        'endpoints': {
+            'recipes': '/api/recipes',
+            'search': '/api/search',
+            'auth': '/api/auth',
+            'health': '/api/health'
+        }
+    })
 
 @app.route('/api/recipes', methods=['POST'])
 def create_recipe():
@@ -1620,6 +1624,16 @@ if __name__ == "__main__":
         logger.info("✅ Database initialization completed")
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}")
+    
+    # Initialize Authentication System with database connection
+    try:
+        auth_system = AuthenticationSystem(app, get_db_connection)
+        auth_routes = create_auth_routes(auth_system)
+        app.register_blueprint(auth_routes)
+        logger.info("🔐 Authentication system initialized and routes registered")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize authentication system: {e}")
+        auth_system = None
     
     # Production hosting configuration (Railway/Heroku compatible)
     port = int(os.environ.get("PORT", 5000))

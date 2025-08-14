@@ -5,8 +5,11 @@ Handles user registration, login, JWT tokens, and OAuth integration
 """
 
 import sqlite3
+import psycopg2
+import psycopg2.extras
 import hashlib
 import secrets
+import os
 from datetime import datetime, timedelta
 from flask import jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
@@ -17,9 +20,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AuthenticationSystem:
-    def __init__(self, app, db_path='hungie.db'):
+    def __init__(self, app, get_db_connection=None):
         self.app = app
-        self.db_path = db_path
+        self.get_db_connection = get_db_connection
         self.bcrypt = Bcrypt(app)
         
         # Configure JWT
@@ -63,84 +66,164 @@ class AuthenticationSystem:
     def _init_user_database(self):
         """Initialize user tables in the database"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_db_connection()
             cursor = conn.cursor()
             
-            # Users table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    oauth_provider TEXT,
-                    oauth_id TEXT,
-                    profile_picture TEXT
-                )
-            ''')
+            # Check if we're using PostgreSQL or SQLite
+            database_url = os.getenv('DATABASE_URL')
             
-            # User preferences table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS user_preferences (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    dietary_restrictions TEXT, -- JSON array
-                    allergies TEXT, -- JSON array  
-                    caloric_needs INTEGER,
-                    nutritional_goals TEXT, -- JSON object
-                    preferred_cuisines TEXT, -- JSON array
-                    cooking_skill_level TEXT DEFAULT 'beginner',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users (id)
-                )
-            ''')
-            
-            # User pantry table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS user_pantry (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    ingredient_name TEXT NOT NULL,
-                    quantity REAL,
-                    unit TEXT,
-                    expiry_date DATE,
-                    category TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users (id)
-                )
-            ''')
-            
-            # Saved recipes table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS saved_recipes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    recipe_id INTEGER,
-                    recipe_data TEXT, -- JSON for external recipes
-                    recipe_source TEXT, -- 'internal' or URL
-                    saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    tags TEXT, -- JSON array for user tags
-                    FOREIGN KEY (user_id) REFERENCES users (id)
-                )
-            ''')
-            
-            # Saved meal plans table
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS saved_meal_plans (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    plan_name TEXT NOT NULL,
-                    plan_data TEXT NOT NULL, -- JSON meal plan
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users (id)
-                )
-            ''')
+            if database_url:
+                # PostgreSQL schema - Users table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id SERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        email TEXT UNIQUE NOT NULL,
+                        password_hash TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        oauth_provider TEXT,
+                        oauth_id TEXT,
+                        profile_picture TEXT
+                    )
+                ''')
+                
+                # User preferences table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS user_preferences (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        dietary_restrictions TEXT, -- JSON array
+                        allergies TEXT, -- JSON array  
+                        caloric_needs INTEGER,
+                        nutritional_goals TEXT, -- JSON object
+                        preferred_cuisines TEXT, -- JSON array
+                        cooking_skill_level TEXT DEFAULT 'beginner',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+                
+                # User pantry table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS user_pantry (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        ingredient_name TEXT NOT NULL,
+                        quantity REAL,
+                        unit TEXT,
+                        expiry_date DATE,
+                        category TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+                
+                # Saved recipes table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS saved_recipes (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        recipe_id INTEGER,
+                        recipe_data TEXT, -- JSON for external recipes
+                        recipe_source TEXT, -- 'internal' or URL
+                        saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        tags TEXT, -- JSON array for user tags
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+                
+                # Saved meal plans table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS saved_meal_plans (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        plan_name TEXT NOT NULL,
+                        plan_data TEXT NOT NULL, -- JSON meal plan
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+            else:
+                # SQLite schema for local development
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        email TEXT UNIQUE NOT NULL,
+                        password_hash TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        oauth_provider TEXT,
+                        oauth_id TEXT,
+                        profile_picture TEXT
+                    )
+                ''')
+                
+                # User preferences table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS user_preferences (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        dietary_restrictions TEXT, -- JSON array
+                        allergies TEXT, -- JSON array  
+                        caloric_needs INTEGER,
+                        nutritional_goals TEXT, -- JSON object
+                        preferred_cuisines TEXT, -- JSON array
+                        cooking_skill_level TEXT DEFAULT 'beginner',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+                
+                # User pantry table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS user_pantry (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        ingredient_name TEXT NOT NULL,
+                        quantity REAL,
+                        unit TEXT,
+                        expiry_date DATE,
+                        category TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+                
+                # Saved recipes table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS saved_recipes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        recipe_id INTEGER,
+                        recipe_data TEXT, -- JSON for external recipes
+                        recipe_source TEXT, -- 'internal' or URL
+                        saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        tags TEXT, -- JSON array for user tags
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+                
+                # Saved meal plans table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS saved_meal_plans (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        plan_name TEXT NOT NULL,
+                        plan_data TEXT NOT NULL, -- JSON meal plan
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
             
             conn.commit()
             conn.close()
@@ -153,11 +236,15 @@ class AuthenticationSystem:
     def register_user(self, name, email, password, oauth_provider=None, oauth_id=None):
         """Register a new user"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_db_connection()
             cursor = conn.cursor()
             
+            # Check if we're using PostgreSQL or SQLite
+            database_url = os.getenv('DATABASE_URL')
+            placeholder = '%s' if database_url else '?'
+            
             # Check if user already exists
-            cursor.execute('SELECT id FROM users WHERE email = ?', (email,))
+            cursor.execute(f'SELECT id FROM users WHERE email = {placeholder}', (email,))
             if cursor.fetchone():
                 return {'success': False, 'message': 'User already exists'}
             
@@ -167,19 +254,24 @@ class AuthenticationSystem:
                 password_hash = self.bcrypt.generate_password_hash(password).decode('utf-8')
             
             # Insert new user
-            cursor.execute('''
+            cursor.execute(f'''
                 INSERT INTO users (name, email, password_hash, oauth_provider, oauth_id)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             ''', (name, email, password_hash, oauth_provider, oauth_id))
             
-            user_id = cursor.lastrowid
+            # Get the user ID (different for PostgreSQL vs SQLite)
+            if database_url:
+                cursor.execute('SELECT lastval()')
+                user_id = cursor.fetchone()[0]
+            else:
+                user_id = cursor.lastrowid
             
             # Create default preferences
-            cursor.execute('''
+            cursor.execute(f'''
                 INSERT INTO user_preferences (user_id, dietary_restrictions, allergies, 
                                             preferred_cuisines, cooking_skill_level)
-                VALUES (?, '[]', '[]', '[]', 'beginner')
-            ''', (user_id,))
+                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+            ''', (user_id, '[]', '[]', '[]', 'beginner'))
             
             conn.commit()
             conn.close()
@@ -206,13 +298,16 @@ class AuthenticationSystem:
     def authenticate_user(self, email, password):
         """Authenticate user with email and password"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
+            conn = self.get_db_connection()
             cursor = conn.cursor()
             
-            cursor.execute('''
+            # Check if we're using PostgreSQL or SQLite
+            database_url = os.getenv('DATABASE_URL')
+            placeholder = '%s' if database_url else '?'
+            
+            cursor.execute(f'''
                 SELECT id, name, email, password_hash, is_active 
-                FROM users WHERE email = ?
+                FROM users WHERE email = {placeholder}
             ''', (email,))
             
             user = cursor.fetchone()
@@ -251,13 +346,16 @@ class AuthenticationSystem:
     def get_user_by_id(self, user_id):
         """Get user information by ID"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
+            conn = self.get_db_connection()
             cursor = conn.cursor()
             
-            cursor.execute('''
+            # Check if we're using PostgreSQL or SQLite
+            database_url = os.getenv('DATABASE_URL')
+            placeholder = '%s' if database_url else '?'
+            
+            cursor.execute(f'''
                 SELECT id, name, email, created_at, profile_picture
-                FROM users WHERE id = ? AND is_active = TRUE
+                FROM users WHERE id = {placeholder} AND is_active = TRUE
             ''', (user_id,))
             
             user = cursor.fetchone()
@@ -274,17 +372,21 @@ class AuthenticationSystem:
     def wipe_user_data(self, user_id=None):
         """Wipe user data for testing purposes"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = self.get_db_connection()
             cursor = conn.cursor()
+            
+            # Check if we're using PostgreSQL or SQLite
+            database_url = os.getenv('DATABASE_URL')
+            placeholder = '%s' if database_url else '?'
             
             if user_id:
                 # Wipe specific user
                 tables = ['saved_meal_plans', 'saved_recipes', 'user_pantry', 
                          'user_preferences', 'users']
                 for table in tables:
-                    cursor.execute(f'DELETE FROM {table} WHERE user_id = ?', (user_id,))
+                    cursor.execute(f'DELETE FROM {table} WHERE user_id = {placeholder}', (user_id,))
                     if table == 'users':
-                        cursor.execute(f'DELETE FROM {table} WHERE id = ?', (user_id,))
+                        cursor.execute(f'DELETE FROM {table} WHERE id = {placeholder}', (user_id,))
             else:
                 # Wipe all user data
                 tables = ['saved_meal_plans', 'saved_recipes', 'user_pantry', 
@@ -300,4 +402,5 @@ class AuthenticationSystem:
             
         except Exception as e:
             logger.error(f"[ERROR] Error wiping user data: {e}")
+            return {'success': False, 'message': 'Failed to wipe user data'}
             return {'success': False, 'message': 'Failed to wipe user data'}
