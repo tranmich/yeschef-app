@@ -3,6 +3,7 @@ import MealCalendar from './MealCalendar';
 import GroceryListGenerator from './GroceryListGenerator';
 import FavoritesPanel from './FavoritesPanel';
 import DraggableRecipeCard from './DraggableRecipeCard';
+import { getApiUrl } from '../utils/api';
 import './MealPlannerView.css';
 
 const MealPlannerView = ({ 
@@ -42,7 +43,7 @@ const MealPlannerView = ({
 
     const loadSavedMealPlans = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/meal-plans');
+            const response = await fetch(`${getApiUrl()}/api/meal-plans`);
             const data = await response.json();
             
             if (data.success) {
@@ -55,7 +56,7 @@ const MealPlannerView = ({
 
     const loadFavorites = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/favorites');
+            const response = await fetch(`${getApiUrl()}/api/favorites`);
             const data = await response.json();
             
             if (data.success) {
@@ -84,7 +85,7 @@ const MealPlannerView = ({
 
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:5000/api/meal-plans', {
+            const response = await fetch(`${getApiUrl()}/api/meal-plans`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -116,7 +117,7 @@ const MealPlannerView = ({
     const loadMealPlan = async (planId) => {
         setLoading(true);
         try {
-            const response = await fetch(`http://localhost:5000/api/meal-plans/${planId}`);
+            const response = await fetch(`${getApiUrl()}/api/meal-plans/${planId}`);
             const data = await response.json();
 
             if (data.success) {
@@ -150,7 +151,7 @@ const MealPlannerView = ({
 
     const toggleFavorite = async (recipe) => {
         try {
-            const response = await fetch('http://localhost:5000/api/favorites', {
+            const response = await fetch(`${getApiUrl()}/api/favorites`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

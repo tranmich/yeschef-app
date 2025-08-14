@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './GroceryListGenerator.css';
+import { getApiUrl } from '../utils/api';
 
 const GroceryListGenerator = ({ recipeIds = [], onClose }) => {
     const [groceryList, setGroceryList] = useState(null);
@@ -18,7 +19,7 @@ const GroceryListGenerator = ({ recipeIds = [], onClose }) => {
         setError(null);
         
         try {
-            const response = await fetch('http://localhost:5000/api/grocery-list', {
+            const response = await fetch(`${getApiUrl()}/api/grocery-list`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

@@ -81,3 +81,20 @@ export const apiCall = async (endpoint, options = {}) => {
 export default api;
 export { api };
 export { getApiUrl };
+
+// Additional API functions for compatibility
+export const searchRecipes = (query) => apiCall(`/api/search?q=${encodeURIComponent(query)}`);
+export const getRecipe = (id) => apiCall(`/api/recipes/${id}`);
+export const smartSearch = (message, context = '', options = {}) => apiCall('/api/smart-search', {
+  method: 'POST',
+  body: JSON.stringify({ 
+    message, 
+    context,
+    skipRecipeSearch: options.skipRecipeSearch || false
+  }),
+});
+
+// Export the full API object with all functions
+api.searchRecipes = searchRecipes;
+api.getRecipe = getRecipe;
+api.smartSearch = smartSearch;
