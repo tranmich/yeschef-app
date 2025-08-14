@@ -5,6 +5,9 @@ Properly utilizes all 778 recipes with session memory and intelligent cycling
 """
 
 import sqlite3
+import psycopg2
+import psycopg2.extras
+import os
 import json
 import random
 from datetime import datetime
@@ -153,14 +156,29 @@ class SmartRecipeSuggestionEngine:
         }
     
     def get_database_connection(self):
-        """Get database connection"""
+        """Get database connection with PostgreSQL/SQLite fallback"""
         try:
-            conn = sqlite3.connect('hungie.db')
-            conn.row_factory = sqlite3.Row
-            return conn
+            # Use PostgreSQL connection from Railway environment
+            database_url = os.getenv('DATABASE_URL')
+            if database_url:
+                # PostgreSQL connection
+                conn = psycopg2.connect(database_url)
+                conn.cursor_factory = psycopg2.extras.RealDictCursor
+                self.is_postgresql = True
+                return conn
+            else:
+                # Fallback to SQLite for local development
+                conn = sqlite3.connect('hungie.db')
+                conn.row_factory = sqlite3.Row
+                self.is_postgresql = False
+                return conn
         except Exception as e:
             print(f"Database connection error: {e}")
             return None
+    
+    def get_placeholder(self):
+        """Get the correct SQL placeholder for the database type"""
+        return "%s" if getattr(self, 'is_postgresql', False) else "?"
     
     def analyze_user_request(self, query):
         """Enhanced analysis of user request to extract preferences and intent"""
@@ -300,8 +318,9 @@ class SmartRecipeSuggestionEngine:
         conn = self.get_database_connection()
         if not conn:
             return []
-        
+
         cursor = conn.cursor()
+        placeholder = self.get_placeholder()
         
         # Build dynamic query based on preferences
         conditions = []
@@ -315,9 +334,9 @@ class SmartRecipeSuggestionEngine:
                     # More precise matching to avoid false positives like "chicken broth" in non-chicken recipes
                     if keyword == 'chicken':
                         # Match whole word chicken in title, or actual chicken ingredients (not just broth/fat)
-                        ingredient_conditions.append("""
-                            (r.title LIKE ? OR r.title LIKE ? OR r.title LIKE ? OR r.title LIKE ? OR
-                             (r.ingredients LIKE ? AND r.ingredients NOT LIKE ? AND r.ingredients NOT LIKE ?))
+                        ingredient_conditions.append(f"""
+                            (r.title LIKE {placeholder} OR r.title LIKE {placeholder} OR r.title LIKE {placeholder} OR r.title LIKE {placeholder} OR
+                             (r.ingredients LIKE {placeholder} AND r.ingredients NOT LIKE {placeholder} AND r.ingredients NOT LIKE {placeholder}))
                         """)
                         # Title patterns: "chicken ", " chicken ", " chicken", "chicken"
                         params.extend([
@@ -326,7 +345,7 @@ class SmartRecipeSuggestionEngine:
                         ])
                     else:
                         # For other ingredients, use regular matching
-                        ingredient_conditions.append("(r.title LIKE ? OR r.ingredients LIKE ?)")
+                        ingredient_conditions.append(f"(r.title LIKE {placeholder} OR r.ingredients LIKE {placeholder})")
                         params.extend([f"%{keyword}%", f"%{keyword}%"])
             
             if ingredient_conditions:
@@ -334,7 +353,7 @@ class SmartRecipeSuggestionEngine:
         
         # Exclude already suggested recipes
         if exclude_ids:
-            placeholders = ','.join('?' * len(exclude_ids))
+            placeholders = ','.join([placeholder] * len(exclude_ids))
             conditions.append(f"r.id NOT IN ({placeholders})")
             params.extend(exclude_ids)
         
@@ -357,7 +376,10 @@ class SmartRecipeSuggestionEngine:
             primary_keywords = self.ingredient_keywords[primary_ingredient]
             title_conditions = " OR ".join([f"r.title LIKE '%{keyword}%'" for keyword in primary_keywords])
             order_clause += f"CASE WHEN ({title_conditions}) THEN 1 ELSE 2 END, "
-        order_clause += "RANDOM() LIMIT ?"
+        
+        # Use database-specific random function
+        random_func = "RANDOM()" if not getattr(self, 'is_postgresql', False) else "RANDOM()"
+        order_clause += f"{random_func} LIMIT {placeholder}"
         
         query = f"""
             SELECT DISTINCT r.id, r.title, r.description, r.servings, 
