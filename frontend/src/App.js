@@ -3,11 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// Pages
-import SearchResults from './pages/SearchResults';
-import RecipeDetail from './pages/RecipeDetail';
-import Categories from './pages/Categories';
-
 // Auth Components
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
