@@ -23,6 +23,11 @@ class AuthenticationSystem:
     def __init__(self, app, get_db_connection=None):
         self.app = app
         self.get_db_connection = get_db_connection
+        
+        # Fallback to direct database connection if not provided
+        if not self.get_db_connection:
+            self.get_db_connection = self._get_default_db_connection
+            
         self.bcrypt = Bcrypt(app)
         
         # Configure JWT
@@ -38,6 +43,27 @@ class AuthenticationSystem:
         self._init_user_database()
         
         logger.info("[OK] Authentication system initialized")
+    
+    def _get_default_db_connection(self):
+        """Default database connection for fallback"""
+        try:
+            # Use PostgreSQL connection from Railway environment
+            database_url = os.getenv('DATABASE_URL')
+            if database_url:
+                # PostgreSQL connection
+                conn = psycopg2.connect(database_url)
+                conn.cursor_factory = psycopg2.extras.RealDictCursor
+                logger.info("✅ Auth system connected to PostgreSQL database")
+                return conn
+            else:
+                # Fallback to SQLite for local development
+                conn = sqlite3.connect('hungie.db')
+                conn.row_factory = sqlite3.Row
+                logger.info("✅ Auth system connected to SQLite database (local)")
+                return conn
+        except Exception as e:
+            logger.error(f"Auth database connection error: {e}")
+            raise
     
     def _setup_oauth(self):
         """Setup Google and Facebook OAuth"""
