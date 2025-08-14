@@ -288,7 +288,7 @@ class AuthenticationSystem:
                     RETURNING id
                 ''', (name, email, password_hash, oauth_provider, oauth_id))
                 result = cursor.fetchone()
-                user_id = result[0] if result else None
+                user_id = result['id'] if result else None
                 
                 if not user_id:
                     logger.error("Failed to get user ID after PostgreSQL insert")
