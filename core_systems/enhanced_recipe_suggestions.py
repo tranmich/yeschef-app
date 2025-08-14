@@ -677,8 +677,9 @@ class SmartRecipeSuggestionEngine:
         stats = {}
         
         # Total recipes
-        cursor.execute("SELECT COUNT(*) FROM recipes")
-        stats['total_recipes'] = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) as count FROM recipes")
+        result = cursor.fetchone()
+        stats['total_recipes'] = result['count'] if getattr(self, 'is_postgresql', False) else result[0]
         
         # Recipes by book
         cursor.execute("""
@@ -687,14 +688,18 @@ class SmartRecipeSuggestionEngine:
             LEFT JOIN recipes r ON b.id = r.book_id 
             GROUP BY b.id, b.title
         """)
-        stats['by_book'] = dict(cursor.fetchall())
+        if getattr(self, 'is_postgresql', False):
+            stats['by_book'] = {row['title']: row['count'] for row in cursor.fetchall()}
+        else:
+            stats['by_book'] = dict(cursor.fetchall())
         
         # Sample chicken recipes
         cursor.execute("""
-            SELECT COUNT(*) FROM recipes 
+            SELECT COUNT(*) as count FROM recipes 
             WHERE title LIKE '%chicken%' OR ingredients LIKE '%chicken%'
         """)
-        stats['chicken_recipes'] = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        stats['chicken_recipes'] = result['count'] if getattr(self, 'is_postgresql', False) else result[0]
         
         conn.close()
         return stats
