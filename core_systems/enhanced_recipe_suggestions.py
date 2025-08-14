@@ -396,7 +396,11 @@ class SmartRecipeSuggestionEngine:
             cursor.execute(query, params)
             recipes = []
             
-            for row in cursor.fetchall():
+            print(f"[DEBUG] Query executed successfully, fetching results...")
+            results = cursor.fetchall()
+            print(f"[DEBUG] Found {len(results)} results from query")
+            
+            for row in results:
                 # Classify recipe types for intelligent suggestions
                 recipe_types = self.classify_recipe_types(row['title'], row['instructions'] or '')
                 
@@ -456,11 +460,15 @@ class SmartRecipeSuggestionEngine:
                 
                 recipes = filtered_recipes
             
+            print(f"[DEBUG] Returning {len(recipes)} recipes after processing")
             conn.close()
             return recipes
             
         except Exception as e:
             print(f"Recipe search error: {e}")
+            print(f"[DEBUG] Exception type: {type(e)}")
+            import traceback
+            traceback.print_exc()
             conn.close()
             return []
     
