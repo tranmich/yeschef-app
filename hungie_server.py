@@ -63,8 +63,7 @@ CORS(app, resources={
         "origins": [
             "http://localhost:3000", 
             "http://127.0.0.1:3000",
-            "https://yeschef-app.vercel.app",
-            "https://yeschef-app-michaeltrans-projects.vercel.app"
+            "https://yeschef-app.vercel.app"
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
@@ -76,7 +75,7 @@ CORS(app, resources={
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')
-    if origin in ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://yeschef-app.vercel.app', 'https://yeschef-app-michaeltrans-projects.vercel.app']:
+    if origin in ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://yeschef-app.vercel.app']:
         response.headers.add('Access-Control-Allow-Origin', origin)
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
