@@ -1,0 +1,325 @@
+/* Meal Calendar Styles */
+.meal-calendar {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Container manages its own overflow, children handle scrolling */
+    position: relative; /* Ensure proper stacking context */
+}
+
+.calendar-header {
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.calendar-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+}
+
+.week-info {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: normal;
+}
+
+.calendar-grid {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto; /* Enable horizontal scrolling */
+    min-height: 0;
+    min-width: 0; /* Allow shrinking below content width */
+    /* Ensure scrolling is smooth and responsive */
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch; /* For mobile devices */
+}
+
+/* Make sure scrollbars are visible */
+.calendar-grid::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.calendar-grid::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+.calendar-grid::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 6px;
+}
+
+.calendar-grid::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Force scrollbars to always be visible */
+.calendar-grid::-webkit-scrollbar:horizontal {
+    height: 12px;
+}
+
+.calendar-grid::-webkit-scrollbar:vertical {
+    width: 12px;
+}
+
+.calendar-row {
+    display: grid;
+    grid-template-columns: 120px repeat(3, minmax(200px, 1fr)); /* Updated for 3 meal types: breakfast, lunch, dinner */
+    border-bottom: 1px solid #e0e0e0;
+    min-height: 80px;
+    min-width: 720px; /* Minimum width: 120px + (3 * 200px) = 720px */
+    width: max-content; /* Force width to accommodate all content */
+}
+
+.calendar-row:last-child {
+    border-bottom: none;
+}
+
+.header-row {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    min-height: 40px;
+}
+
+.day-header, .meal-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #495057;
+    border-right: 1px solid #e0e0e0;
+    padding: 0.5rem;
+}
+
+.day-label {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #f8f9fa;
+    border-right: 1px solid #e0e0e0;
+    padding: 0.5rem;
+}
+
+.day-name {
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.day-date {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+/* Meal Slots */
+.meal-slot {
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    min-height: 80px;
+    transition: all 0.2s ease;
+}
+
+.meal-slot:hover {
+    background-color: #f8f9fa;
+}
+
+.meal-slot-header {
+    padding: 0.25rem 0.5rem;
+    background-color: #f1f3f4;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.meal-type {
+    font-weight: 500;
+    color: #495057;
+}
+
+.recipe-count {
+    color: #6c757d;
+    font-size: 0.7rem;
+}
+
+.meal-slot-content {
+    flex: 1;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.empty-slot {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #dee2e6;
+    border-radius: 4px;
+    color: #6c757d;
+    font-size: 0.8rem;
+    min-height: 40px;
+    transition: all 0.2s ease;
+}
+
+.empty-slot:hover {
+    border-color: #adb5bd;
+    color: #495057;
+}
+
+.drop-hint {
+    font-style: italic;
+}
+
+/* Planned Recipes */
+.planned-recipes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.planned-recipe {
+    background-color: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 4px;
+    padding: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    transition: all 0.2s ease;
+}
+
+.planned-recipe:hover {
+    background-color: #d1ecf1;
+    border-color: #85cdea;
+}
+
+.recipe-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.recipe-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #0d47a1;
+    margin-bottom: 0.25rem;
+    word-wrap: break-word;
+    line-height: 1.2;
+}
+
+.recipe-time, .recipe-servings {
+    font-size: 0.7rem;
+    color: #1565c0;
+    margin-right: 0.5rem;
+    display: inline-block;
+}
+
+.remove-recipe-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 0.1rem;
+    border-radius: 2px;
+    transition: all 0.2s ease;
+    margin-left: 0.5rem;
+    opacity: 0.7;
+}
+
+.remove-recipe-btn:hover {
+    opacity: 1;
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+/* Calendar Footer */
+.calendar-footer {
+    padding: 0.75rem 1rem;
+    background-color: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+}
+
+.calendar-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.calendar-stats span {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .calendar-row {
+        grid-template-columns: 100px repeat(3, minmax(180px, 1fr)); /* Adjust for 3 meal types */
+        min-width: 640px; /* 100px + (3 * 180px) = 640px */
+    }
+    
+    .day-label {
+        padding: 0.25rem;
+    }
+    
+    .day-name {
+        font-size: 0.8rem;
+    }
+    
+    .day-date {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .calendar-row {
+        grid-template-columns: 80px repeat(3, minmax(150px, 1fr)); /* Keep all 3 meal types on tablets */
+        min-height: 100px;
+        min-width: 530px; /* 80px + (3 * 150px) = 530px */
+    }
+    
+    .meal-slot-header {
+        font-size: 0.7rem;
+    }
+    
+    .recipe-title {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .calendar-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+    
+    .calendar-row {
+        grid-template-columns: 70px repeat(3, minmax(120px, 1fr)); /* Keep all 3 meal types even on mobile */
+        min-width: 430px; /* 70px + (3 * 120px) = 430px - will require horizontal scrolling */
+    }
+    
+    .planned-recipe {
+        padding: 0.25rem;
+    }
+    
+    .recipe-title {
+        font-size: 0.6rem;
+    }
+    
+    .recipe-time, .recipe-servings {
+        font-size: 0.6rem;
+    }
+}

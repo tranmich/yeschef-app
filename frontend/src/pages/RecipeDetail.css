@@ -1,0 +1,1416 @@
+/* New Layout Styles - UPDATED v3.0 - SCROLLING FIXED */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #ffffff;
+}
+
+/* Notion-Inspired Layout System with dynamic resizing */
+.main-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  transition: all 0.3s ease; /* Smooth layout transitions */
+  /* Removed overflow: hidden to allow scrolling in meal planner */
+}
+
+/* Chat Area - Main Content with dynamic resizing */
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 0;
+  position: relative;
+  transition: all 0.3s ease; /* Smooth resize animation */
+  min-width: 400px;
+  /* Force layout calculation on load - fixes DevTools alignment issue */
+  transform: translateZ(0);
+  will-change: transform;
+  /* Ensure consistent width calculation base */
+  box-sizing: border-box;
+}
+
+/* When meal planner is open, chat area becomes smaller to accommodate larger planner */
+.chat-area.with-meal-planner {
+  flex: 0 0 55%; /* Reduced from 65% to 55% to accommodate 45% meal planner */
+}
+
+/* Meal Planner Sidebar - Truly hidden when not visible */
+.meal-planner-sidebar {
+  flex: 0 0 0%; /* No space when hidden */
+  width: 0; /* No width when hidden */
+  height: calc(100vh - 50px);
+  background: #ffffff;
+  border-left: 1px solid #e0e0e0;
+  transition: all 0.3s ease; /* Smooth resize and slide */
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden; /* Hidden when not visible */
+  opacity: 0; /* Hidden by default */
+}
+
+/* When meal planner is visible - takes more space and is scrollable */
+.meal-planner-sidebar.visible {
+  flex: 0 0 45% !important; /* Increased from 35% to 45% for better access */
+  width: auto !important; /* Allow natural width */
+  opacity: 1 !important; /* Fully visible */
+  overflow-y: auto !important; /* Enable vertical scrolling - override hidden */
+  overflow-x: auto !important; /* Enable horizontal scrolling for wide content */
+}
+
+/* Ensure scrollbars are visible in meal planner sidebar */
+.meal-planner-sidebar.visible::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.meal-planner-sidebar.visible::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+.meal-planner-sidebar.visible::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 6px;
+}
+
+.meal-planner-sidebar.visible::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Resize handle - hidden for integrated layout */
+.meal-planner-resize-handle {
+  display: none; /* Not needed for integrated push layout */
+}
+
+.meal-planner-resize-handle:hover {
+  background: #667eea;
+  opacity: 0.3;
+}
+
+/* Close button - positioned for integrated layout */
+.meal-planner-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #f1f3f4;
+  border: none;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20; /* Above content */
+  transition: all 0.2s ease;
+}
+
+.meal-planner-close:hover {
+  background: #e8eaed;
+}
+
+/* Chat Container - Clean new layout */
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 2rem 2rem 0 2rem; /* Top and side margins, no bottom */
+  background: white;
+  border-radius: 20px 20px 0 0; /* Rounded top only */
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+  /* DEBUGGING: Add visible border */
+  border: 2px solid red !important;
+  box-sizing: border-box;
+}
+
+.chat-area.with-meal-planner .chat-container {
+  margin: 1rem; /* Smaller margins when space is constrained */
+}
+
+/* Chat Input Container - Clean new layout */
+.chat-input-container {
+  margin: 0 2rem 2rem 2rem; /* Match chat-container horizontal margins exactly */
+  background: white;
+  border-radius: 0 0 20px 20px; /* Rounded bottom only */
+  box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.1);
+  /* DEBUGGING: Add visible border */
+  border: 2px solid blue !important;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 50; /* Ensure it's above meal planner */
+}
+
+.chat-area.with-meal-planner .chat-input-container {
+  margin: 0 1rem 1rem 1rem; /* Match compact layout */
+}
+
+/* Compact mode alignment fixes */
+.chat-area.with-meal-planner .chat-box {
+  padding: 1rem 1rem 1rem 1rem; /* Reduced padding for compact mode */
+}
+
+.chat-area.with-meal-planner .chat-input {
+  padding: 1rem 1rem 1rem 1rem; /* Match chat-box padding in compact mode */
+  gap: 0.75rem; /* Slightly smaller gap in compact mode */
+}
+
+/* Empty State Styling - ChatGPT inspired */
+.empty-chat-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 2rem;
+}
+
+.empty-state-content {
+  text-align: center;
+  max-width: 500px;
+}
+
+.empty-state-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.8;
+}
+
+.empty-state-content h3 {
+  font-size: 1.5rem;
+  color: #374151;
+  margin-bottom: 2rem;
+  font-weight: 600;
+}
+
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.chip {
+  background: #f3f4f6;
+  color: #6b7280;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #e5e7eb;
+}
+
+.chip:hover {
+  background: #e5e7eb;
+  color: #374151;
+  transform: translateY(-1px);
+}
+
+/* Chat Messages Area */
+.chat-box {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 1.5rem 1.5rem 1.5rem; /* Explicit padding for alignment */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  /* DEBUGGING: Add visible border */
+  border: 2px solid red !important;
+  box-sizing: border-box;
+}
+
+/* Chat Input Styles - Clean new layout */
+.chat-input {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem 1.5rem 1.5rem 1.5rem; /* Match chat-box padding exactly */
+  background: white;
+  border-radius: 0 0 20px 20px;
+  align-items: center;
+  border-top: 1px solid #f0f0f0; /* Subtle separator */
+  /* DEBUGGING: Add visible border */
+  border: 2px solid blue !important;
+  box-sizing: border-box;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 0.875rem 0; /* Remove horizontal padding to align with content */
+  border: none; /* Remove border for seamless look */
+  border-radius: 0;
+  font-size: 1rem;
+  outline: none;
+  background: transparent;
+  transition: all 0.2s ease;
+  /* DEBUGGING: Add visible border */
+  border: 1px solid green !important;
+  box-sizing: border-box;
+}
+
+.chat-area .chat-input input:focus {
+  background: rgba(102, 126, 234, 0.05) !important;
+  border-radius: 8px !important;
+  padding: 0.875rem 1rem !important; /* Add padding back on focus for better UX */
+}
+
+.chat-area .chat-input button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  font-size: 1.25rem;
+}
+
+.chat-input button:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.chat-input button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Meal Planner Styles - Updated to use new layout */
+.meal-planner-sidebar .meal-planner-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.meal-planner-sidebar .meal-planner-content {
+  flex: 1;
+  overflow: auto !important; /* Enable both horizontal and vertical scrolling */
+}
+
+.meal-planner-sidebar .meal-planner-layout.compact {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.meal-planner-sidebar .meal-calendar-section {
+  flex: 1;
+  overflow: auto !important; /* Enable both horizontal and vertical scrolling */
+  margin-bottom: 1rem;
+}
+
+.meal-planner-sidebar .saved-plans-panel.compact {
+  flex: 0 0 150px;
+  overflow-y: auto;
+}
+
+/* Legacy Chat Home Page Styles - Updated for new layout */
+.main-app {
+  display: flex;
+  min-height: 100vh;
+  transition: all 0.3s ease;
+}
+
+.main-app.with-meal-planner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.chat-home {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.main-app.with-meal-planner .chat-home {
+  flex: 0 0 65%;
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.chat-home.landing {
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-home.chat-started {
+  align-items: flex-start;
+  padding-top: 2rem;
+}
+
+/* New layout - chat area has its own container styling */
+.chat-home.landing .chat-container {
+  height: auto;
+  min-height: 200px;
+}
+
+.chat-home.chat-started .chat-container {
+  height: 85vh;
+}
+
+/* Recipe Overlay Styles */
+.expanded-recipe-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.expanded-recipe-content {
+  background: white;
+  border-radius: 15px;
+  padding: 2rem;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.expanded-recipe-content .recipe-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 1rem;
+}
+
+.close-recipe-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  margin: 0 0 0 10px;
+  transition: color 0.2s;
+}
+
+.close-recipe-btn:hover {
+  color: #ff4757;
+}
+
+/* Inline Recipe Link Styles */
+.inline-recipe-link {
+  color: #2563eb !important;
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: bold;
+  transition: color 0.2s;
+}
+
+.inline-recipe-link:hover {
+  color: #1d4ed8 !important;
+}
+
+.landing-header {
+  padding: 3rem 2rem 2rem 2rem;
+  text-align: center;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  color: white;
+}
+
+.landing-header h1 {
+  margin: 0 0 1rem 0;
+  font-size: 2.5rem;
+  font-weight: 600;
+}
+
+.landing-header p {
+  margin: 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.chat-container h1 {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  color: white;
+  margin: 0;
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.chat-box {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  background: #f8f9fa;
+  min-height: 400px;
+}
+
+.chat-message {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 18px;
+  max-width: 80%;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+.chat-message.user {
+  background: #007bff;
+  color: white;
+  margin-left: auto;
+  text-align: right;
+}
+
+.chat-message.hungie, .chat-message.bot {
+  background: white;
+  color: #333;
+  margin-right: auto;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  max-width: 95%;
+}
+
+.recipe-suggestions {
+  background: white;
+  border-top: 1px solid #e9ecef;
+  padding: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.recipe-suggestions h2 {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.recipe-suggestions ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recipe-suggestions li {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.recipe-suggestions li:hover {
+  background: #e9ecef;
+  border-color: #ff6b6b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.recipe-header {
+  display: flex;
+  justify-content: between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.recipe-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.recipe-header strong {
+  color: #2c3e50;
+  font-size: 1.1rem;
+  flex: 1;
+}
+
+.recipe-title-row strong.suggested {
+  opacity: 0.6;
+  color: #888;
+}
+
+.expand-indicator {
+  color: #ff6b6b;
+  font-size: 0.9rem;
+  font-weight: bold;
+  margin-left: auto;
+}
+
+.recipe-summary {
+  color: #666;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.expanded-recipe {
+  margin-top: 15px !important;
+  padding: 20px !important;
+  background: white !important;
+  border: 2px solid #ff6b6b !important;
+  border-radius: 15px !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+.ai-formatting-indicator {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 1rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  animation: pulse 2s infinite;
+}
+
+.ai-formatted-badge {
+  background: linear-gradient(135deg, #4ecdc4, #44a08d);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+.expanded-recipe h3 {
+  color: #2c3e50;
+  margin: 0 0 1rem 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.recipe-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
+.recipe-meta p {
+  margin: 0;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.recipe-ingredients, .recipe-instructions {
+  margin-bottom: 1.5rem;
+}
+
+.recipe-ingredients h4, .recipe-instructions h4 {
+  color: #ff6b6b;
+  margin: 0 0 0.75rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.ingredients-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ingredient-item {
+  background: #f8f9fa;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  border-left: 3px solid #ff6b6b;
+  color: #333;
+  line-height: 1.6;
+  font-size: 0.9rem;
+}
+
+.ingredient-content, .instruction-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.suggestion-checkbox {
+  margin-top: 0.1rem;
+  cursor: pointer;
+  transform: scale(1.1);
+}
+
+.ingredient-text, .instruction-text {
+  flex: 1;
+  line-height: 1.5;
+  transition: all 0.3s ease;
+}
+
+.ingredient-text.suggested,
+.instruction-text.suggested {
+  opacity: 0.6;
+  color: #888;
+}
+
+.instructions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: step-counter;
+}
+
+.instruction-item {
+  background: #f8f9fa;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  border-radius: 8px;
+  border-left: 3px solid #667eea;
+  color: #333;
+  line-height: 1.6;
+  font-size: 0.9rem;
+  counter-increment: step-counter;
+  position: relative;
+}
+
+.instruction-item::before {
+  content: counter(step-counter);
+  position: absolute;
+  left: -15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #667eea;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.instruction-text {
+  display: block;
+  margin-left: 20px;
+}
+
+.recipe-url {
+  text-align: center;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.recipe-url a {
+  color: #ff6b6b;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.recipe-url a:hover {
+  text-decoration: underline;
+}
+
+/* Loading Animation */
+.loading-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.typing-indicator {
+  display: flex;
+  gap: 3px;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6b6b;
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+  }
+}
+
+/* Responsive Design - Dynamic layout with larger meal planner */
+@media (max-width: 1200px) {
+  .meal-planner-sidebar.visible {
+    flex: 0 0 50% !important; /* Even larger on medium screens for better accessibility */
+    overflow-y: auto !important;
+    overflow-x: auto !important; /* Enable horizontal scrolling */
+  }
+  
+  .chat-area.with-meal-planner {
+    flex: 0 0 50%; /* Equal split on medium screens */
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-area {
+    min-width: auto;
+  }
+  
+  .meal-planner-sidebar.visible {
+    flex: 0 0 55% !important; /* Slightly larger meal planner on tablets */
+    overflow-y: auto !important;
+    overflow-x: auto !important; /* Enable horizontal scrolling */
+  }
+  
+  .chat-area.with-meal-planner {
+    flex: 0 0 45%; /* Smaller chat area on tablets */
+  }
+}
+
+@media (max-width: 600px) {
+  /* On mobile, meal planner takes full width */
+  .chat-area.with-meal-planner {
+    display: none; /* Hide chat when meal planner is open on mobile */
+  }
+  
+  .meal-planner-sidebar.visible {
+    flex: 1 !important; /* Full width */
+    overflow-y: auto !important;
+    overflow-x: auto !important; /* Enable horizontal scrolling */
+  }
+}
+  
+  .chat-home.chat-started .chat-container {
+    height: 90vh;
+  }
+  
+  .landing-header {
+    padding: 2rem 1.5rem 1.5rem 1.5rem;
+  }
+  
+  .landing-header h1 {
+    font-size: 2rem;
+  }
+  
+  .landing-header p {
+    font-size: 1rem;
+  }
+  
+  .chat-input.landing-mode {
+    padding: 1.5rem;
+  }
+  
+  .recipe-meta {
+    grid-template-columns: 1fr;
+  }
+  
+  .expanded-recipe {
+    padding: 15px !important;
+  }
+  
+  .ingredient-item, .instruction-item {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+  }
+  
+  .instruction-item::before {
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    left: -12px;
+  }
+  
+  .instruction-text {
+    margin-left: 15px;
+  }
+
+@media (max-width: 480px) {
+  .chat-home {
+    padding: 0.5rem;
+  }
+  
+  .chat-container {
+    border-radius: 10px;
+  }
+  
+  .chat-home.chat-started .chat-container {
+    height: 95vh;
+  }
+  
+  .landing-header {
+    padding: 1.5rem 1rem;
+  }
+  
+  .landing-header h1 {
+    font-size: 1.8rem;
+  }
+  
+  .landing-header p {
+    font-size: 0.9rem;
+  }
+  
+  .chat-input.landing-mode {
+    padding: 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .chat-input.landing-mode button {
+    width: 100%;
+  }
+  
+  .chat-message {
+    max-width: 90%;
+  }
+  
+  .recipe-suggestions {
+    padding: 0.75rem;
+  }
+  
+  .chat-input {
+    padding: 0.75rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .chat-input button {
+    width: 100%;
+  }
+}
+
+.no-recipes-message {
+  background: white;
+  border-top: 1px solid #e9ecef;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.no-recipes-message p {
+  margin: 0;
+  color: #666;
+  font-style: italic;
+}
+
+/* Recipe Detail Page Styles */
+.recipe-detail {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: white;
+  min-height: calc(100vh - 80px);
+}
+
+.recipe-header {
+  margin-bottom: 2rem;
+}
+
+.back-button {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  color: #666;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.back-button:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.recipe-title-section {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.recipe-title {
+  font-size: 2.5rem;
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.hungie-comment {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  color: white;
+  padding: 1rem;
+  border-radius: 12px;
+  margin: 1rem auto;
+  max-width: 600px;
+}
+
+.hungie-comment p {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.recipe-content {
+  display: grid;
+  gap: 2rem;
+}
+
+.recipe-description {
+  font-size: 1.1rem;
+  color: #666;
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.recipe-meta-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.meta-label {
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.meta-value {
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.recipe-categories {
+  margin-bottom: 2rem;
+}
+
+.recipe-categories h3 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.category-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.category-tag {
+  background: #ff6b6b;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+}
+
+.recipe-main-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.ingredients-section, .instructions-section {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.ingredients-section h2, .instructions-section h2 {
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.ingredients-list {
+  list-style: none;
+  padding: 0;
+}
+
+.ingredient-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.ingredient-item:last-child {
+  border-bottom: none;
+}
+
+.ingredient-amount {
+  font-weight: bold;
+  color: #ff6b6b;
+  min-width: 80px;
+}
+
+.ingredient-name {
+  flex: 1;
+  margin-left: 1rem;
+  color: #2c3e50;
+}
+
+.instructions-list {
+  list-style: none;
+  padding: 0;
+  counter-reset: step-counter;
+}
+
+.instruction-item {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  counter-increment: step-counter;
+}
+
+.step-number {
+  display: block;
+  font-weight: bold;
+  color: #ff6b6b;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.instruction-text {
+  color: #2c3e50;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.nutrition-section {
+  background: #f8f9fa;
+  padding: 2rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+}
+
+.nutrition-section h2 {
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.nutrition-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.nutrition-item {
+  text-align: center;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+}
+
+.nutrition-label {
+  display: block;
+  font-weight: bold;
+  color: #666;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.nutrition-value {
+  color: #2c3e50;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.recipe-footer {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #f1f3f4;
+}
+
+.hungie-encouragement {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.hungie-encouragement p {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.original-source {
+  text-align: center;
+  color: #666;
+}
+
+.original-source a {
+  color: #ff6b6b;
+  text-decoration: none;
+}
+
+.original-source a:hover {
+  text-decoration: underline;
+}
+
+/* Loading and Error States for Recipe Detail */
+.loading-container, .error-container {
+  text-align: center;
+  padding: 4rem 2rem;
+  min-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.loading-spinner {
+  font-size: 4rem;
+  animation: bounce 1.5s infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-20px);
+  }
+  60% {
+    transform: translateY(-10px);
+  }
+}
+
+.error-container h2 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-size: 2rem;
+}
+
+.error-container p {
+  color: #666;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+/* Responsive Design for Recipe Detail */
+@media (max-width: 768px) {
+  .recipe-detail {
+    padding: 1rem;
+  }
+  
+  .recipe-title {
+    font-size: 2rem;
+  }
+  
+  .recipe-main-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .recipe-meta-info {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .ingredients-section, .instructions-section {
+    padding: 1.5rem;
+  }
+  
+  .nutrition-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .recipe-detail {
+    padding: 0.5rem;
+  }
+  
+  .recipe-title {
+    font-size: 1.5rem;
+  }
+  
+  .recipe-meta-info {
+    grid-template-columns: 1fr;
+  }
+  
+  .ingredients-section, .instructions-section {
+    padding: 1rem;
+  }
+  
+  .ingredient-item {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+  
+  .ingredient-name {
+    margin-left: 0;
+    margin-top: 0.25rem;
+  }
+}
+
+/* Quick Prompts Styles */
+.quick-prompts {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.quick-prompts h3 {
+  color: #4a5568;
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.prompt-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.quick-prompt-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.quick-prompt-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.quick-prompt-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+@media (max-width: 768px) {
+  .prompt-buttons {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+  }
+  
+  .quick-prompt-btn {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* Meal Planner Integration Styles */
+.chat-input {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.meal-planner-toggle {
+  background: linear-gradient(135deg, #ff7043 0%, #f4511e 100%);
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(255, 112, 67, 0.3);
+  white-space: nowrap;
+}
+
+.meal-planner-toggle:hover {
+  background: linear-gradient(135deg, #f4511e 0%, #d84315 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255, 112, 67, 0.4);
+}
+
+.meal-planner-toggle.active {
+  background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+}
+
+.meal-planner-toggle.active:hover {
+  background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.4);
+}
+
+@media (max-width: 768px) {
+  .meal-planner-toggle {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.8rem;
+  }
+}
