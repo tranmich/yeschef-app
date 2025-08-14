@@ -72,7 +72,7 @@ CORS(app, resources={
 
 # Initialize Authentication System
 try:
-    auth_system = AuthenticationSystem(app)
+    # auth_system = AuthenticationSystem(app)  # Moved to after DB init
     auth_routes = create_auth_routes(auth_system)
     app.register_blueprint(auth_routes)
     logger.info("ðŸ” Authentication system initialized and routes registered")
