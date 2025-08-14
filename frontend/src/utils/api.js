@@ -74,8 +74,8 @@ export const searchRecipes = (query) => apiCall(`/api/search?q=${encodeURICompon
 export const getRecipe = (id) => apiCall(`/api/recipes/${id}`);
 export const smartSearch = (message, context = '', options = {}) => apiCall('/api/smart-search', {
   method: 'POST',
-  body: JSON.stringify({ 
-    message, 
+  body: JSON.stringify({
+    message,
     context,
     skipRecipeSearch: options.skipRecipeSearch || false
   }),
