@@ -1,9 +1,15 @@
 ﻿import axios from "axios";
 
 const getApiUrl = () => {
+  // Debug logging for production
+  console.log("NODE_ENV:", process.env.NODE_ENV);
+  
   if (process.env.NODE_ENV === "development") {
+    console.log("Using development API URL");
     return "http://localhost:5000";
   }
+  
+  console.log("Using production API URL");
   return "https://yeschefapp-production.up.railway.app";
 };
 
