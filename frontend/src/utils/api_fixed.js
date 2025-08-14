@@ -2,12 +2,7 @@
 
 // Environment-based API URL with production fallback
 const getApiUrl = () => {
-  // Force production Railway backend URL when deployed on Vercel
-  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return 'https://yeschefapp-production.up.railway.app';
-  }
-  
-  // Production environment check as backup
+  // Production Railway backend URL
   if (process.env.NODE_ENV === 'production') {
     return 'https://yeschefapp-production.up.railway.app';
   }
@@ -18,11 +13,11 @@ const getApiUrl = () => {
 
 const API_BASE_URL = getApiUrl();
 
-console.log('🚀 API Configuration [FIXED]:', {
+console.log('🚀 API Configuration [UPDATED]:', {
   API_BASE_URL,
-  hostname: window.location.hostname,
   environment: process.env.NODE_ENV,
   production: process.env.NODE_ENV === 'production',
+  envVar: process.env.REACT_APP_API_URL,
   finalUrl: API_BASE_URL,
   timestamp: new Date().toISOString()
 });
