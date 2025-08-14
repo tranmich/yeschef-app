@@ -287,7 +287,12 @@ class AuthenticationSystem:
                     VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
                     RETURNING id
                 ''', (name, email, password_hash, oauth_provider, oauth_id))
-                user_id = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                user_id = result[0] if result else None
+                
+                if not user_id:
+                    logger.error("Failed to get user ID after PostgreSQL insert")
+                    return {'success': False, 'message': 'Registration failed - database error'}
             else:
                 # SQLite - use lastrowid
                 cursor.execute(f'''
