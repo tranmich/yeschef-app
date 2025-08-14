@@ -1,21 +1,8 @@
 ﻿import axios from "axios";
 
 const getApiUrl = () => {
-  // Check for explicit API URL from environment
-  if (process.env.REACT_APP_API_URL) {
-    console.log("Using environment API URL:", process.env.REACT_APP_API_URL);
-    return process.env.REACT_APP_API_URL;
-  }
-  
-  // Debug logging for production
-  console.log("NODE_ENV:", process.env.NODE_ENV);
-  
-  if (process.env.NODE_ENV === "development") {
-    console.log("Using development API URL");
-    return "http://localhost:5000";
-  }
-  
-  console.log("Using production API URL");
+  // HARDCODE the correct URL to bypass all environment variable issues
+  console.log("HARDCODED API URL: https://yeschefapp-production.up.railway.app");
   return "https://yeschefapp-production.up.railway.app";
 };
 
