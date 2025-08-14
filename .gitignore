@@ -36,7 +36,7 @@ env/
 ENV/
 
 # Database files
-*.db
+# *.db  # Temporarily allow hungie.db to be deployed
 *.sqlite3
 hungie.db
 
@@ -80,3 +80,4 @@ tmp/
 # Test coverage
 coverage/
 *.lcov
+.vercel
