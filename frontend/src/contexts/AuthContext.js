@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+﻿import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 import { apiCall } from '../utils/api';
 
@@ -15,7 +15,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('authToken'));
+  const [token, setToken] = useState(null);
 
   // Configure axios defaults
   useEffect(() => {
@@ -29,20 +29,22 @@ export const AuthProvider = ({ children }) => {
   // Check if user is logged in on app start
   useEffect(() => {
     const initializeAuth = async () => {
-      const savedToken = localStorage.getItem('authToken');
-      if (savedToken) {
-        try {
-          setToken(savedToken);
-          const response = await apiCall('/api/auth/me', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${savedToken}`
-            }
-          });
-          setUser(response.user);
-        } catch (error) {
-          console.error('Token validation failed:', error);
-          logout();
+      if (typeof window !== 'undefined') {
+        const savedToken = localStorage.getItem('authToken');
+        if (savedToken) {
+          try {
+            setToken(savedToken);
+            const response = await apiCall('/api/auth/me', {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${savedToken}`
+              }
+            });
+            setUser(response.user);
+          } catch (error) {
+            console.error('Token validation failed:', error);
+            logout();
+          }
         }
       }
       setLoading(false);
@@ -66,8 +68,10 @@ export const AuthProvider = ({ children }) => {
 
       const { access_token, user: userData } = response;
       
-      // Store token and user data
-      localStorage.setItem('authToken', access_token);
+      // Store token and user data (with SSR safety)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('authToken', access_token);
+      }
       setToken(access_token);
       setUser(userData);
       
@@ -97,8 +101,10 @@ export const AuthProvider = ({ children }) => {
 
       const { access_token, user: userData } = response;
       
-      // Store token and user data
-      localStorage.setItem('authToken', access_token);
+      // Store token and user data (with SSR safety)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('authToken', access_token);
+      }
       setToken(access_token);
       setUser(userData);
       
@@ -113,7 +119,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('authToken');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+    }
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];
