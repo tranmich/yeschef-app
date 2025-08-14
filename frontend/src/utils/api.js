@@ -1,15 +1,14 @@
-// API Configuration and Utilities
+﻿// API Configuration and Utilities
 
 // Environment-based API URL with production fallback
 const getApiUrl = () => {
-  // Force local backend for debugging - Port 5000 for stability as per documentation
-  return 'http://localhost:5000';
+  // Production Railway backend URL
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://yeschefapp-production.up.railway.app';
+  }
   
-  // Original logic (commented out for debugging)
-  // if (process.env.NODE_ENV === 'production') {
-  //   return 'https://hungie-backend-production.up.railway.app';
-  // }
-  // return process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  // Development fallback
+  return process.env.REACT_APP_API_URL || 'http://localhost:5000';
 };
 
 const API_BASE_URL = getApiUrl();
@@ -22,11 +21,19 @@ console.log('🚀 API Configuration [UPDATED]:', {
   finalUrl: API_BASE_URL,
   timestamp: new Date().toISOString()
 });
+console.log('ðŸš€ API Configuration [UPDATED]:', {
+  API_BASE_URL,
+  environment: process.env.NODE_ENV,
+  production: process.env.NODE_ENV === 'production',
+  envVar: process.env.REACT_APP_API_URL,
+  finalUrl: API_BASE_URL,
+  timestamp: new Date().toISOString()
+});
 
 export const apiCall = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
   
-  console.log('📡 API Call:', { url, method: options.method || 'GET' });
+  console.log('ðŸ“¡ API Call:', { url, method: options.method || 'GET' });
   
   const defaultOptions = {
     headers: {
@@ -46,7 +53,7 @@ export const apiCall = async (endpoint, options = {}) => {
   try {
     const response = await fetch(url, mergedOptions);
     
-    console.log('📡 API Response:', { 
+    console.log('ðŸ“¡ API Response:', { 
       url, 
       status: response.status, 
       statusText: response.statusText,
@@ -56,7 +63,7 @@ export const apiCall = async (endpoint, options = {}) => {
     if (!response.ok) {
       // Try to get error details
       const errorText = await response.text();
-      console.error('❌ API Error Details:', { 
+      console.error('âŒ API Error Details:', { 
         status: response.status, 
         statusText: response.statusText,
         responseText: errorText.substring(0, 500),
@@ -68,7 +75,7 @@ export const apiCall = async (endpoint, options = {}) => {
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       const textResponse = await response.text();
-      console.error('❌ Non-JSON Response:', {
+      console.error('âŒ Non-JSON Response:', {
         contentType,
         url,
         responseText: textResponse.substring(0, 500),
@@ -79,7 +86,7 @@ export const apiCall = async (endpoint, options = {}) => {
     
     return await response.json();
   } catch (error) {
-    console.error('💥 API call error:', error);
+    console.error('ðŸ’¥ API call error:', error);
     throw error;
   }
 };
