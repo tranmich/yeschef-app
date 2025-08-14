@@ -279,17 +279,21 @@ class AuthenticationSystem:
             if password:
                 password_hash = self.bcrypt.generate_password_hash(password).decode('utf-8')
             
-            # Insert new user
-            cursor.execute(f'''
-                INSERT INTO users (name, email, password_hash, oauth_provider, oauth_id)
-                VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
-            ''', (name, email, password_hash, oauth_provider, oauth_id))
-            
-            # Get the user ID (different for PostgreSQL vs SQLite)
+            # Insert new user with proper ID retrieval for PostgreSQL vs SQLite
             if database_url:
-                cursor.execute('SELECT lastval()')
+                # PostgreSQL - use RETURNING clause
+                cursor.execute(f'''
+                    INSERT INTO users (name, email, password_hash, oauth_provider, oauth_id)
+                    VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                    RETURNING id
+                ''', (name, email, password_hash, oauth_provider, oauth_id))
                 user_id = cursor.fetchone()[0]
             else:
+                # SQLite - use lastrowid
+                cursor.execute(f'''
+                    INSERT INTO users (name, email, password_hash, oauth_provider, oauth_id)
+                    VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                ''', (name, email, password_hash, oauth_provider, oauth_id))
                 user_id = cursor.lastrowid
             
             # Create default preferences
