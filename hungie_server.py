@@ -6,6 +6,8 @@ Complete recipe search, meal planning, and grocery list functionality
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import json, os, sqlite3
+import psycopg2
+import psycopg2.extras
 import openai
 from dotenv import load_dotenv
 from pathlib import Path
@@ -115,12 +117,94 @@ except ImportError as e:
 def get_db_connection():
     """Get database connection with proper error handling"""
     try:
-        conn = sqlite3.connect('hungie.db')
-        conn.row_factory = sqlite3.Row  # Enable column access by name
-        return conn
+        # Use PostgreSQL connection from Railway environment
+        database_url = os.getenv('DATABASE_URL')
+        if database_url:
+            # PostgreSQL connection
+            conn = psycopg2.connect(database_url)
+            conn.cursor_factory = psycopg2.extras.RealDictCursor
+            logger.info("✅ Connected to PostgreSQL database")
+            return conn
+        else:
+            # Fallback to SQLite for local development
+            conn = sqlite3.connect('hungie.db')
+            conn.row_factory = sqlite3.Row
+            logger.info("✅ Connected to SQLite database (local)")
+            return conn
     except Exception as e:
         logger.error(f"Database connection error: {e}")
         raise
+
+def init_db():
+    """Initialize database tables"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if we're using PostgreSQL or SQLite
+        database_url = os.getenv('DATABASE_URL')
+        
+        if database_url:
+            # PostgreSQL schema
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS recipes (
+                    id SERIAL PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    ingredients TEXT,
+                    instructions TEXT,
+                    image_url TEXT,
+                    source TEXT,
+                    category TEXT,
+                    flavor_profile TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+        else:
+            # SQLite schema (for local development)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS recipes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    ingredients TEXT,
+                    instructions TEXT,
+                    image_url TEXT,
+                    source TEXT,
+                    category TEXT,
+                    flavor_profile TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+        
+        conn.commit()
+        conn.close()
+        logger.info("✅ Database tables initialized successfully")
+        
+    except Exception as e:
+        logger.error(f"Database initialization error: {e}")
+        if 'conn' in locals():
+            conn.close()
 
 # Core search function - ENHANCED WITH INTELLIGENT INGREDIENT RECOGNITION
 def search_recipes_by_query(query, limit=20):
@@ -1331,6 +1415,13 @@ def health_check():
             logger.error("Please check if ports are available and try again")
 if __name__ == "__main__":
     logger.info("🚀 Starting Yes Chef! Backend Server...")
+    
+    # Initialize database
+    try:
+        init_db()
+        logger.info("✅ Database initialization completed")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
     
     # Production hosting configuration (Railway/Heroku compatible)
     port = int(os.environ.get("PORT", 5000))
