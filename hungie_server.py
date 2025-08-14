@@ -54,10 +54,7 @@ CHEF_PERSONALITY = """You are Hungie, an enthusiastic and knowledgeable personal
 # Initialize Flask app
 app = Flask(__name__)
 
-# Enable CORS globally first
-CORS(app)
-
-# Then add specific CORS configuration
+# Configure CORS properly - use only one method
 CORS(app, resources={
     r"/api/*": {
         "origins": [
@@ -70,17 +67,6 @@ CORS(app, resources={
         "supports_credentials": True
     }
 })
-
-# Add manual CORS headers for all responses
-@app.after_request
-def after_request(response):
-    origin = request.headers.get('Origin')
-    if origin in ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://yeschef-app.vercel.app']:
-        response.headers.add('Access-Control-Allow-Origin', origin)
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    return response
 
 # Initialize Authentication System
 try:
