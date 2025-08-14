@@ -390,6 +390,78 @@ def serve_static(path):
     """Serve static files"""
     return send_from_directory('static', path)
 
+@app.route('/api/recipes', methods=['POST'])
+def create_recipe():
+    """Create a new recipe"""
+    try:
+        data = request.get_json()
+        if not data or not data.get('title'):
+            return jsonify({
+                'success': False,
+                'error': 'Recipe title is required'
+            }), 400
+        
+        # Insert recipe into database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if we're using PostgreSQL or SQLite for proper syntax
+        database_url = os.getenv('DATABASE_URL')
+        
+        if database_url:
+            # PostgreSQL syntax with RETURNING
+            cursor.execute('''
+                INSERT INTO recipes (title, description, ingredients, instructions, image_url, source, category, flavor_profile)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            ''', (
+                data.get('title', ''),
+                data.get('description', ''),
+                data.get('ingredients', ''),
+                data.get('instructions', ''),
+                data.get('image_url', ''),
+                data.get('source', ''),
+                data.get('category', ''),
+                data.get('flavor_profile', '')
+            ))
+            recipe_id = cursor.fetchone()['id']
+        else:
+            # SQLite syntax
+            cursor.execute('''
+                INSERT INTO recipes (title, description, ingredients, instructions, image_url, source, category, flavor_profile)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                data.get('title', ''),
+                data.get('description', ''),
+                data.get('ingredients', ''),
+                data.get('instructions', ''),
+                data.get('image_url', ''),
+                data.get('source', ''),
+                data.get('category', ''),
+                data.get('flavor_profile', '')
+            ))
+            recipe_id = cursor.lastrowid
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"✅ Recipe created: {data.get('title')} (ID: {recipe_id})")
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'id': recipe_id,
+                'message': 'Recipe created successfully'
+            }
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Create recipe API error: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Database error: {str(e)}'
+        }), 500
+
 @app.route('/api/recipes/<recipe_id>', methods=['GET'])
 def get_recipe(recipe_id):
     """Get a single recipe"""
