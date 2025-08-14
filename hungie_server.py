@@ -55,13 +55,10 @@ CHEF_PERSONALITY = """You are Hungie, an enthusiastic and knowledgeable personal
 app = Flask(__name__)
 CORS(app, resources={
     r"/api/*": {
-        "origins": [
-            "http://localhost:3000", 
-            "http://127.0.0.1:3000",
-            "https://yeschef-app.vercel.app"
-        ],
+        "origins": ["*"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
     }
 })
 
