@@ -1,5 +1,5 @@
 {
-  "name": "yeschef-frontend", 
+  "name": "yeschef-frontend",
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "build",

@@ -17,7 +17,7 @@ const GroceryListGenerator = ({ recipeIds = [], onClose }) => {
     const generateGroceryList = async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             const response = await fetch(`${getApiUrl()}/api/grocery-list`, {
                 method: 'POST',
@@ -54,7 +54,7 @@ const GroceryListGenerator = ({ recipeIds = [], onClose }) => {
 
     const exportToGoogleKeep = () => {
         if (!groceryList || !groceryList.google_keep_format) return;
-        
+
         const items = groceryList.google_keep_format.join('\n');
         copyToClipboard(items);
     };
@@ -73,8 +73,8 @@ const GroceryListGenerator = ({ recipeIds = [], onClose }) => {
                             {items.map((item, index) => (
                                 <li key={index} className="grocery-item">
                                     <label className="grocery-item-label">
-                                        <input 
-                                            type="checkbox" 
+                                        <input
+                                            type="checkbox"
                                             className="grocery-checkbox"
                                         />
                                         <span className="item-text">
@@ -104,8 +104,8 @@ const GroceryListGenerator = ({ recipeIds = [], onClose }) => {
                     {groceryList.alphabetical.map((item, index) => (
                         <li key={index} className="grocery-item">
                             <label className="grocery-item-label">
-                                <input 
-                                    type="checkbox" 
+                                <input
+                                    type="checkbox"
                                     className="grocery-checkbox"
                                 />
                                 <span className="item-text">

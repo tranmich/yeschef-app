@@ -6,10 +6,10 @@ import DraggableRecipeCard from './DraggableRecipeCard';
 import { getApiUrl } from '../utils/api';
 import './MealPlannerView.css';
 
-const MealPlannerView = ({ 
-    searchResults = [], 
-    isVisible = false, 
-    isCompactMode = false, 
+const MealPlannerView = ({
+    searchResults = [],
+    isVisible = false,
+    isCompactMode = false,
     chatRecipes = [],
     mealPlan,
     setMealPlan
@@ -45,7 +45,7 @@ const MealPlannerView = ({
         try {
             const response = await fetch(`${getApiUrl()}/api/meal-plans`);
             const data = await response.json();
-            
+
             if (data.success) {
                 setSavedMealPlans(data.meal_plans);
             }
@@ -58,7 +58,7 @@ const MealPlannerView = ({
         try {
             const response = await fetch(`${getApiUrl()}/api/favorites`);
             const data = await response.json();
-            
+
             if (data.success) {
                 setFavorites(data.favorites);
             }
@@ -196,7 +196,7 @@ const MealPlannerView = ({
         <div className="meal-planner-view">
             <div className="meal-planner-header">
                 <h2>🍽️ Meal Planner</h2>
-                
+
                 <div className="meal-planner-controls">
                     <input
                         type="text"
@@ -205,23 +205,23 @@ const MealPlannerView = ({
                         onChange={(e) => setCurrentPlanName(e.target.value)}
                         className="meal-plan-name-input"
                     />
-                    
-                    <button 
+
+                    <button
                         onClick={saveMealPlan}
                         disabled={loading || !currentPlanName.trim()}
                         className="save-plan-btn"
                     >
                         {loading ? '💾 Saving...' : '💾 Save Plan'}
                     </button>
-                    
-                    <button 
+
+                    <button
                         onClick={() => setShowGroceryList(!showGroceryList)}
                         className="grocery-list-btn"
                     >
                         🛒 {showGroceryList ? 'Hide' : 'Show'} Grocery List
                     </button>
-                    
-                    <button 
+
+                    <button
                         onClick={clearMealPlan}
                         className="clear-plan-btn"
                     >
@@ -232,75 +232,75 @@ const MealPlannerView = ({
 
             <div className="meal-planner-content">
                 <div className={`meal-planner-layout ${isCompactMode ? 'compact' : ''}`}>
-                        {/* Recipe Sources Panel - Hide in compact mode */}
-                        {!isCompactMode && (
-                            <div className="recipe-sources-panel">
-                                <div className="search-results-section">
-                                    <h3>🔍 Search Results</h3>
-                                    <div className="draggable-recipes scrollable">
-                                        {searchResults.map(recipe => (
-                                            <DraggableRecipeCard
-                                                key={`search-${recipe.id}`}
-                                                recipe={recipe}
-                                                id={recipe.id.toString()}
-                                                onToggleFavorite={() => toggleFavorite(recipe)}
-                                                compact={true}
-                                            />
-                                        ))}
-                                        {searchResults.length === 0 && (
-                                            <p className="no-results">
-                                                {isCompactMode ? 
-                                                    "Drag recipes from the chat to add to your meal plan" :
-                                                    "Search for recipes or drag from chat to add to your meal plan"
-                                                }
-                                            </p>
-                                        )}
-                                    </div>
+                    {/* Recipe Sources Panel - Hide in compact mode */}
+                    {!isCompactMode && (
+                        <div className="recipe-sources-panel">
+                            <div className="search-results-section">
+                                <h3>🔍 Search Results</h3>
+                                <div className="draggable-recipes scrollable">
+                                    {searchResults.map(recipe => (
+                                        <DraggableRecipeCard
+                                            key={`search-${recipe.id}`}
+                                            recipe={recipe}
+                                            id={recipe.id.toString()}
+                                            onToggleFavorite={() => toggleFavorite(recipe)}
+                                            compact={true}
+                                        />
+                                    ))}
+                                    {searchResults.length === 0 && (
+                                        <p className="no-results">
+                                            {isCompactMode ?
+                                                "Drag recipes from the chat to add to your meal plan" :
+                                                "Search for recipes or drag from chat to add to your meal plan"
+                                            }
+                                        </p>
+                                    )}
                                 </div>
-
-                                <FavoritesPanel
-                                    favorites={favorites}
-                                    onToggleFavorite={toggleFavorite}
-                                    onRefresh={loadFavorites}
-                                />
                             </div>
-                        )}
 
-                        {/* Meal Calendar */}
-                        <div className="meal-calendar-section">
-                            <MealCalendar
-                                mealPlan={currentMealPlan}
-                                onRemoveRecipe={removeRecipeFromMealPlan}
+                            <FavoritesPanel
+                                favorites={favorites}
+                                onToggleFavorite={toggleFavorite}
+                                onRefresh={loadFavorites}
                             />
                         </div>
+                    )}
 
-                        {/* Saved Plans Panel - Compact in sidebar mode */}
-                        <div className={`saved-plans-panel ${isCompactMode ? 'compact' : ''}`}>
-                            <h3>📋 Saved Plans</h3>
-                            <div className="saved-plans-list">
-                                {savedMealPlans.map(plan => (
-                                    <div key={plan.id} className="saved-plan-item">
-                                        <div className="plan-info">
-                                            <strong>{plan.plan_name}</strong>
-                                            <small>{plan.week_start_date}</small>
-                                        </div>
-                                        <button
-                                            onClick={() => loadMealPlan(plan.id)}
-                                            className="load-plan-btn"
-                                        >
-                                            📂 Load
-                                        </button>
+                    {/* Meal Calendar */}
+                    <div className="meal-calendar-section">
+                        <MealCalendar
+                            mealPlan={currentMealPlan}
+                            onRemoveRecipe={removeRecipeFromMealPlan}
+                        />
+                    </div>
+
+                    {/* Saved Plans Panel - Compact in sidebar mode */}
+                    <div className={`saved-plans-panel ${isCompactMode ? 'compact' : ''}`}>
+                        <h3>📋 Saved Plans</h3>
+                        <div className="saved-plans-list">
+                            {savedMealPlans.map(plan => (
+                                <div key={plan.id} className="saved-plan-item">
+                                    <div className="plan-info">
+                                        <strong>{plan.plan_name}</strong>
+                                        <small>{plan.week_start_date}</small>
                                     </div>
-                                ))}
-                                {savedMealPlans.length === 0 && (
-                                    <p className="no-saved-plans">
-                                        No saved meal plans yet
-                                    </p>
-                                )}
-                            </div>
+                                    <button
+                                        onClick={() => loadMealPlan(plan.id)}
+                                        className="load-plan-btn"
+                                    >
+                                        📂 Load
+                                    </button>
+                                </div>
+                            ))}
+                            {savedMealPlans.length === 0 && (
+                                <p className="no-saved-plans">
+                                    No saved meal plans yet
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
+            </div>
 
             {/* Grocery List */}
             {showGroceryList && (

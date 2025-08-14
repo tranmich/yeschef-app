@@ -67,14 +67,14 @@ export const AuthProvider = ({ children }) => {
       });
 
       const { access_token, user: userData } = response;
-      
+
       // Store token and user data (with SSR safety)
       if (typeof window !== 'undefined') {
         localStorage.setItem('authToken', access_token);
       }
       setToken(access_token);
       setUser(userData);
-      
+
       return { success: true, user: userData };
     } catch (error) {
       console.error('Login failed:', error);
@@ -100,14 +100,14 @@ export const AuthProvider = ({ children }) => {
       });
 
       const { access_token, user: userData } = response;
-      
+
       // Store token and user data (with SSR safety)
       if (typeof window !== 'undefined') {
         localStorage.setItem('authToken', access_token);
       }
       setToken(access_token);
       setUser(userData);
-      
+
       return { success: true, user: userData };
     } catch (error) {
       console.error('Registration failed:', error);
