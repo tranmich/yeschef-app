@@ -1295,14 +1295,15 @@ def health_check():
             'error': str(e)
         }), 500
 
+if __name__ == "__main__":
     logger.info("ðŸš€ Starting Hungie Backend Server...")
     logger.info("ðŸš€ Server starting on http://localhost:5000")
     
     # Windows-stable configuration with error handling
     try:
         app.run(
-            host="127.0.0.1",   # Use localhost only for Windows stability
-            port=5000,          # Use standard Flask port
+            host=host,   # Use localhost only for Windows stability
+            port=port,          # Use standard Flask port
             debug=False,        # Disable debug for stability
             use_reloader=False, # Disable reloader to prevent conflicts
             threaded=True       # Enable threading
@@ -1313,7 +1314,7 @@ def health_check():
         try:
             logger.info("ðŸ”„ Trying alternative port 5001...")
             app.run(
-                host="127.0.0.1",
+                host=host,
                 port=5001,
                 debug=False,
                 use_reloader=False,
@@ -1322,23 +1323,3 @@ def health_check():
         except Exception as e2:
             logger.error(f"âŒ Fallback also failed: {e2}")
             logger.error("Please check if ports are available and try again")
-if __name__ == "__main__":
-    logger.info("🚀 Starting Yes Chef! Backend Server...")
-    
-    # Production hosting configuration (Railway/Heroku compatible)
-    port = int(os.environ.get("PORT", 5000))
-    host = os.environ.get("HOST", "0.0.0.0")
-    
-    logger.info(f"🚀 Server starting on {host}:{port}")
-    
-    try:
-        app.run(
-            host=host,
-            port=port,
-            debug=False,
-            use_reloader=False,
-            threaded=True
-        )
-    except Exception as e:
-        logger.error(f"❌ Server startup failed: {e}")
-        logger.error("Please check if ports are available and try again")
