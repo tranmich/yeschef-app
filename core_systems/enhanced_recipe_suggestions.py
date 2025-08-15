@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Enhanced Recipe Suggestion Engine
-Properly utilizes all 778 recipes with session memory and intelligent cycling
+Enhanced Recipe Suggestion Engine - PostgreSQL Production Version
+Fully compatible with Railway PostgreSQL deployment
+Now uses unified database connection from hungie_server.py
 """
 
-import sqlite3
 import psycopg2
 import psycopg2.extras
 import os
@@ -156,9 +156,32 @@ class SmartRecipeSuggestionEngine:
         }
     
     def get_database_connection(self):
-        """Get database connection with PostgreSQL/SQLite fallback"""
+        """Get database connection using shared connection logic from hungie_server.py"""
         try:
-            # Use PostgreSQL connection from Railway environment
+            # Import the shared connection function from the main server
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            
+            # Use the shared get_db_connection function from hungie_server.py
+            from hungie_server import get_db_connection
+            
+            conn = get_db_connection()
+            if conn:
+                # Detect database type based on connection object
+                if hasattr(conn, 'server_version'):
+                    # PostgreSQL connection
+                    self.is_postgresql = True
+                else:
+                    # Should be PostgreSQL in production, but handle gracefully
+                    self.is_postgresql = True
+                return conn
+            else:
+                print("Failed to get database connection from shared function")
+                return None
+        except ImportError as e:
+            print(f"Could not import shared connection function: {e}")
+            # Direct PostgreSQL connection as fallback
             database_url = os.getenv('DATABASE_URL')
             if database_url:
                 # PostgreSQL connection
@@ -167,18 +190,16 @@ class SmartRecipeSuggestionEngine:
                 self.is_postgresql = True
                 return conn
             else:
-                # Fallback to SQLite for local development
-                conn = sqlite3.connect('hungie.db')
-                conn.row_factory = sqlite3.Row
-                self.is_postgresql = False
-                return conn
+                print("❌ No DATABASE_URL found - PostgreSQL connection required")
+                print("💡 For local testing, use: railway run python your_script.py")
+                return None
         except Exception as e:
             print(f"Database connection error: {e}")
             return None
     
     def get_placeholder(self):
-        """Get the correct SQL placeholder for the database type"""
-        return "%s" if getattr(self, 'is_postgresql', False) else "?"
+        """Get the correct SQL placeholder - PostgreSQL uses %s"""
+        return "%s"
     
     def analyze_user_request(self, query):
         """Enhanced analysis of user request to extract preferences and intent"""
@@ -368,23 +389,18 @@ class SmartRecipeSuggestionEngine:
         # Build final query with relevance scoring
         where_clause = " AND ".join(conditions) if conditions else "1=1"
         
-        # Simple relevance approach: order by title match first, then random
+        # Simple relevance approach: order by title match first, then by ID for consistent randomness
         order_clause = "ORDER BY "
         if preferences['ingredients']:
             # Create title relevance check for primary ingredient
             primary_ingredient = preferences['ingredients'][0]
             primary_keywords = self.ingredient_keywords[primary_ingredient]
-            title_conditions = " OR ".join([f"r.title LIKE '%{keyword}%'" for keyword in primary_keywords])
+            title_conditions = " OR ".join([f"LOWER(r.title) LIKE '%{keyword.lower()}%'" for keyword in primary_keywords])
             order_clause += f"CASE WHEN ({title_conditions}) THEN 1 ELSE 2 END, "
         
-        # Use database-specific random function - PostgreSQL requires RANDOM() to be in SELECT for DISTINCT
-        if self.is_postgresql:
-            # For PostgreSQL, we'll use a different approach to avoid DISTINCT + RANDOM issue
-            random_func = "r.id"  # Use ID for consistent ordering instead of RANDOM with DISTINCT
-        else:
-            random_func = "RANDOM()"
-        
-        order_clause += f"{random_func} LIMIT {placeholder}"
+        # Use ID-based pseudo-randomness instead of RANDOM() to avoid DISTINCT issues
+        # This gives us consistent but varied results per session
+        order_clause += f"(r.id * 31) % 1000, r.id LIMIT {placeholder}"
         params.append(str(limit))
         
         query = f"""
@@ -443,13 +459,8 @@ class SmartRecipeSuggestionEngine:
                     recipe_types = self.classify_recipe_types(row['title'], row['instructions'] or '')
                     
                     # Safely handle servings data with proper defaults
-                    # Handle both SQLite Row objects and PostgreSQL RealDictRow objects
-                    if hasattr(row, 'get'):
-                        # PostgreSQL RealDictRow - use .get() method
-                        servings_value = row.get('servings') or ''
-                    else:
-                        # SQLite Row - use dictionary-style access with fallback
-                        servings_value = row['servings'] if row['servings'] else ''
+                    # PostgreSQL returns RealDictRow objects
+                    servings_value = row.get('servings') or ''
                     
                     if not servings_value or servings_value.strip() == '':
                         servings_value = 'Serves 4'
@@ -734,41 +745,73 @@ class SmartRecipeSuggestionEngine:
         return response
     
     def get_database_stats(self):
-        """Get database statistics for debugging"""
+        """Get database statistics for debugging - PostgreSQL compatible"""
         conn = self.get_database_connection()
         if not conn:
             return {}
         
         cursor = conn.cursor()
+        placeholder = self.get_placeholder()
         
         stats = {}
         
-        # Total recipes
-        cursor.execute("SELECT COUNT(*) as count FROM recipes")
-        result = cursor.fetchone()
-        stats['total_recipes'] = result['count'] if getattr(self, 'is_postgresql', False) else result[0]
+        try:
+            # Total recipes
+            cursor.execute("SELECT COUNT(*) as count FROM recipes")
+            result = cursor.fetchone()
+            stats['total_recipes'] = result['count']
+            
+            # Try to get recipes by book if books table exists
+            try:
+                cursor.execute(f"""
+                    SELECT COALESCE(b.title, CONCAT('Book ', r.book_id)) as title, 
+                           COUNT(r.id) as count 
+                    FROM recipes r 
+                    LEFT JOIN books b ON b.id = r.book_id 
+                    GROUP BY r.book_id, b.title
+                    ORDER BY r.book_id
+                """)
+                stats['by_book'] = {row['title']: row['count'] for row in cursor.fetchall()}
+            except Exception as e:
+                print(f"Could not get book stats (books table may not exist): {e}")
+                # Fallback: group by book_id only
+                cursor.execute("SELECT book_id, COUNT(*) as count FROM recipes GROUP BY book_id ORDER BY book_id")
+                stats['by_book'] = {f"Book {row['book_id'] if row['book_id'] else 'Unknown'}": row['count'] for row in cursor.fetchall()}
+            
+            # Sample chicken recipes with proper search
+            cursor.execute(f"""
+                SELECT COUNT(*) as count FROM recipes 
+                WHERE LOWER(title) LIKE {placeholder} OR LOWER(ingredients) LIKE {placeholder}
+            """, ['%chicken%', '%chicken%'])
+            result = cursor.fetchone()
+            stats['chicken_recipes'] = result['count']
+            
+            # Sample sweet potato recipes (to verify our fix)
+            cursor.execute(f"""
+                SELECT COUNT(*) as count FROM recipes 
+                WHERE LOWER(title) LIKE {placeholder} OR LOWER(ingredients) LIKE {placeholder}
+            """, ['%sweet potato%', '%sweet potato%'])
+            result = cursor.fetchone()
+            stats['sweet_potato_recipes'] = result['count']
+            
+            # Total recipes with valid content
+            cursor.execute("""
+                SELECT COUNT(*) as count FROM recipes 
+                WHERE (
+                    (description IS NOT NULL AND description != '' AND description != '[NEEDS CONTENT] This recipe is missing ingredients and instructions') OR
+                    (ingredients IS NOT NULL AND ingredients != '' AND ingredients != '[]') OR
+                    (instructions IS NOT NULL AND instructions != '' AND instructions != '[]')
+                )
+            """)
+            result = cursor.fetchone()
+            stats['valid_recipes'] = result['count']
+            
+        except Exception as e:
+            print(f"Error getting database stats: {e}")
+            stats['error'] = str(e)
+        finally:
+            conn.close()
         
-        # Recipes by book
-        cursor.execute("""
-            SELECT b.title, COUNT(r.id) as count 
-            FROM books b 
-            LEFT JOIN recipes r ON b.id = r.book_id 
-            GROUP BY b.id, b.title
-        """)
-        if getattr(self, 'is_postgresql', False):
-            stats['by_book'] = {row['title']: row['count'] for row in cursor.fetchall()}
-        else:
-            stats['by_book'] = dict(cursor.fetchall())
-        
-        # Sample chicken recipes
-        cursor.execute("""
-            SELECT COUNT(*) as count FROM recipes 
-            WHERE title LIKE '%chicken%' OR ingredients LIKE '%chicken%'
-        """)
-        result = cursor.fetchone()
-        stats['chicken_recipes'] = result['count'] if getattr(self, 'is_postgresql', False) else result[0]
-        
-        conn.close()
         return stats
 
 # Integration function for the main server
