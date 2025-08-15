@@ -6,8 +6,12 @@ import MealPlannerView from '../components/MealPlannerView';
 import RecipeDropdown from '../components/RecipeDropdown';
 import './RecipeDetail.css';
 import { api } from '../utils/api';
+import SessionMemoryManager from '../utils/SessionMemoryManager';
 
 const RecipeDetail = () => {
+  // --- Session Memory ---
+  const [sessionMemory] = useState(() => new SessionMemoryManager());
+  
   // --- Chat State ---
   const [messages, setMessages] = useState([
     {
@@ -140,17 +144,31 @@ const RecipeDetail = () => {
     setIsLoading(true);
 
     try {
-      // Search for recipes using the correct API method
-      const response = await api.searchRecipes(userMessage);
+      // Record this query in session memory
+      sessionMemory.recordQuery(userMessage);
+      
+      // Get exclusion list from session memory
+      const excludeRecipeIds = sessionMemory.getShownRecipeIds();
+      
+      // Search for recipes using the correct API method with session data
+      const response = await api.searchRecipes(userMessage, { 
+        exclude_recipe_ids: excludeRecipeIds 
+      });
       
       // Extract recipes from the correct response structure
       const recipes = response.data || response.recipes || [];
+      
+      // Filter out any recipes we've already shown (frontend safety net)
+      const newRecipes = sessionMemory.filterNewRecipes(recipes);
+      
+      // Record these recipes as shown
+      sessionMemory.recordShownRecipes(newRecipes);
       
       // Add AI response with recipes
       const aiMessage = {
         type: 'hungie',
         content: `Here are some great ${userMessage} recipes I found for you! 🍴`,
-        recipes: recipes,
+        recipes: newRecipes,
         timestamp: new Date()
       };
 
