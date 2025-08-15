@@ -376,39 +376,35 @@ class SmartRecipeSuggestionEngine:
         where_clause = " AND ".join(conditions) if conditions else "1=1"
         
         # Simple ordering: use ID-based pseudo-randomness for consistent results
-        order_clause = f"ORDER BY (r.id * 31) % 1000, r.id LIMIT {placeholder}"
-        params.append(limit)  # Convert to string later
-        
         query = f"""
             SELECT DISTINCT r.id, r.title, r.description, r.servings, 
                    r.hands_on_time, r.total_time, r.ingredients, r.instructions,
                    r.book_id, r.page_number
             FROM recipes r
             WHERE {where_clause}
-            {order_clause}
+            ORDER BY (r.id * 31) % 1000, r.id LIMIT {placeholder}
         """
+        
+        # Add limit as integer parameter
+        params.append(limit)
         
         print(f"[DEBUG] Final query: {query}")
         print(f"[DEBUG] Total parameters: {len(params)}")
         
-        # Convert limit to string for PostgreSQL
-        if params and not isinstance(params[-1], str):
-            params[-1] = str(params[-1])
-        
-        # Count placeholders
+        # Count placeholders in query
         placeholder_count = query.count('%s')
         print(f"[DEBUG] Query parameter count: {placeholder_count}")
         
-        # Validate parameter count
+        # Validate parameter count matches placeholders
         if len(params) != placeholder_count:
             print(f"[ERROR] Parameter mismatch: {len(params)} params vs {placeholder_count} placeholders")
             print(f"[ERROR] Params: {params}")
             return []
-        
+
         try:
             print(f"[DEBUG] Executing query with params: {params}")
-            # Convert list to tuple for psycopg2 compatibility
-            cursor.execute(query, tuple(params))
+            # Execute query with parameters (psycopg2 handles typing automatically)
+            cursor.execute(query, params)
             recipes = []
             
             print(f"[DEBUG] Query executed successfully, fetching results...")
