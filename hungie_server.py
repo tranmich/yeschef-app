@@ -258,16 +258,31 @@ def search_recipes_by_query(query, limit=20):
         cursor = conn.cursor()
         
         search_term = f"%{query}%"
-        cursor.execute("""
-            SELECT DISTINCT r.id, r.title, r.description, r.servings, 
-                   r.hands_on_time, r.total_time, r.ingredients, r.instructions
-            FROM recipes r
-            LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
-            LEFT JOIN ingredients i ON ri.ingredient_id = i.id
-            WHERE r.title LIKE ? OR r.description LIKE ? OR r.ingredients LIKE ? OR i.name LIKE ?
-            ORDER BY r.title
-            LIMIT ?
-        """, (search_term, search_term, search_term, search_term, limit))
+        
+        # Check if we're using PostgreSQL or SQLite for proper syntax
+        database_url = os.getenv('DATABASE_URL')
+        if database_url and database_url.startswith('postgresql'):
+            # PostgreSQL syntax - use ILIKE for case-insensitive search, %s placeholders
+            cursor.execute("""
+                SELECT DISTINCT r.id, r.title, r.description, r.servings, 
+                       r.hands_on_time, r.total_time, r.ingredients, r.instructions
+                FROM recipes r
+                WHERE r.title ILIKE %s OR r.description ILIKE %s OR r.ingredients ILIKE %s
+                ORDER BY r.title
+                LIMIT %s
+            """, (search_term, search_term, search_term, limit))
+        else:
+            # SQLite syntax - use LIKE with ? placeholders
+            cursor.execute("""
+                SELECT DISTINCT r.id, r.title, r.description, r.servings, 
+                       r.hands_on_time, r.total_time, r.ingredients, r.instructions
+                FROM recipes r
+                LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+                LEFT JOIN ingredients i ON ri.ingredient_id = i.id
+                WHERE r.title LIKE ? OR r.description LIKE ? OR r.ingredients LIKE ? OR i.name LIKE ?
+                ORDER BY r.title
+                LIMIT ?
+            """, (search_term, search_term, search_term, search_term, limit))
         
         recipes = []
         rows = cursor.fetchall()
