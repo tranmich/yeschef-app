@@ -358,11 +358,14 @@ class SmartRecipeSuggestionEngine:
                 conditions.append(f"(r.title ~* {placeholder} OR r.ingredients ~* {placeholder})")
                 params.extend([regex_pattern, regex_pattern])
         
-        # Exclude already suggested recipes
+        # Exclude already suggested recipes (bounded for performance)
         if exclude_ids:
-            placeholders = ','.join([placeholder] * len(exclude_ids))
+            # Limit exclusion list to prevent parameter explosion (max 20)
+            recent_excludes = exclude_ids[-20:] if len(exclude_ids) > 20 else exclude_ids
+            placeholders = ','.join([placeholder] * len(recent_excludes))
             conditions.append(f"r.id NOT IN ({placeholders})")
-            params.extend(exclude_ids)
+            params.extend(recent_excludes)
+            print(f"[DEBUG] Excluding {len(recent_excludes)} recent recipes (total in session: {len(exclude_ids)})")
         
         # FIXED: Exclude only truly empty recipes, not recipes with missing descriptions
         # A recipe is valid if it has either a description OR ingredients OR instructions
@@ -388,12 +391,12 @@ class SmartRecipeSuggestionEngine:
         # Add limit as integer parameter
         params.append(limit)
         
-        print(f"[DEBUG] Final query: {query}")
-        print(f"[DEBUG] Total parameters: {len(params)}")
-        
-        # Count placeholders in query
+        # FIXED: Count parameters AFTER building complete parameter list
         placeholder_count = query.count('%s')
+        print(f"[DEBUG] Final query: {query}")
+        print(f"[DEBUG] Total parameters: {len(params)} (ingredients + excludes + limit)")
         print(f"[DEBUG] Query parameter count: {placeholder_count}")
+        print(f"[DEBUG] Parameter breakdown: {params}")
         
         # Validate parameter count matches placeholders
         if len(params) != placeholder_count:
@@ -548,6 +551,11 @@ class SmartRecipeSuggestionEngine:
         # Update session with new suggestions
         for recipe in suggestions:
             session['suggested_recipes'].add(recipe['id'])
+        
+        # BOUNDED SESSION: Prevent infinite growth (max 50 recipes in memory)
+        if len(session['suggested_recipes']) > 50:
+            print(f"Session {session_id} memory cleanup: {len(session['suggested_recipes'])} -> 0 recipes")
+            session['suggested_recipes'].clear()
         
         return suggestions, preferences
     
