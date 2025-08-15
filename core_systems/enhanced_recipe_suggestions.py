@@ -347,18 +347,16 @@ class SmartRecipeSuggestionEngine:
         conditions = []
         params = []
         
-        # Ingredient conditions with more precise matching
+        # Ingredient conditions using PostgreSQL regex (light and flexible)
         if preferences['ingredients']:
-            ingredient_conditions = []
             for ingredient in preferences['ingredients']:
                 keywords = self.ingredient_keywords.get(ingredient, [ingredient])
-                for keyword in keywords:
-                    # Simplified matching to avoid parameter complexity
-                    ingredient_conditions.append(f"(LOWER(r.title) LIKE {placeholder} OR LOWER(r.ingredients) LIKE {placeholder})")
-                    params.extend([f"%{keyword.lower()}%", f"%{keyword.lower()}%"])
-            
-            if ingredient_conditions:
-                conditions.append(f"({' OR '.join(ingredient_conditions)})")
+                # Combine all keywords into a single regex pattern
+                regex_pattern = '|'.join([keyword.lower() for keyword in keywords])
+                
+                # Single condition using PostgreSQL's case-insensitive regex
+                conditions.append(f"(r.title ~* {placeholder} OR r.ingredients ~* {placeholder})")
+                params.extend([regex_pattern, regex_pattern])
         
         # Exclude already suggested recipes
         if exclude_ids:
