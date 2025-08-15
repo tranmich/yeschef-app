@@ -343,65 +343,91 @@ class SmartRecipeSuggestionEngine:
         cursor = conn.cursor()
         placeholder = self.get_placeholder()
         
-        # Build dynamic query based on preferences
-        conditions = []
+        # === BASIC SEARCH (Building back up systematically) ===
         params = []
         
-        # Ingredient conditions using PostgreSQL regex (light and flexible)
+        # STEP 1: Ultra-simple search for the first ingredient only
         if preferences['ingredients']:
-            for ingredient in preferences['ingredients']:
-                keywords = self.ingredient_keywords.get(ingredient, [ingredient])
-                # Combine all keywords into a single regex pattern
-                regex_pattern = '|'.join([keyword.lower() for keyword in keywords])
-                
-                # Single condition using PostgreSQL's case-insensitive regex
-                conditions.append(f"(r.title ~* {placeholder} OR r.ingredients ~* {placeholder})")
-                params.extend([regex_pattern, regex_pattern])
+            first_ingredient = preferences['ingredients'][0]  # Just use the first ingredient
+            query = f"""
+                SELECT DISTINCT r.id, r.title, r.description, r.servings, 
+                       r.hands_on_time, r.total_time, r.ingredients, r.instructions,
+                       r.book_id, r.page_number
+                FROM recipes r
+                WHERE LOWER(r.title) LIKE {placeholder} OR LOWER(r.ingredients) LIKE {placeholder}
+                ORDER BY r.id LIMIT {placeholder}
+            """
+            params = [f"%{first_ingredient.lower()}%", f"%{first_ingredient.lower()}%", limit]
+        else:
+            # No ingredients - just get some recipes
+            query = f"""
+                SELECT DISTINCT r.id, r.title, r.description, r.servings, 
+                       r.hands_on_time, r.total_time, r.ingredients, r.instructions,
+                       r.book_id, r.page_number
+                FROM recipes r
+                ORDER BY r.id LIMIT {placeholder}
+            """
+            params = [limit]
         
-        # Exclude already suggested recipes (bounded for performance)
-        if exclude_ids:
-            # Limit exclusion list to prevent parameter explosion (max 20)
-            recent_excludes = exclude_ids[-20:] if len(exclude_ids) > 20 else exclude_ids
-            placeholders = ','.join([placeholder] * len(recent_excludes))
-            conditions.append(f"r.id NOT IN ({placeholders})")
-            params.extend(recent_excludes)
-            print(f"[DEBUG] Excluding {len(recent_excludes)} recent recipes (total in session: {len(exclude_ids)})")
+        # === COMMENTED OUT COMPLEX LOGIC (Restore step by step) ===
+        # # Build dynamic query based on preferences
+        # conditions = []
+        # params = []
+        # 
+        # # Ingredient conditions using PostgreSQL regex (light and flexible)
+        # if preferences['ingredients']:
+        #     for ingredient in preferences['ingredients']:
+        #         keywords = self.ingredient_keywords.get(ingredient, [ingredient])
+        #         # Combine all keywords into a single regex pattern
+        #         regex_pattern = '|'.join([keyword.lower() for keyword in keywords])
+        #         
+        #         # Single condition using PostgreSQL's case-insensitive regex
+        #         conditions.append(f"(r.title ~* {placeholder} OR r.ingredients ~* {placeholder})")
+        #         params.extend([regex_pattern, regex_pattern])
+        # 
+        # # Exclude already suggested recipes (bounded for performance)
+        # if exclude_ids:
+        #     # Limit exclusion list to prevent parameter explosion (max 20)
+        #     recent_excludes = exclude_ids[-20:] if len(exclude_ids) > 20 else exclude_ids
+        #     placeholders = ','.join([placeholder] * len(recent_excludes))
+        #     conditions.append(f"r.id NOT IN ({placeholders})")
+        #     params.extend(recent_excludes)
+        #     print(f"[DEBUG] Excluding {len(recent_excludes)} recent recipes (total in session: {len(exclude_ids)})")
+        # 
+        # # FIXED: Exclude only truly empty recipes, not recipes with missing descriptions
+        # # A recipe is valid if it has either a description OR ingredients OR instructions
+        # conditions.append("""(
+        #     (r.description IS NOT NULL AND r.description != '' AND r.description != '[NEEDS CONTENT] This recipe is missing ingredients and instructions') OR
+        #     (r.ingredients IS NOT NULL AND r.ingredients != '' AND r.ingredients != '[]') OR
+        #     (r.instructions IS NOT NULL AND r.instructions != '' AND r.instructions != '[]')
+        # )""")
+        # 
+        # # Build final query with simple relevance scoring
+        # where_clause = " AND ".join(conditions) if conditions else "1=1"
+        # 
+        # # Simple ordering: use ID-based pseudo-randomness for consistent results
+        # query = f"""
+        #     SELECT DISTINCT r.id, r.title, r.description, r.servings, 
+        #            r.hands_on_time, r.total_time, r.ingredients, r.instructions,
+        #            r.book_id, r.page_number
+        #     FROM recipes r
+        #     WHERE {where_clause}
+        #     ORDER BY (r.id * 31) % 1000, r.id LIMIT {placeholder}
+        # """
+        # 
+        # # Add limit as integer parameter
+        # params.append(limit)
         
-        # FIXED: Exclude only truly empty recipes, not recipes with missing descriptions
-        # A recipe is valid if it has either a description OR ingredients OR instructions
-        conditions.append("""(
-            (r.description IS NOT NULL AND r.description != '' AND r.description != '[NEEDS CONTENT] This recipe is missing ingredients and instructions') OR
-            (r.ingredients IS NOT NULL AND r.ingredients != '' AND r.ingredients != '[]') OR
-            (r.instructions IS NOT NULL AND r.instructions != '' AND r.instructions != '[]')
-        )""")
-        
-        # Build final query with simple relevance scoring
-        where_clause = " AND ".join(conditions) if conditions else "1=1"
-        
-        # Simple ordering: use ID-based pseudo-randomness for consistent results
-        query = f"""
-            SELECT DISTINCT r.id, r.title, r.description, r.servings, 
-                   r.hands_on_time, r.total_time, r.ingredients, r.instructions,
-                   r.book_id, r.page_number
-            FROM recipes r
-            WHERE {where_clause}
-            ORDER BY (r.id * 31) % 1000, r.id LIMIT {placeholder}
-        """
-        
-        # Add limit as integer parameter
-        params.append(limit)
-        
-        # FIXED: Count parameters AFTER building complete parameter list
+        # BASIC DEBUG: Simple parameter counting
         placeholder_count = query.count('%s')
-        print(f"[DEBUG] Final query: {query}")
-        print(f"[DEBUG] Total parameters: {len(params)} (ingredients + excludes + limit)")
-        print(f"[DEBUG] Query parameter count: {placeholder_count}")
-        print(f"[DEBUG] Parameter breakdown: {params}")
+        print(f"[BASIC DEBUG] Simple query: {query}")
+        print(f"[BASIC DEBUG] Total parameters: {len(params)}")
+        print(f"[BASIC DEBUG] Query parameter count: {placeholder_count}")
+        print(f"[BASIC DEBUG] Params: {params}")
         
         # Validate parameter count matches placeholders
         if len(params) != placeholder_count:
             print(f"[ERROR] Parameter mismatch: {len(params)} params vs {placeholder_count} placeholders")
-            print(f"[ERROR] Params: {params}")
             return []
 
         try:
