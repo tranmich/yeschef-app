@@ -409,7 +409,8 @@ class SmartRecipeSuggestionEngine:
         
         try:
             print(f"[DEBUG] Executing query with params: {params}")
-            cursor.execute(query, params)
+            # Convert list to tuple for psycopg2 compatibility
+            cursor.execute(query, tuple(params))
             recipes = []
             
             print(f"[DEBUG] Query executed successfully, fetching results...")
