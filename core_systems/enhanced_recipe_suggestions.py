@@ -377,8 +377,13 @@ class SmartRecipeSuggestionEngine:
             title_conditions = " OR ".join([f"r.title LIKE '%{keyword}%'" for keyword in primary_keywords])
             order_clause += f"CASE WHEN ({title_conditions}) THEN 1 ELSE 2 END, "
         
-        # Use database-specific random function
-        random_func = "RANDOM()" if not getattr(self, 'is_postgresql', False) else "RANDOM()"
+        # Use database-specific random function - PostgreSQL requires RANDOM() to be in SELECT for DISTINCT
+        if self.is_postgresql:
+            # For PostgreSQL, we'll use a different approach to avoid DISTINCT + RANDOM issue
+            random_func = "r.id"  # Use ID for consistent ordering instead of RANDOM with DISTINCT
+        else:
+            random_func = "RANDOM()"
+        
         order_clause += f"{random_func} LIMIT {placeholder}"
         params.append(str(limit))
         
