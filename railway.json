@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "python railway_migration_job.py",
+    "startCommand": "python hungie_server.py",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 1
   }
