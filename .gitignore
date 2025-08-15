@@ -38,7 +38,7 @@ ENV/
 # Database files
 # *.db  # Temporarily allow hungie.db to be deployed
 *.sqlite3
-hungie.db
+# hungie.db  # Temporarily commented out for migration
 
 # IDE settings
 .vscode/
