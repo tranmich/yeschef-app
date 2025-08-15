@@ -380,6 +380,7 @@ class SmartRecipeSuggestionEngine:
         # Use database-specific random function
         random_func = "RANDOM()" if not getattr(self, 'is_postgresql', False) else "RANDOM()"
         order_clause += f"{random_func} LIMIT {placeholder}"
+        params.append(str(limit))
         
         query = f"""
             SELECT DISTINCT r.id, r.title, r.description, r.servings, 
@@ -390,47 +391,100 @@ class SmartRecipeSuggestionEngine:
             {order_clause}
         """
         
-        params.append(limit)
+        print(f"[DEBUG] Final query: {query}")
+        print(f"[DEBUG] Total parameters: {len(params)}")
+        
+        # Count placeholders based on database type
+        placeholder_count = query.count('%s') if self.is_postgresql else query.count('?')
+        print(f"[DEBUG] Query parameter count: {placeholder_count}")
+        
+        # Validate parameter count matches
+        if len(params) != placeholder_count:
+            print(f"[ERROR] Parameter mismatch: {len(params)} params vs {placeholder_count} placeholders")
+            print(f"[ERROR] Params: {params}")
+            return []
+        
+        # Ensure all parameters are flat (no nested lists)
+        flat_params = []
+        for param in params:
+            if isinstance(param, (list, tuple)):
+                flat_params.extend(param)
+            else:
+                flat_params.append(param)
+        
+        # Final validation
+        if len(flat_params) != placeholder_count:
+            print(f"[ERROR] After flattening: {len(flat_params)} params vs {placeholder_count} placeholders")
+            print(f"[ERROR] Flat params: {flat_params}")
+            return []
         
         try:
-            cursor.execute(query, params)
+            print(f"[DEBUG] Executing query with params: {flat_params}")
+            cursor.execute(query, flat_params)
             recipes = []
             
             print(f"[DEBUG] Query executed successfully, fetching results...")
             results = cursor.fetchall()
             print(f"[DEBUG] Found {len(results)} results from query")
+            print(f"[DEBUG] Result type: {type(results)}")
+            if results:
+                print(f"[DEBUG] First result type: {type(results[0])}")
+                print(f"[DEBUG] First result keys: {list(results[0].keys()) if hasattr(results[0], 'keys') else 'No keys'}")
             
-            for row in results:
-                # Classify recipe types for intelligent suggestions
-                recipe_types = self.classify_recipe_types(row['title'], row['instructions'] or '')
-                
-                recipe = {
-                    'id': row['id'],
-                    'title': row['title'],
-                    'description': row['description'] or '',
-                    'servings': row['servings'] or '4 servings',
-                    'prep_time': row['hands_on_time'] or '',
-                    'cook_time': row['total_time'] or '30 minutes',
-                    'total_time': row['total_time'] or '30 minutes',
-                    'ingredients': row['ingredients'] or '',
-                    'instructions': row['instructions'] or '',
-                    'book_id': row['book_id'],
-                    'page_number': row['page_number'],
-                    'source': self.get_book_name(row['book_id']),
-                    'recipe_types': recipe_types  # NEW: Add recipe type classification
-                }
-                
-                # Parse JSON fields
-                for field in ['ingredients', 'instructions']:
-                    try:
-                        if recipe[field] and isinstance(recipe[field], str):
-                            parsed = json.loads(recipe[field])
-                            if isinstance(parsed, list):
-                                recipe[field] = parsed
-                    except (json.JSONDecodeError, TypeError):
-                        pass
-                
-                recipes.append(recipe)
+            for i, row in enumerate(results):
+                print(f"[DEBUG] Processing row {i}: {type(row)}")
+                try:
+                    # Classify recipe types for intelligent suggestions
+                    recipe_types = self.classify_recipe_types(row['title'], row['instructions'] or '')
+                    
+                    # Safely handle servings data with proper defaults
+                    # Handle both SQLite Row objects and PostgreSQL RealDictRow objects
+                    if hasattr(row, 'get'):
+                        # PostgreSQL RealDictRow - use .get() method
+                        servings_value = row.get('servings') or ''
+                    else:
+                        # SQLite Row - use dictionary-style access with fallback
+                        servings_value = row['servings'] if row['servings'] else ''
+                    
+                    if not servings_value or servings_value.strip() == '':
+                        servings_value = 'Serves 4'
+                    elif not servings_value.lower().startswith('serves'):
+                        # If it's just a number like "4", format it properly
+                        if servings_value.isdigit():
+                            servings_value = f'Serves {servings_value}'
+                        else:
+                            servings_value = 'Serves 4'  # Fallback for malformed data
+                    
+                    recipe = {
+                        'id': row['id'],
+                        'title': row['title'],
+                        'description': row['description'] or '',
+                        'servings': servings_value,
+                        'prep_time': row['hands_on_time'] or '',
+                        'cook_time': row['total_time'] or '30 minutes',
+                        'total_time': row['total_time'] or '30 minutes',
+                        'ingredients': row['ingredients'] or '',
+                        'instructions': row['instructions'] or '',
+                        'book_id': row['book_id'],
+                        'page_number': row['page_number'],
+                        'source': self.get_book_name(row['book_id']),
+                        'recipe_types': recipe_types  # NEW: Add recipe type classification
+                    }
+                    
+                    # Parse JSON fields
+                    for field in ['ingredients', 'instructions']:
+                        try:
+                            if recipe[field] and isinstance(recipe[field], str):
+                                parsed = json.loads(recipe[field])
+                                if isinstance(parsed, list):
+                                    recipe[field] = parsed
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                    
+                    recipes.append(recipe)
+                except Exception as e:
+                    print(f"[DEBUG] Error processing row {i}: {e}")
+                    continue
             
             # Post-filter to ensure recipes actually contain the searched ingredients
             if preferences['ingredients']:
@@ -715,8 +769,12 @@ class SmartRecipeSuggestionEngine:
 # Integration function for the main server
 def get_smart_suggestions(user_query, session_id="default", limit=20):
     """Main function to get smart suggestions - for server integration"""
+    print(f"[DEBUG] get_smart_suggestions called with query: '{user_query}', session: {session_id}, limit: {limit}")
+    
     engine = SmartRecipeSuggestionEngine()
+    print(f"[DEBUG] Engine created, calling get_recipe_suggestions...")
     suggestions, preferences = engine.get_recipe_suggestions(user_query, session_id, limit)
+    print(f"[DEBUG] get_recipe_suggestions returned {len(suggestions)} suggestions")
     
     # Generate contextual response instead of generic template
     contextual_response = engine.generate_contextual_response(preferences, suggestions, user_query)
