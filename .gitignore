@@ -81,3 +81,56 @@ tmp/
 coverage/
 *.lcov
 .vercel
+
+# =============================================================================
+# 🧹 CLEAN GITHUB STRATEGY: Keep Repository Professional & Core Files Only
+# =============================================================================
+
+# 🧪 DEVELOPMENT & TESTING FILES (LOCAL ONLY)
+# These files are for local development/testing and should NOT go to GitHub
+test_*.py                    # Local testing scripts
+debug_*.py                   # Debugging utilities  
+quick_*.py                   # Quick development scripts
+temp_*.py                    # Temporary development files
+experimental_*.py            # Experimental features
+local_*.py                   # Local-only utilities
+dev_*.py                     # Development tools
+
+# 📊 LOCAL ANALYSIS & MAINTENANCE
+analyze_*.py                 # Data analysis scripts
+check_*.py                   # System checking utilities
+fix_*.py                     # Local repair scripts
+diagnose_*.py                # Diagnostic tools
+migrate_*.py                 # Migration scripts (except core ones)
+backup_*.py                  # Local backup utilities
+
+# 🗃️ LOCAL DATABASE & DATA FILES
+test.db                      # Testing databases
+backup.db                    # Database backups
+*.backup                     # Any backup files
+local_data/                  # Local data experiments
+test_data/                   # Testing datasets
+
+# 📁 LOCAL DEVELOPMENT DIRECTORIES
+local_testing/               # Local testing workspace
+experiments/                 # Experimental features
+playground/                  # Development playground
+scratch/                     # Scratch work area
+local_scripts/               # Local utility scripts
+
+# 🔧 CONFIGURATION & ENVIRONMENT
+local_config.py              # Local configuration overrides
+dev_settings.py              # Development-only settings
+test_config.py               # Testing configuration
+
+# 📝 DEVELOPMENT NOTES & DOCS
+NOTES.md                     # Personal development notes
+TODO.md                      # Personal todo lists  
+LOCAL_README.md              # Local development readme
+dev_notes.txt                # Development notes
+brainstorm.md                # Brainstorming documents
+
+# 🚀 DEPLOYMENT TESTING
+test_deployment.py           # Local deployment testing
+local_server.py              # Local development server variants
+staging_*.py                 # Staging environment scripts
