@@ -351,23 +351,11 @@ class SmartRecipeSuggestionEngine:
         if preferences['ingredients']:
             ingredient_conditions = []
             for ingredient in preferences['ingredients']:
-                for keyword in self.ingredient_keywords[ingredient]:
-                    # More precise matching to avoid false positives like "chicken broth" in non-chicken recipes
-                    if keyword == 'chicken':
-                        # Match whole word chicken in title, or actual chicken ingredients (not just broth/fat)
-                        ingredient_conditions.append(f"""
-                            (r.title LIKE {placeholder} OR r.title LIKE {placeholder} OR r.title LIKE {placeholder} OR r.title LIKE {placeholder} OR
-                             (r.ingredients LIKE {placeholder} AND r.ingredients NOT LIKE {placeholder} AND r.ingredients NOT LIKE {placeholder}))
-                        """)
-                        # Title patterns: "chicken ", " chicken ", " chicken", "chicken"
-                        params.extend([
-                            f"chicken %", f"% chicken %", f"% chicken", f"chicken",
-                            f'%"chicken"%', f"%chicken broth%", f"%chicken fat%"
-                        ])
-                    else:
-                        # For other ingredients, use regular matching
-                        ingredient_conditions.append(f"(r.title LIKE {placeholder} OR r.ingredients LIKE {placeholder})")
-                        params.extend([f"%{keyword}%", f"%{keyword}%"])
+                keywords = self.ingredient_keywords.get(ingredient, [ingredient])
+                for keyword in keywords:
+                    # Simplified matching to avoid parameter complexity
+                    ingredient_conditions.append(f"(LOWER(r.title) LIKE {placeholder} OR LOWER(r.ingredients) LIKE {placeholder})")
+                    params.extend([f"%{keyword.lower()}%", f"%{keyword.lower()}%"])
             
             if ingredient_conditions:
                 conditions.append(f"({' OR '.join(ingredient_conditions)})")
@@ -386,22 +374,12 @@ class SmartRecipeSuggestionEngine:
             (r.instructions IS NOT NULL AND r.instructions != '' AND r.instructions != '[]')
         )""")
         
-        # Build final query with relevance scoring
+        # Build final query with simple relevance scoring
         where_clause = " AND ".join(conditions) if conditions else "1=1"
         
-        # Simple relevance approach: order by title match first, then by ID for consistent randomness
-        order_clause = "ORDER BY "
-        if preferences['ingredients']:
-            # Create title relevance check for primary ingredient
-            primary_ingredient = preferences['ingredients'][0]
-            primary_keywords = self.ingredient_keywords[primary_ingredient]
-            title_conditions = " OR ".join([f"LOWER(r.title) LIKE '%{keyword.lower()}%'" for keyword in primary_keywords])
-            order_clause += f"CASE WHEN ({title_conditions}) THEN 1 ELSE 2 END, "
-        
-        # Use ID-based pseudo-randomness instead of RANDOM() to avoid DISTINCT issues
-        # This gives us consistent but varied results per session
-        order_clause += f"(r.id * 31) % 1000, r.id LIMIT {placeholder}"
-        params.append(str(limit))
+        # Simple ordering: use ID-based pseudo-randomness for consistent results
+        order_clause = f"ORDER BY (r.id * 31) % 1000, r.id LIMIT {placeholder}"
+        params.append(limit)  # Convert to string later
         
         query = f"""
             SELECT DISTINCT r.id, r.title, r.description, r.servings, 
@@ -415,33 +393,23 @@ class SmartRecipeSuggestionEngine:
         print(f"[DEBUG] Final query: {query}")
         print(f"[DEBUG] Total parameters: {len(params)}")
         
-        # Count placeholders based on database type
-        placeholder_count = query.count('%s') if self.is_postgresql else query.count('?')
+        # Convert limit to string for PostgreSQL
+        if params and not isinstance(params[-1], str):
+            params[-1] = str(params[-1])
+        
+        # Count placeholders
+        placeholder_count = query.count('%s')
         print(f"[DEBUG] Query parameter count: {placeholder_count}")
         
-        # Validate parameter count matches
+        # Validate parameter count
         if len(params) != placeholder_count:
             print(f"[ERROR] Parameter mismatch: {len(params)} params vs {placeholder_count} placeholders")
             print(f"[ERROR] Params: {params}")
             return []
         
-        # Ensure all parameters are flat (no nested lists)
-        flat_params = []
-        for param in params:
-            if isinstance(param, (list, tuple)):
-                flat_params.extend(param)
-            else:
-                flat_params.append(param)
-        
-        # Final validation
-        if len(flat_params) != placeholder_count:
-            print(f"[ERROR] After flattening: {len(flat_params)} params vs {placeholder_count} placeholders")
-            print(f"[ERROR] Flat params: {flat_params}")
-            return []
-        
         try:
-            print(f"[DEBUG] Executing query with params: {flat_params}")
-            cursor.execute(query, flat_params)
+            print(f"[DEBUG] Executing query with params: {params}")
+            cursor.execute(query, params)
             recipes = []
             
             print(f"[DEBUG] Query executed successfully, fetching results...")
