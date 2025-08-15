@@ -5,7 +5,7 @@ Complete recipe search, meal planning, and grocery list functionality
 """
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import json, os, sqlite3
+import json, os
 import psycopg2
 import psycopg2.extras
 import openai
@@ -115,96 +115,74 @@ except ImportError as e:
 
 # Database connection
 def get_db_connection():
-    """Get database connection with proper error handling"""
+    """Get PostgreSQL database connection with proper error handling"""
     try:
         # Use PostgreSQL connection from Railway environment
         database_url = os.getenv('DATABASE_URL')
-        if database_url:
-            # PostgreSQL connection
-            conn = psycopg2.connect(database_url)
-            conn.cursor_factory = psycopg2.extras.RealDictCursor
-            logger.info("✅ Connected to PostgreSQL database")
-            return conn
-        else:
-            # Fallback to SQLite for local development
-            conn = sqlite3.connect('hungie.db')
-            conn.row_factory = sqlite3.Row
-            logger.info("✅ Connected to SQLite database (local)")
-            return conn
+        if not database_url:
+            raise Exception("DATABASE_URL environment variable not found. PostgreSQL connection required.")
+        
+        # PostgreSQL connection
+        conn = psycopg2.connect(database_url)
+        conn.cursor_factory = psycopg2.extras.RealDictCursor
+        logger.info("✅ Connected to PostgreSQL database")
+        return conn
+        
     except Exception as e:
-        logger.error(f"Database connection error: {e}")
+        logger.error(f"❌ PostgreSQL connection error: {e}")
         raise
 
 def init_db():
-    """Initialize database tables"""
+    """Initialize PostgreSQL database tables with complete schema"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check if we're using PostgreSQL or SQLite
-        database_url = os.getenv('DATABASE_URL')
+        # PostgreSQL schema with ALL required columns for migrated recipes
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS recipes (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                description TEXT,
+                ingredients TEXT,
+                instructions TEXT,
+                category TEXT,
+                book_id INTEGER,
+                page_number INTEGER,
+                servings TEXT,
+                hands_on_time TEXT,
+                total_time TEXT,
+                url TEXT,
+                date_saved TEXT,
+                why_this_works TEXT,
+                chapter TEXT,
+                chapter_number INTEGER,
+                image_url TEXT,
+                source TEXT,
+                flavor_profile TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         
-        if database_url:
-            # PostgreSQL schema
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS recipes (
-                    id SERIAL PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    description TEXT,
-                    ingredients TEXT,
-                    instructions TEXT,
-                    image_url TEXT,
-                    source TEXT,
-                    category TEXT,
-                    flavor_profile TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username TEXT UNIQUE NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-        else:
-            # SQLite schema (for local development)
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS recipes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    description TEXT,
-                    ingredients TEXT,
-                    instructions TEXT,
-                    image_url TEXT,
-                    source TEXT,
-                    category TEXT,
-                    flavor_profile TEXT,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
         
         conn.commit()
         conn.close()
         logger.info("✅ Database tables initialized successfully")
         
     except Exception as e:
-        logger.error(f"Database initialization error: {e}")
+        logger.error(f"❌ Database initialization error: {e}")
         if 'conn' in locals():
             conn.close()
+        raise
 
 # Core search function - ENHANCED WITH INTELLIGENT INGREDIENT RECOGNITION
 def search_recipes_by_query(query, limit=20):
@@ -259,30 +237,15 @@ def search_recipes_by_query(query, limit=20):
         
         search_term = f"%{query}%"
         
-        # Check if we're using PostgreSQL or SQLite for proper syntax
-        database_url = os.getenv('DATABASE_URL')
-        if database_url and database_url.startswith('postgresql'):
-            # PostgreSQL syntax - use ILIKE for case-insensitive search, %s placeholders
-            cursor.execute("""
-                SELECT DISTINCT r.id, r.title, r.description, r.servings, 
-                       r.hands_on_time, r.total_time, r.ingredients, r.instructions
-                FROM recipes r
-                WHERE r.title ILIKE %s OR r.description ILIKE %s OR r.ingredients ILIKE %s
-                ORDER BY r.title
-                LIMIT %s
-            """, (search_term, search_term, search_term, limit))
-        else:
-            # SQLite syntax - use LIKE with ? placeholders
-            cursor.execute("""
-                SELECT DISTINCT r.id, r.title, r.description, r.servings, 
-                       r.hands_on_time, r.total_time, r.ingredients, r.instructions
-                FROM recipes r
-                LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
-                LEFT JOIN ingredients i ON ri.ingredient_id = i.id
-                WHERE r.title LIKE ? OR r.description LIKE ? OR r.ingredients LIKE ? OR i.name LIKE ?
-                ORDER BY r.title
-                LIMIT ?
-            """, (search_term, search_term, search_term, search_term, limit))
+        # PostgreSQL syntax - use ILIKE for case-insensitive search, %s placeholders
+        cursor.execute("""
+            SELECT DISTINCT r.id, r.title, r.description, r.servings, 
+                   r.hands_on_time, r.total_time, r.ingredients, r.instructions
+            FROM recipes r
+            WHERE r.title ILIKE %s OR r.description ILIKE %s OR r.ingredients ILIKE %s
+            ORDER BY r.title
+            LIMIT %s
+        """, (search_term, search_term, search_term, limit))
         
         recipes = []
         rows = cursor.fetchall()
@@ -333,18 +296,15 @@ def search_recipes_by_query(query, limit=20):
         return []
 
 def get_recipe_by_id(recipe_id):
-    """Get a single recipe by ID - ENHANCED with recipe type classification"""
+    """Get a single recipe by ID - PostgreSQL version"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # PostgreSQL syntax with %s placeholder
         cursor.execute("""
-            SELECT r.*, GROUP_CONCAT(i.name, '|') as ingredient_names
-            FROM recipes r
-            LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
-            LEFT JOIN ingredients i ON ri.ingredient_id = i.id
-            WHERE r.id = ?
-            GROUP BY r.id
+            SELECT * FROM recipes r
+            WHERE r.id = %s
         """, (recipe_id,))
         
         row = cursor.fetchone()
@@ -424,42 +384,22 @@ def create_recipe():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check if we're using PostgreSQL or SQLite for proper syntax
-        database_url = os.getenv('DATABASE_URL')
-        
-        if database_url:
-            # PostgreSQL syntax with RETURNING
-            cursor.execute('''
-                INSERT INTO recipes (title, description, ingredients, instructions, image_url, source, category, flavor_profile)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            ''', (
-                data.get('title', ''),
-                data.get('description', ''),
-                data.get('ingredients', ''),
-                data.get('instructions', ''),
-                data.get('image_url', ''),
-                data.get('source', ''),
-                data.get('category', ''),
-                data.get('flavor_profile', '')
-            ))
-            recipe_id = cursor.fetchone()['id']
-        else:
-            # SQLite syntax
-            cursor.execute('''
-                INSERT INTO recipes (title, description, ingredients, instructions, image_url, source, category, flavor_profile)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                data.get('title', ''),
-                data.get('description', ''),
-                data.get('ingredients', ''),
-                data.get('instructions', ''),
-                data.get('image_url', ''),
-                data.get('source', ''),
-                data.get('category', ''),
-                data.get('flavor_profile', '')
-            ))
-            recipe_id = cursor.lastrowid
+        # PostgreSQL syntax with RETURNING
+        cursor.execute('''
+            INSERT INTO recipes (title, description, ingredients, instructions, image_url, source, category, flavor_profile)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        ''', (
+            data.get('title', ''),
+            data.get('description', ''),
+            data.get('ingredients', ''),
+            data.get('instructions', ''),
+            data.get('image_url', ''),
+            data.get('source', ''),
+            data.get('category', ''),
+            data.get('flavor_profile', '')
+        ))
+        recipe_id = cursor.fetchone()['id']
         
         conn.commit()
         conn.close()
