@@ -1,9 +1,21 @@
 ﻿import axios from "axios";
 
 const getApiUrl = () => {
-  // HARDCODE the correct URL to bypass all environment variable issues
-  console.log("HARDCODED API URL: https://yeschefapp-production.up.railway.app");
-  return "https://yeschefapp-production.up.railway.app";
+  // Use environment variable if available, otherwise fallback to hardcoded URL
+  const envUrl = process.env.REACT_APP_API_URL;
+  const fallbackUrl = "https://yeschefapp-production.up.railway.app";
+  
+  const apiUrl = envUrl || fallbackUrl;
+  console.log("🌐 Current window location:", window.location.href);
+  console.log("🔧 Environment variables:", {
+    REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+    REACT_APP_ENVIRONMENT: process.env.REACT_APP_ENVIRONMENT,
+    NODE_ENV: process.env.NODE_ENV
+  });
+  console.log("📡 API URL Source:", envUrl ? "Environment Variable" : "Hardcoded Fallback");
+  console.log("📡 Final API URL:", apiUrl);
+  
+  return apiUrl;
 };
 
 const api = axios.create({
