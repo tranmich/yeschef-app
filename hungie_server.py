@@ -492,6 +492,122 @@ def search_recipes():
             'error': str(e)
         }), 500
 
+@app.route('/api/search/intelligent', methods=['POST'])
+def intelligent_session_search():
+    """Intelligent session-aware search that scales without limits"""
+    try:
+        data = request.get_json()
+        query = data.get('query', '').strip()
+        session_id = data.get('session_id', 'default')
+        shown_recipe_ids = data.get('shown_recipe_ids', [])
+        page_size = data.get('page_size', 5)
+        
+        logger.info(f"🧠 Intelligent search: '{query}' | Session: {session_id} | Excluding: {len(shown_recipe_ids)} recipes")
+        
+        if not query:
+            return jsonify({
+                'success': False,
+                'error': 'Query parameter is required'
+            }), 400
+        
+        # Get ALL matching recipes using enhanced search
+        all_recipes = search_recipes_with_exclusions(query, exclude_ids=shown_recipe_ids)
+        
+        # Return the next batch
+        next_batch = all_recipes[:page_size]
+        
+        logger.info(f"🧠 Found {len(all_recipes)} total matches, returning {len(next_batch)} recipes")
+        
+        return jsonify({
+            'success': True,
+            'recipes': next_batch,
+            'total_available': len(all_recipes),
+            'has_more': len(all_recipes) > page_size,
+            'shown_count': len(shown_recipe_ids),
+            'session_id': session_id,
+            'search_metadata': {
+                'query': query,
+                'intelligent_search_used': True,
+                'exclusions_applied': len(shown_recipe_ids)
+            }
+        })
+    
+    except Exception as e:
+        logger.error(f"🚨 Intelligent search error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+def search_recipes_with_exclusions(query, exclude_ids=None):
+    """Enhanced search that excludes already shown recipes - NO LIMITS"""
+    try:
+        # Use basic search with exclusions for now (enhanced version coming next)
+        return basic_search_with_exclusions(query, exclude_ids)
+            
+    except Exception as e:
+        logger.error(f"🚨 Search with exclusions error: {str(e)}")
+        return []
+
+def basic_search_with_exclusions(query, exclude_ids=None):
+    """Basic search with exclusions - returns ALL matches"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Build exclusion clause  
+        exclude_clause = ""
+        params = [f"%{query}%", f"%{query}%", f"%{query}%"]
+        
+        if exclude_ids:
+            placeholders = ','.join(['%s' for _ in exclude_ids])
+            exclude_clause = f"AND r.id NOT IN ({placeholders})"
+            params.extend(exclude_ids)
+        
+        # Search without limits - get ALL matches (PostgreSQL syntax)
+        search_sql = f"""
+        SELECT DISTINCT r.id, r.title, r.description, r.servings, 
+               r.prep_time, r.cook_time, r.total_time,
+               STRING_AGG(DISTINCT i.name, ', ') as ingredients,
+               STRING_AGG(DISTINCT inst.instruction, ' ') as instructions
+        FROM recipes r
+        LEFT JOIN ingredients i ON r.id = i.recipe_id  
+        LEFT JOIN instructions inst ON r.id = inst.recipe_id
+        WHERE (LOWER(r.title) LIKE %s OR LOWER(r.description) LIKE %s OR LOWER(i.name) LIKE %s)
+        {exclude_clause}
+        GROUP BY r.id, r.title, r.description, r.servings, r.prep_time, r.cook_time, r.total_time
+        ORDER BY 
+            CASE WHEN LOWER(r.title) LIKE %s THEN 1 ELSE 2 END,
+            r.id
+        """
+        
+        # Add title match parameter for relevance sorting
+        params.append(f"%{query}%")
+        
+        cursor.execute(search_sql, params)
+        recipes = []
+        for row in cursor.fetchall():
+            recipes.append({
+                'id': row['id'],
+                'title': row['title'],
+                'name': row['title'],
+                'description': row['description'] or '',
+                'servings': row['servings'] or '4 servings',
+                'prep_time': row['prep_time'] or '',
+                'cook_time': row['cook_time'] or '30 minutes', 
+                'total_time': row['total_time'] or '30 minutes',
+                'ingredients': row['ingredients'] or '',
+                'instructions': row['instructions'] or ''
+            })
+        
+        conn.close()
+        logger.info(f"🔍 Basic search found {len(recipes)} total recipes for '{query}'")
+        return recipes
+        
+    except Exception as e:
+        logger.error(f"🚨 Basic search error: {str(e)}")
+        return []
+
 @app.route('/api/categories', methods=['GET'])
 def get_categories():
     """Get all categories"""

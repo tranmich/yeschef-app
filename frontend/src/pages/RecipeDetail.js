@@ -6,13 +6,13 @@ import MealPlannerView from '../components/MealPlannerView';
 import RecipeDropdown from '../components/RecipeDropdown';
 import './RecipeDetail.css';
 import { api } from '../utils/api';
-import SessionMemoryManager from '../utils/SessionMemoryManager';
+import IntelligentSessionManager from '../utils/IntelligentSessionManager';
 
 const RecipeDetail = () => {
-  console.log('🚀 RecipeDetail component loaded - Version 2025-08-16-DEBUG');
+  console.log('🚀 RecipeDetail component loaded - INTELLIGENT VERSION 2025-08-16');
   
-  // --- Session Memory ---
-  const [sessionMemory] = useState(() => new SessionMemoryManager());
+  // --- Intelligent Session Memory ---
+  const [intelligentSession] = useState(() => new IntelligentSessionManager());
   
   // --- Chat State ---
   const [messages, setMessages] = useState([
@@ -148,7 +148,7 @@ const RecipeDetail = () => {
     try {
       // Check for special commands first
       if (userMessage.toLowerCase().includes('reset memory')) {
-        sessionMemory.resetUserSession();
+        intelligentSession.resetSession();
         const resetMessage = {
           type: 'hungie',
           content: `🔄 Memory reset! I've cleared all the recipes I've shown you before. Now you can search for anything and see all available recipes again! What would you like to cook? 🍴`,
@@ -159,49 +159,59 @@ const RecipeDetail = () => {
         return;
       }
       
-      // Record this query in session memory
-      console.log('🔍 [' + new Date().toLocaleTimeString() + '] Starting search for:', userMessage);
-      sessionMemory.recordSimpleQuery(userMessage);
+      // Add user message to chat
+      const userMessageObj = {
+        type: 'user',
+        content: userMessage,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessageObj]);
       
-      // Get exclusion list from session memory  
-      const excludeRecipeIds = sessionMemory.getShownRecipeIds();
-      console.log('🧠 Excluding recipe IDs:', excludeRecipeIds);
+      console.log('🧠 [' + new Date().toLocaleTimeString() + '] Starting intelligent search for:', userMessage);
       
-      // Use the basic search API for now (we'll implement backend session memory later)
-      console.log('📡 Making API call to searchRecipes...');
-      const response = await api.searchRecipes(userMessage);
-      console.log('📡 API Response:', response);
+      // Use intelligent session-aware search
+      const searchResult = await intelligentSession.searchRecipes(userMessage, 5);
+      console.log('🧠 Intelligent search result:', searchResult);
       
-      // Extract recipes from the response
-      const recipes = response.recipes || response.data || [];
-      console.log('📝 Extracted recipes:', recipes.length, recipes);
-      
-      // Filter out any recipes we've already shown using frontend session memory
-      const newRecipes = sessionMemory.filterNewRecipes(recipes);
-      console.log('✨ Final filtered recipes:', newRecipes.length, newRecipes);
+      if (searchResult.error) {
+        throw new Error(searchResult.error);
+      }
       
       // Check if we have new recipes to show
-      if (newRecipes.length === 0) {
-        // All recipes were already shown - provide helpful message with reset option
+      if (searchResult.recipes.length === 0) {
         const noNewRecipesMessage = {
           type: 'hungie',
-          content: `I've already shown you all the ${userMessage} recipes I found! 🤔\n\nOptions:\n• Try searching for something different\n• Search for variations (e.g., "spicy chicken" or "healthy chicken")\n• Type "reset memory" to see all recipes again\n\nWhat would you like to explore?`,
+          content: `I've already shown you all the ${userMessage} recipes I found! 🤔\n\nI searched through ${searchResult.totalAvailable || 'all available'} recipes.\n\nOptions:\n• Try searching for something different\n• Search for variations (e.g., "spicy ${userMessage}" or "healthy ${userMessage}")\n• Type "reset memory" to see all recipes again\n\nWhat would you like to explore?`,
           recipes: [],
           timestamp: new Date()
         };
         setMessages(prev => [...prev, noNewRecipesMessage]);
       } else {
-        // Record these recipes as shown
-        sessionMemory.recordShownRecipes(newRecipes);
+        // Generate intelligent response based on search metadata
+        let responseContent = `Here are some great ${userMessage} recipes I found for you! 🍴`;
         
-        // Add AI response with recipes
+        if (searchResult.hasMore) {
+          const remaining = searchResult.totalAvailable - searchResult.shownCount;
+          responseContent += `\n\n📊 Showing ${searchResult.recipes.length} recipes. I have ${remaining} more ${userMessage} recipes available! Search again to see more.`;
+        } else if (searchResult.totalAvailable > searchResult.recipes.length) {
+          responseContent += `\n\n✨ These are the last ${searchResult.recipes.length} new ${userMessage} recipes I have for you!`;
+        }
+        
         const aiMessage = {
           type: 'hungie',
-          content: `Here are some great ${userMessage} recipes I found for you! 🍴`,
-          recipes: newRecipes,
-          timestamp: new Date()
+          content: responseContent,
+          recipes: searchResult.recipes,
+          timestamp: new Date(),
+          searchMetadata: searchResult.metadata
         };
         setMessages(prev => [...prev, aiMessage]);
+        
+        console.log('✅ Intelligent search complete:', {
+          shown: searchResult.recipes.length,
+          totalAvailable: searchResult.totalAvailable,
+          hasMore: searchResult.hasMore,
+          totalEverShown: searchResult.shownCount
+        });
       }
       
     } catch (error) {
