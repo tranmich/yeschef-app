@@ -21,25 +21,23 @@ function App() {
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            
+
             {/* Protected Routes - Main app is now the default */}
             <Route path="/" element={
-              // Temporarily bypass authentication for testing
-              <MainApp />
-              // <ProtectedRoute>
-              //   <MainApp />
-              // </ProtectedRoute>
+              <ProtectedRoute>
+                <MainApp />
+              </ProtectedRoute>
             } />
-            
+
             {/* Redirect old dashboard and any other paths to main app */}
             <Route path="/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/home" element={<Navigate to="/" replace />} />
-            
+
             {/* Legacy routes for other features - redirect to main for now */}
             <Route path="/search" element={<Navigate to="/" replace />} />
             <Route path="/recipe/:id" element={<Navigate to="/" replace />} />
             <Route path="/categories" element={<Navigate to="/" replace />} />
-            
+
             {/* Catch all - redirect to main */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
