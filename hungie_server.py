@@ -492,9 +492,12 @@ def search_recipes():
             'error': str(e)
         }), 500
 
-@app.route('/api/search/intelligent', methods=['POST'])
+@app.route('/api/search/intelligent', methods=['POST', 'OPTIONS'])
 def intelligent_session_search():
     """Intelligent session-aware search that scales without limits"""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
     try:
         data = request.get_json()
         query = data.get('query', '').strip()
