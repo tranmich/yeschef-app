@@ -334,7 +334,7 @@ class SmartRecipeSuggestionEngine:
                 
         return types
     
-    def search_recipes_by_preferences(self, preferences, exclude_ids=None, limit=20):
+    def search_recipes_by_preferences(self, preferences, exclude_ids=None, limit=200):
         """Search recipes based on user preferences"""
         conn = self.get_database_connection()
         if not conn:
@@ -543,7 +543,7 @@ class SmartRecipeSuggestionEngine:
         }
         return book_names.get(book_id, f"Book {book_id}")
     
-    def get_recipe_suggestions(self, user_query, session_id="default", limit=20):
+    def get_recipe_suggestions(self, user_query, session_id="default", limit=200):
         """Get intelligent recipe suggestions with session memory"""
         # Analyze user preferences
         preferences = self.analyze_user_request(user_query)
@@ -812,7 +812,7 @@ class SmartRecipeSuggestionEngine:
         return stats
 
 # Integration function for the main server
-def get_smart_suggestions(user_query, session_id="default", limit=20):
+def get_smart_suggestions(user_query, session_id="default", limit=200):
     """Main function to get smart suggestions - for server integration"""
     print(f"[DEBUG] get_smart_suggestions called with query: '{user_query}', session: {session_id}, limit: {limit}")
     
