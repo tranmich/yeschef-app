@@ -97,3 +97,46 @@ export const smartSearch = (message, context = '', options = {}) => apiCall('/ap
 api.searchRecipes = searchRecipes;
 api.getRecipe = getRecipe;
 api.smartSearch = smartSearch;
+
+// Add intelligent session-aware search function
+api.searchRecipesIntelligent = async (query, sessionId, shownRecipeIds, pageSize = 5) => {
+  const apiUrl = getApiUrl();
+  const response = await fetch(`${apiUrl}/api/search/intelligent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: query.trim(),
+      session_id: sessionId,
+      shown_recipe_ids: shownRecipeIds,
+      page_size: pageSize
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+// Add function to check if intelligent search is available
+api.isIntelligentSearchAvailable = async () => {
+  try {
+    const apiUrl = getApiUrl();
+    const response = await fetch(`${apiUrl}/api/search/intelligent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        query: 'test', 
+        session_id: 'test', 
+        shown_recipe_ids: [], 
+        page_size: 1 
+      })
+    });
+    return response.status !== 404;
+  } catch {
+    return false;
+  }
+};
