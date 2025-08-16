@@ -145,20 +145,18 @@ const RecipeDetail = () => {
 
     try {
       // Record this query in session memory
-      sessionMemory.recordQuery(userMessage);
+      sessionMemory.recordSimpleQuery(userMessage);
       
-      // Get exclusion list from session memory
+      // Get exclusion list from session memory  
       const excludeRecipeIds = sessionMemory.getShownRecipeIds();
       
-      // Search for recipes using the correct API method with session data
-      const response = await api.searchRecipes(userMessage, { 
-        exclude_recipe_ids: excludeRecipeIds 
-      });
+      // Use the basic search API for now (we'll implement backend session memory later)
+      const response = await api.searchRecipes(userMessage);
       
-      // Extract recipes from the correct response structure
-      const recipes = response.data || response.recipes || [];
+      // Extract recipes from the response
+      const recipes = response.recipes || response.data || [];
       
-      // Filter out any recipes we've already shown (frontend safety net)
+      // Filter out any recipes we've already shown using frontend session memory
       const newRecipes = sessionMemory.filterNewRecipes(recipes);
       
       // Record these recipes as shown

@@ -475,6 +475,43 @@ class SessionMemoryManager {
   }
 
   /**
+   * Simple method to record just a user query (for basic usage)
+   */
+  recordSimpleQuery(userQuery) {
+    this.conversationHistory.push({
+      timestamp: new Date(),
+      query: userQuery,
+      intent: 'search',
+      context: {},
+      resultCount: 0,
+      displayedCount: 0,
+      searchPhase: 'simple',
+      recipeIds: []
+    });
+    this.sessionStats.totalQueries++;
+  }
+
+  /**
+   * Get list of all shown recipe IDs
+   */
+  getShownRecipeIds() {
+    return Array.from(this.shownRecipes);
+  }
+
+  /**
+   * Record recipes as shown (simple version)
+   */
+  recordShownRecipes(recipes) {
+    if (Array.isArray(recipes)) {
+      recipes.forEach(recipe => {
+        if (recipe && recipe.id) {
+          this.shownRecipes.add(recipe.id);
+        }
+      });
+    }
+  }
+
+  /**
    * Record user interaction with a recipe
    */
 
