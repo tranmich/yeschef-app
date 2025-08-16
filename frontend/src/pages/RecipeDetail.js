@@ -169,18 +169,43 @@ const RecipeDetail = () => {
       
       console.log('🧠 [' + new Date().toLocaleTimeString() + '] Starting enhanced search for:', userMessage);
       
-      // Try intelligent session-aware search first, fallback to standard if unavailable
-      const isIntelligentAvailable = await sessionMemory.isIntelligentSearchAvailable();
-      console.log('🧠 Intelligent search available:', isIntelligentAvailable);
-      
       let searchResult;
-      if (isIntelligentAvailable) {
-        // Use enhanced session-aware search
-        searchResult = await sessionMemory.searchRecipesIntelligent(userMessage, 5);
-        console.log('🧠 Enhanced search result:', searchResult);
-      } else {
+      
+      // Try intelligent session-aware search first, fallback to standard if unavailable
+      try {
+        const isIntelligentAvailable = await api.isIntelligentSearchAvailable();
+        console.log('🧠 Intelligent search available:', isIntelligentAvailable);
+        
+        if (isIntelligentAvailable) {
+          // Use enhanced session-aware search
+          const data = await api.searchRecipesIntelligent(
+            userMessage, 
+            sessionMemory.sessionId, 
+            sessionMemory.getShownRecipeIds(), 
+            5
+          );
+          
+          if (data.success) {
+            // Track the new recipes as shown
+            sessionMemory.recordShownRecipes(data.recipes);
+            
+            searchResult = {
+              recipes: data.recipes,
+              hasMore: data.has_more,
+              totalAvailable: data.total_available,
+              shownCount: data.shown_count,
+              metadata: data.search_metadata
+            };
+            console.log('🧠 Enhanced search result:', searchResult);
+          } else {
+            throw new Error(data.error || 'Intelligent search failed');
+          }
+        } else {
+          throw new Error('Intelligent search not available');
+        }
+      } catch (intelligentError) {
         // Fallback to standard search with frontend filtering
-        console.log('🔄 Falling back to standard search with frontend filtering');
+        console.log('🔄 Falling back to standard search with frontend filtering. Reason:', intelligentError.message);
         const response = await api.searchRecipes(userMessage);
         const recipes = response.recipes || response.data || [];
         const newRecipes = sessionMemory.filterNewRecipes(recipes);
