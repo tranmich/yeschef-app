@@ -170,10 +170,11 @@ const RecipeDetail = () => {
       console.log('🧠 [' + new Date().toLocaleTimeString() + '] Starting enhanced search for:', userMessage);
       
       let searchResult;
+      let isIntelligentAvailable = false;
       
       // Try intelligent session-aware search first, fallback to standard if unavailable
       try {
-        const isIntelligentAvailable = await api.isIntelligentSearchAvailable();
+        isIntelligentAvailable = await api.isIntelligentSearchAvailable();
         console.log('🧠 Intelligent search available:', isIntelligentAvailable);
         
         if (isIntelligentAvailable) {
