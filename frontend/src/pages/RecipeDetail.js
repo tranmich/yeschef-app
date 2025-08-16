@@ -6,13 +6,13 @@ import MealPlannerView from '../components/MealPlannerView';
 import RecipeDropdown from '../components/RecipeDropdown';
 import './RecipeDetail.css';
 import { api } from '../utils/api';
-import IntelligentSessionManager from '../utils/IntelligentSessionManager';
+import SessionMemoryManager from '../utils/SessionMemoryManager';
 
 const RecipeDetail = () => {
-  console.log('🚀 RecipeDetail component loaded - INTELLIGENT VERSION 2025-08-16');
+  console.log('🚀 RecipeDetail component loaded - ENHANCED SESSION VERSION 2025-08-16');
   
-  // --- Intelligent Session Memory ---
-  const [intelligentSession] = useState(() => new IntelligentSessionManager());
+  // --- Enhanced Session Memory with Backend Coordination ---
+  const [sessionMemory] = useState(() => new SessionMemoryManager());
   
   // --- Chat State ---
   const [messages, setMessages] = useState([
@@ -148,7 +148,7 @@ const RecipeDetail = () => {
     try {
       // Check for special commands first
       if (userMessage.toLowerCase().includes('reset memory')) {
-        intelligentSession.resetSession();
+        sessionMemory.resetUserSession();
         const resetMessage = {
           type: 'hungie',
           content: `🔄 Memory reset! I've cleared all the recipes I've shown you before. Now you can search for anything and see all available recipes again! What would you like to cook? 🍴`,
@@ -167,11 +167,36 @@ const RecipeDetail = () => {
       };
       setMessages(prev => [...prev, userMessageObj]);
       
-      console.log('🧠 [' + new Date().toLocaleTimeString() + '] Starting intelligent search for:', userMessage);
+      console.log('🧠 [' + new Date().toLocaleTimeString() + '] Starting enhanced search for:', userMessage);
       
-      // Use intelligent session-aware search
-      const searchResult = await intelligentSession.searchRecipes(userMessage, 5);
-      console.log('🧠 Intelligent search result:', searchResult);
+      // Try intelligent session-aware search first, fallback to standard if unavailable
+      const isIntelligentAvailable = await sessionMemory.isIntelligentSearchAvailable();
+      console.log('🧠 Intelligent search available:', isIntelligentAvailable);
+      
+      let searchResult;
+      if (isIntelligentAvailable) {
+        // Use enhanced session-aware search
+        searchResult = await sessionMemory.searchRecipesIntelligent(userMessage, 5);
+        console.log('🧠 Enhanced search result:', searchResult);
+      } else {
+        // Fallback to standard search with frontend filtering
+        console.log('🔄 Falling back to standard search with frontend filtering');
+        const response = await api.searchRecipes(userMessage);
+        const recipes = response.recipes || response.data || [];
+        const newRecipes = sessionMemory.filterNewRecipes(recipes);
+        
+        searchResult = {
+          recipes: newRecipes,
+          hasMore: false,
+          totalAvailable: recipes.length,
+          shownCount: sessionMemory.shownRecipes.size,
+          metadata: { fallback_search_used: true }
+        };
+        
+        // Mark displayed recipes as shown
+        const displayedRecipes = newRecipes.slice(0, 5);
+        sessionMemory.recordShownRecipes(displayedRecipes);
+      }
       
       if (searchResult.error) {
         throw new Error(searchResult.error);
@@ -206,11 +231,12 @@ const RecipeDetail = () => {
         };
         setMessages(prev => [...prev, aiMessage]);
         
-        console.log('✅ Intelligent search complete:', {
+        console.log('✅ Enhanced search complete:', {
           shown: searchResult.recipes.length,
           totalAvailable: searchResult.totalAvailable,
           hasMore: searchResult.hasMore,
-          totalEverShown: searchResult.shownCount
+          totalEverShown: searchResult.shownCount,
+          usingIntelligentSearch: isIntelligentAvailable
         });
       }
       

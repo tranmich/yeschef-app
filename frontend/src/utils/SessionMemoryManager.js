@@ -577,14 +577,104 @@ class SessionMemoryManager {
   }
 
   /**
-   * Reset user session when running out of new recipes
+   * Intelligent backend-aware recipe search that coordinates with server
+   * This enhances the existing session memory with backend session coordination
    */
-  resetUserSession() {
-    console.log(`🔄 Resetting user session - clearing shown recipes and search history`);
-    this.shownRecipes.clear();
-    this.searchHistory.clear();
-    this.conversationHistory = [];
-    this.userPreferences = {};
+  async searchRecipesIntelligent(query, pageSize = 5) {
+    try {
+      console.log('🧠 SessionMemory: Starting intelligent search for:', query);
+      console.log('🧠 SessionMemory: Current shown recipes:', Array.from(this.shownRecipes));
+      
+      // If this is a new query, update our records but keep exclusions
+      if (this.conversationHistory.length === 0 || 
+          this.conversationHistory[this.conversationHistory.length - 1]?.query !== query) {
+        this.recordSimpleQuery(query);
+      }
+
+      const requestBody = {
+        query: query.trim(),
+        session_id: this.sessionId,
+        shown_recipe_ids: Array.from(this.shownRecipes),
+        page_size: pageSize
+      };
+
+      console.log('� SessionMemory: Sending intelligent search request:', requestBody);
+
+      const response = await fetch('/api/search/intelligent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('📥 SessionMemory: Intelligent search response:', data);
+
+      if (data.success) {
+        // Track the new recipes as shown using existing method
+        this.recordShownRecipes(data.recipes);
+
+        console.log('✅ SessionMemory: Marked', data.recipes.length, 'new recipes as shown');
+        console.log('📊 SessionMemory: Search stats:', {
+          total_available: data.total_available,
+          has_more: data.has_more,
+          total_shown: this.shownRecipes.size
+        });
+
+        return {
+          recipes: data.recipes,
+          hasMore: data.has_more,
+          totalAvailable: data.total_available,
+          shownCount: data.shown_count,
+          metadata: data.search_metadata
+        };
+      } else {
+        throw new Error(data.error || 'Search failed');
+      }
+
+    } catch (error) {
+      console.error('🚨 SessionMemory: Intelligent search error:', error);
+      return {
+        recipes: [],
+        hasMore: false,
+        totalAvailable: 0,
+        shownCount: 0,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Get search statistics for the current session
+   */
+  getSearchStats() {
+    return {
+      sessionId: this.sessionId,
+      totalShownRecipes: this.shownRecipes.size,
+      searchHistory: this.searchHistory.size,
+      sessionStats: this.sessionStats
+    };
+  }
+
+  /**
+   * Check if backend intelligent search is available
+   */
+  async isIntelligentSearchAvailable() {
+    try {
+      const response = await fetch('/api/search/intelligent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'test', session_id: 'test', shown_recipe_ids: [], page_size: 1 })
+      });
+      return response.status !== 404;
+    } catch {
+      return false;
+    }
   }
 }
 
