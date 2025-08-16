@@ -112,7 +112,7 @@
 
 .feedback-section textarea:focus {
   outline: none;
-  border-color: #FF6B6B;
+  border-color: #6b7280;
 }
 
 .email-section input {
@@ -127,7 +127,7 @@
 
 .email-section input:focus {
   outline: none;
-  border-color: #FF6B6B;
+  border-color: #6b7280;
 }
 
 .form-actions {
