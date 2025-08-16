@@ -24,9 +24,11 @@ function App() {
             
             {/* Protected Routes - Main app is now the default */}
             <Route path="/" element={
-              <ProtectedRoute>
-                <MainApp />
-              </ProtectedRoute>
+              // Temporarily bypass authentication for testing
+              <MainApp />
+              // <ProtectedRoute>
+              //   <MainApp />
+              // </ProtectedRoute>
             } />
             
             {/* Redirect old dashboard and any other paths to main app */}

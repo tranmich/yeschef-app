@@ -8,7 +8,7 @@ const getApiUrl = () => {
 
 const api = axios.create({
   baseURL: getApiUrl(),
-  withCredentials: true,
+  withCredentials: false, // Temporarily disable credentials for testing
   headers: {
     "Content-Type": "application/json",
   },
