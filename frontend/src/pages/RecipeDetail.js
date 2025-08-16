@@ -146,6 +146,19 @@ const RecipeDetail = () => {
     setIsLoading(true);
 
     try {
+      // Check for special commands first
+      if (userMessage.toLowerCase().includes('reset memory')) {
+        sessionMemory.resetUserSession();
+        const resetMessage = {
+          type: 'hungie',
+          content: `🔄 Memory reset! I've cleared all the recipes I've shown you before. Now you can search for anything and see all available recipes again! What would you like to cook? 🍴`,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, resetMessage]);
+        setIsLoading(false);
+        return;
+      }
+      
       // Record this query in session memory
       console.log('🔍 [' + new Date().toLocaleTimeString() + '] Starting search for:', userMessage);
       sessionMemory.recordSimpleQuery(userMessage);
@@ -167,18 +180,29 @@ const RecipeDetail = () => {
       const newRecipes = sessionMemory.filterNewRecipes(recipes);
       console.log('✨ Final filtered recipes:', newRecipes.length, newRecipes);
       
-      // Record these recipes as shown
-      sessionMemory.recordShownRecipes(newRecipes);
-      
-      // Add AI response with recipes
-      const aiMessage = {
-        type: 'hungie',
-        content: `Here are some great ${userMessage} recipes I found for you! 🍴`,
-        recipes: newRecipes,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
+      // Check if we have new recipes to show
+      if (newRecipes.length === 0) {
+        // All recipes were already shown - provide helpful message with reset option
+        const noNewRecipesMessage = {
+          type: 'hungie',
+          content: `I've already shown you all the ${userMessage} recipes I found! 🤔\n\nOptions:\n• Try searching for something different\n• Search for variations (e.g., "spicy chicken" or "healthy chicken")\n• Type "reset memory" to see all recipes again\n\nWhat would you like to explore?`,
+          recipes: [],
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, noNewRecipesMessage]);
+      } else {
+        // Record these recipes as shown
+        sessionMemory.recordShownRecipes(newRecipes);
+        
+        // Add AI response with recipes
+        const aiMessage = {
+          type: 'hungie',
+          content: `Here are some great ${userMessage} recipes I found for you! 🍴`,
+          recipes: newRecipes,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, aiMessage]);
+      }
       
     } catch (error) {
       console.error('❌ Search error details:', error);
