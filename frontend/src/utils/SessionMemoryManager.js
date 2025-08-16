@@ -260,8 +260,19 @@ class SessionMemoryManager {
    * Filter out previously shown recipes from search results
    */
   filterNewRecipes(recipes, excludeRecipeIds = []) {
+    console.log('🧠 SessionMemory: Filtering recipes');
+    console.log('🧠 Input recipes:', recipes?.length || 0);
+    console.log('🧠 Shown recipe IDs:', Array.from(this.shownRecipes));
+    
     const excludeSet = new Set([...excludeRecipeIds, ...this.shownRecipes]);
-    return recipes.filter(recipe => !excludeSet.has(recipe.id));
+    const newRecipes = recipes.filter(recipe => {
+      const isNew = !excludeSet.has(recipe.id);
+      console.log(`🧠 Recipe "${recipe.title}" (ID: ${recipe.id}): ${isNew ? 'NEW' : 'ALREADY SHOWN'}`);
+      return isNew;
+    });
+    
+    console.log('🧠 Filtered to new recipes:', newRecipes.length);
+    return newRecipes;
   }
 
   /**
@@ -502,13 +513,17 @@ class SessionMemoryManager {
    * Record recipes as shown (simple version)
    */
   recordShownRecipes(recipes) {
+    console.log('🧠 SessionMemory: Recording shown recipes:', recipes?.length || 0);
     if (Array.isArray(recipes)) {
       recipes.forEach(recipe => {
         if (recipe && recipe.id) {
           this.shownRecipes.add(recipe.id);
+          console.log('🧠 Added recipe ID to memory:', recipe.id, recipe.title);
         }
       });
     }
+    console.log('🧠 Total shown recipes now:', this.shownRecipes.size);
+    console.log('🧠 All shown IDs:', Array.from(this.shownRecipes));
   }
 
   /**

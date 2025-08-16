@@ -145,19 +145,25 @@ const RecipeDetail = () => {
 
     try {
       // Record this query in session memory
+      console.log('🔍 Starting search for:', userMessage);
       sessionMemory.recordSimpleQuery(userMessage);
       
       // Get exclusion list from session memory  
       const excludeRecipeIds = sessionMemory.getShownRecipeIds();
+      console.log('🧠 Excluding recipe IDs:', excludeRecipeIds);
       
       // Use the basic search API for now (we'll implement backend session memory later)
+      console.log('📡 Making API call to searchRecipes...');
       const response = await api.searchRecipes(userMessage);
+      console.log('📡 API Response:', response);
       
       // Extract recipes from the response
       const recipes = response.recipes || response.data || [];
+      console.log('📝 Extracted recipes:', recipes.length, recipes);
       
       // Filter out any recipes we've already shown using frontend session memory
       const newRecipes = sessionMemory.filterNewRecipes(recipes);
+      console.log('✨ Final filtered recipes:', newRecipes.length, newRecipes);
       
       // Record these recipes as shown
       sessionMemory.recordShownRecipes(newRecipes);
@@ -173,10 +179,13 @@ const RecipeDetail = () => {
       setMessages(prev => [...prev, aiMessage]);
       
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('❌ Search error details:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error stack:', error.stack);
+      
       const errorMessage = {
         type: 'hungie',
-        content: "I'm having trouble finding recipes right now. Please try again! 🍴",
+        content: `I'm having trouble finding recipes right now. Error: ${error.message}. Please try again! 🍴`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
