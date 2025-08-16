@@ -74,6 +74,33 @@ async searchRecipesIntelligent(query, pageSize = 5) {
 - **Session Persistence**: Backend coordinates with frontend to prevent duplicates
 - **Unlimited Discovery**: Users can explore hundreds of recipes without hitting artificial walls
 
+### **🔧 CRITICAL URL ROUTING FIX:**
+**Problem**: Frontend was calling `/api/search/intelligent` on Vercel URL instead of Railway backend
+```javascript
+// WRONG: POST https://yeschef-app.vercel.app/api/search/intelligent 405 (Method Not Allowed)
+// CORRECT: POST https://yeschefapp-production.up.railway.app/api/search/intelligent
+```
+
+**Solution**: Enhanced API coordination and graceful fallback
+```javascript
+// RecipeDetail.js now uses proper backend URL routing
+const isIntelligentAvailable = await api.isIntelligentSearchAvailable();
+if (isIntelligentAvailable) {
+  // Backend intelligence available - use enhanced search
+  const data = await api.searchRecipesIntelligent(userMessage, sessionId, shownIds, 5);
+} else {
+  // Graceful fallback to standard search + frontend filtering
+  const response = await api.searchRecipes(userMessage);
+  const newRecipes = sessionMemory.filterNewRecipes(recipes);
+}
+```
+
+**Result**: 
+- ✅ No more 405 Method Not Allowed errors
+- ✅ Seamless backend/frontend coordination  
+- ✅ Graceful degradation when intelligent search unavailable
+- ✅ Enhanced user experience when intelligent search available
+
 </details>
 
 <details>
