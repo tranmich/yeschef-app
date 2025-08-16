@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cache Buster Test - Updated</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px; 
+            background: #f0f8ff;
+        }
+        .test-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .timestamp {
+            color: #666;
+            font-size: 14px;
+        }
+        .url-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-box">
+        <h1>🚀 Cache Buster Test - UPDATED VERSION</h1>
+        <p><strong>If you can see this page, your deployment is working!</strong></p>
+        
+        <div class="url-display">
+            <strong>Current URL:</strong> <span id="currentUrl"></span>
+        </div>
+        
+        <p class="timestamp">Last Updated: <span id="timestamp"></span></p>
+        
+        <div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h3>✅ Verification Checklist:</h3>
+            <p>1. This page shows "UPDATED VERSION" ✓</p>
+            <p>2. Timestamp shows current time ✓</p>
+            <p>3. URL matches your intended deployment ✓</p>
+        </div>
+        
+        <p><strong>Next:</strong> Go back to your main app and check if debugging logs appear!</p>
+    </div>
+    
+    <script>
+        document.getElementById('currentUrl').textContent = window.location.href;
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+    </script>
+</body>
+</html>
