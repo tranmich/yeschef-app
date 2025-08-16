@@ -185,7 +185,7 @@ def init_db():
         raise
 
 # Core search function - ENHANCED WITH INTELLIGENT INGREDIENT RECOGNITION
-def search_recipes_by_query(query, limit=20):
+def search_recipes_by_query(query, limit=50):
     """Search recipes by query - ENHANCED with intelligent ingredient recognition"""
     try:
         logger.info(f"ðŸ§  Enhanced Search for: '{query}' (limit: {limit})")
@@ -456,7 +456,7 @@ def search_recipes():
                 'error': 'Query parameter is required'
             }), 400
         
-        recipes = search_recipes_by_query(query, limit=20)
+        recipes = search_recipes_by_query(query, limit=50)
         logger.info(f"ðŸŒ Enhanced API returning {len(recipes)} recipes")
         
         # Extract search metadata for frontend
@@ -861,7 +861,7 @@ def search_by_recipe_type(recipe_type):
         search_query = keywords[0] if keywords else recipe_type
         
         # Search recipes
-        recipes = search_recipes_by_query(search_query, limit=20)
+        recipes = search_recipes_by_query(search_query, limit=50)
         
         # Filter to only recipes that actually have this type
         filtered_recipes = [
