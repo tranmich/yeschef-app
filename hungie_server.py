@@ -545,7 +545,27 @@ def intelligent_session_search():
 def search_recipes_with_exclusions(query, exclude_ids=None):
     """Enhanced search that excludes already shown recipes - NO LIMITS"""
     try:
-        # Use basic search with exclusions for now (enhanced version coming next)
+        # Use enhanced search with very high limit for intelligent session-aware search
+        try:
+            from core_systems.enhanced_recipe_suggestions import get_smart_suggestions
+            
+            # Get ALL matching recipes using enhanced search with very high limit
+            result = get_smart_suggestions(query, session_id='intelligent_search', limit=2000)
+            recipes = result['suggestions']
+            
+            # Filter out excluded recipes
+            if exclude_ids:
+                recipes = [r for r in recipes if r['id'] not in exclude_ids]
+            
+            logger.info(f"🧠 Enhanced search found {len(recipes)} recipes after exclusions")
+            return recipes
+            
+        except ImportError:
+            logger.warning("⚠️ Enhanced search not available, falling back to basic search")
+            # Fallback to basic search if enhanced system not available
+            pass
+        
+        # Fallback: Use basic search with exclusions for now
         return basic_search_with_exclusions(query, exclude_ids)
             
     except Exception as e:
