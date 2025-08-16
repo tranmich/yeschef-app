@@ -1,0 +1,6 @@
+VERCEL DEPLOYMENT TEST - 2025-08-16
+This file should appear in Vercel if deployment is working correctly.
+If you can see this file on yeschef-app.vercel.app, then Vercel is connected to the right repository.
+Repository: tranmich/yeschef-app
+Branch: main
+Commit: Latest with all debugging and border fixes
