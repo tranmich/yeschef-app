@@ -9,6 +9,8 @@ import { api } from '../utils/api';
 import SessionMemoryManager from '../utils/SessionMemoryManager';
 
 const RecipeDetail = () => {
+  console.log('🚀 RecipeDetail component loaded - Version 2025-08-16-DEBUG');
+  
   // --- Session Memory ---
   const [sessionMemory] = useState(() => new SessionMemoryManager());
   
@@ -145,7 +147,7 @@ const RecipeDetail = () => {
 
     try {
       // Record this query in session memory
-      console.log('🔍 Starting search for:', userMessage);
+      console.log('🔍 [' + new Date().toLocaleTimeString() + '] Starting search for:', userMessage);
       sessionMemory.recordSimpleQuery(userMessage);
       
       // Get exclusion list from session memory  
