@@ -1647,10 +1647,19 @@ def run_intelligence_migration():
         # Backfill ALL recipes in production database
         logger.info("📊 Querying ALL recipes from database... [VERSION 2.0 - NO LIMITS]")
         
-        # First check total count
+        # First check total count and database info
         cursor.execute("SELECT COUNT(*) FROM recipes")
         total_count = cursor.fetchone()[0]
         logger.info(f"🔢 TOTAL RECIPES IN DATABASE: {total_count}")
+        
+        # Log database connection details for debugging
+        database_url = os.getenv('DATABASE_URL', 'NOT_SET')
+        logger.info(f"🔍 DATABASE_URL: {database_url[:50]}..." if database_url != 'NOT_SET' else "🔍 DATABASE_URL: NOT_SET")
+        
+        # Check a few sample recipes to verify we're in the right database
+        cursor.execute("SELECT id, title FROM recipes ORDER BY id LIMIT 5")
+        sample_recipes = cursor.fetchall()
+        logger.info(f"🔍 Sample recipes (first 5): {[(r['id'], r['title'][:30]) for r in sample_recipes]}")
         
         cursor.execute("SELECT id, title, description, total_time, servings, ingredients FROM recipes ORDER BY id")
         recipes = cursor.fetchall()
@@ -1793,6 +1802,52 @@ def run_intelligence_migration():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+@app.route('/api/admin/check-database', methods=['GET'])
+def check_database_info():
+    """Diagnostic endpoint to check database connection and content"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get database stats
+        cursor.execute("SELECT COUNT(*) FROM recipes")
+        total_recipes = cursor.fetchone()[0]
+        
+        # Get sample data
+        cursor.execute("SELECT id, title FROM recipes ORDER BY id LIMIT 10")
+        sample_recipes = cursor.fetchall()
+        
+        # Check if intelligence columns exist
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'recipes' 
+            AND column_name IN ('meal_role', 'is_easy', 'time_min')
+        """)
+        intelligence_columns = [row['column_name'] for row in cursor.fetchall()]
+        
+        # Get database connection info (sanitized)
+        database_url = os.getenv('DATABASE_URL', 'NOT_SET')
+        db_info = 'PostgreSQL' if database_url.startswith('postgres') else 'Unknown'
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'database_type': db_info,
+            'total_recipes': total_recipes,
+            'intelligence_columns_exist': intelligence_columns,
+            'sample_recipes': [{'id': r['id'], 'title': r['title'][:50]} for r in sample_recipes],
+            'database_url_prefix': database_url[:30] + '...' if len(database_url) > 30 else database_url
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'database_url_set': 'DATABASE_URL' in os.environ
         }), 500
 
 @app.route('/api/admin/run-schema-migration', methods=['POST'])
