@@ -1823,6 +1823,14 @@ def database_connection_test():
     try:
         logger.info("🔍 Testing database connection...")
         
+        # First, check what DATABASE_URL we have
+        database_url = os.getenv('DATABASE_URL')
+        database_url_available = database_url is not None
+        database_url_preview = database_url[:50] + "..." if database_url else None
+        
+        logger.info(f"📊 DATABASE_URL available: {database_url_available}")
+        logger.info(f"📊 DATABASE_URL preview: {database_url_preview}")
+        
         # Test our get_db_connection function
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -1845,6 +1853,8 @@ def database_connection_test():
             'recipe_count': recipe_count,
             'sample_recipe': dict(sample_recipe) if sample_recipe else None,
             'connection_method': 'public_url_first',
+            'database_url_available': database_url_available,
+            'database_url_preview': database_url_preview,
             'test_time': datetime.now().isoformat()
         })
         
@@ -1854,6 +1864,8 @@ def database_connection_test():
             'success': False,
             'database_working': False,
             'error': str(e),
+            'error_type': type(e).__name__,
+            'database_url_available': os.getenv('DATABASE_URL') is not None,
             'test_time': datetime.now().isoformat()
         }), 500
 
