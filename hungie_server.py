@@ -356,15 +356,19 @@ def get_recipe_by_id(recipe_id):
 # API Routes
 @app.route('/')
 def api_root():
-    """API root endpoint"""
+    """API root endpoint - DEPLOYMENT TEST"""
     return jsonify({
         'message': 'Hungie API Server',
         'status': 'healthy',
+        'deployment_test': '2025-08-17-universal-search-v3',
+        'universal_search_ready': search_engine is not None,
+        'commit_version': '5bda815',
         'endpoints': {
             'recipes': '/api/recipes',
             'search': '/api/search',
             'auth': '/api/auth',
-            'health': '/api/health'
+            'health': '/api/health',
+            'version': '/api/version'
         }
     })
 
