@@ -1517,6 +1517,121 @@ def get_favorites_summary():
             'error': str(e)
         }), 500
 
+@app.route('/api/admin/migrate-intelligence', methods=['POST'])
+def migrate_intelligence_endpoint():
+    """Admin endpoint to add intelligence fields and backfill existing recipes"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # First, add the intelligence columns
+        logger.info("🔧 Adding intelligence columns to recipes table...")
+        migration_sql = """
+        ALTER TABLE recipes 
+        ADD COLUMN IF NOT EXISTS meal_role TEXT,
+        ADD COLUMN IF NOT EXISTS meal_role_confidence INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS time_min INTEGER,
+        ADD COLUMN IF NOT EXISTS steps_count INTEGER,
+        ADD COLUMN IF NOT EXISTS pots_pans_count INTEGER DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS is_easy BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS is_one_pot BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS leftover_friendly BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS kid_friendly BOOLEAN DEFAULT FALSE;
+
+        CREATE INDEX IF NOT EXISTS idx_recipes_intelligence 
+        ON recipes(meal_role, is_easy, is_one_pot, time_min);
+        """
+        cursor.execute(migration_sql)
+        conn.commit()
+        logger.info("✅ Migration completed successfully")
+        
+        # Now run a simplified backfill for the first 50 recipes as a test
+        cursor.execute("SELECT id, title, description, total_time, servings FROM recipes ORDER BY id LIMIT 50")
+        recipes = cursor.fetchall()
+        
+        logger.info(f"📊 Backfilling {len(recipes)} test recipes...")
+        
+        updated_count = 0
+        for recipe in recipes:
+            try:
+                recipe_id = recipe['id']
+                title = recipe.get('title', '')
+                description = recipe.get('description', '')
+                total_time = recipe.get('total_time', '')
+                
+                # Simple meal role classification
+                text = f"{title} {description or ''}".lower()
+                meal_role = "dinner"  # Default
+                confidence = 50
+                
+                if any(word in text for word in ['breakfast', 'pancake', 'oatmeal']):
+                    meal_role = "breakfast"
+                    confidence = 80
+                elif any(word in text for word in ['dessert', 'cake', 'cookie']):
+                    meal_role = "dessert"
+                    confidence = 90
+                elif any(word in text for word in ['sauce', 'dressing']):
+                    meal_role = "sauce"
+                    confidence = 85
+                
+                # Simple time parsing
+                time_min = None
+                if total_time:
+                    import re
+                    minute_match = re.search(r'(\d+)\s*m', total_time.lower())
+                    hour_match = re.search(r'(\d+)\s*h', total_time.lower())
+                    if minute_match:
+                        time_min = int(minute_match.group(1))
+                    elif hour_match:
+                        time_min = int(hour_match.group(1)) * 60
+                
+                # Simple flags
+                is_easy = time_min and time_min <= 30
+                is_one_pot = 'one pot' in text or 'sheet pan' in text
+                
+                # Update database
+                cursor.execute("""
+                    UPDATE recipes 
+                    SET meal_role = %s, meal_role_confidence = %s, time_min = %s,
+                        is_easy = %s, is_one_pot = %s
+                    WHERE id = %s
+                """, (meal_role, confidence, time_min, is_easy, is_one_pot, recipe_id))
+                
+                updated_count += 1
+                
+            except Exception as e:
+                logger.error(f"Error processing recipe {recipe_id}: {e}")
+                continue
+        
+        conn.commit()
+        
+        # Get some statistics
+        cursor.execute("SELECT COUNT(*) FROM recipes WHERE meal_role IS NOT NULL")
+        classified_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM recipes WHERE is_easy = true")
+        easy_count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Intelligence migration completed successfully',
+            'statistics': {
+                'recipes_processed': len(recipes),
+                'recipes_updated': updated_count,
+                'total_classified': classified_count,
+                'easy_recipes': easy_count
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Migration error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/admin/migrate-recipes', methods=['POST'])
 def migrate_recipes_endpoint():
     """Admin endpoint to add sample recipes to PostgreSQL database"""
