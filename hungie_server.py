@@ -1633,7 +1633,7 @@ def migrate_intelligence_endpoint():
         }), 500
 
 def run_intelligence_migration():
-    """Run the intelligence migration logic - DATA BACKFILL ONLY"""
+    """Run the intelligence migration logic - DATA BACKFILL ONLY - VERSION 2.0"""
     try:
         logger.info("🤖 Starting intelligence data backfill...")
         
@@ -1645,11 +1645,11 @@ def run_intelligence_migration():
         # Directly proceed to backfill existing recipes
         
         # Backfill ALL recipes in production database
-        logger.info("📊 Querying ALL recipes from database...")
+        logger.info("📊 Querying ALL recipes from database... [VERSION 2.0 - NO LIMITS]")
         cursor.execute("SELECT id, title, description, total_time, servings, ingredients FROM recipes ORDER BY id")
         recipes = cursor.fetchall()
         
-        logger.info(f"📊 Found {len(recipes)} recipes to backfill...")
+        logger.info(f"📊 Found {len(recipes)} recipes to backfill... [FULL DATASET]")
         
         if not recipes:
             logger.warning("⚠️ No recipes found in database!")
