@@ -1835,23 +1835,36 @@ def database_connection_test():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Test recipe count
+        # Test recipe count with safe handling
         cursor.execute('SELECT COUNT(*) FROM recipes')
-        recipe_count = cursor.fetchone()[0]
+        count_result = cursor.fetchone()
+        recipe_count = count_result[0] if count_result else 0
         
-        # Test a sample recipe
+        # Test a sample recipe with safe handling
         cursor.execute('SELECT id, title FROM recipes LIMIT 1')
-        sample_recipe = cursor.fetchone()
+        sample_result = cursor.fetchone()
         
         conn.close()
         
         logger.info(f"✅ Database test successful: {recipe_count} recipes")
         
+        # Safe conversion of sample recipe
+        sample_recipe = None
+        if sample_result:
+            try:
+                sample_recipe = {
+                    'id': sample_result[0],
+                    'title': sample_result[1]
+                }
+            except (IndexError, TypeError) as e:
+                logger.warning(f"Sample recipe conversion issue: {e}")
+                sample_recipe = {'raw_result': str(sample_result)}
+        
         return jsonify({
             'success': True,
             'database_working': True,
             'recipe_count': recipe_count,
-            'sample_recipe': dict(sample_recipe) if sample_recipe else None,
+            'sample_recipe': sample_recipe,
             'connection_method': 'public_url_first',
             'database_url_available': database_url_available,
             'database_url_preview': database_url_preview,
@@ -1859,12 +1872,17 @@ def database_connection_test():
         })
         
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         logger.error(f"❌ Database test failed: {e}")
+        logger.error(f"❌ Full traceback: {error_details}")
+        
         return jsonify({
             'success': False,
             'database_working': False,
             'error': str(e),
             'error_type': type(e).__name__,
+            'error_details': error_details,
             'database_url_available': os.getenv('DATABASE_URL') is not None,
             'test_time': datetime.now().isoformat()
         }), 500
