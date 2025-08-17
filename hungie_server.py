@@ -564,6 +564,7 @@ def intelligent_session_search():
                         'ingredients': recipe['ingredients'] or '',
                         'instructions': recipe['instructions'] or '',
                         'source': recipe['source'] or 'Recipe Collection',
+                        'category': recipe.get('category', 'Main Course'),
                         # NEW: Intelligence metadata
                         'explanations': recipe.get('explanations', ''),
                         'meal_role': recipe.get('meal_role'),
