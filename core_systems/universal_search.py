@@ -878,7 +878,15 @@ class UniversalSearchEngine:
             if session_memory:
                 # Use existing analyze_user_request for preference extraction
                 analyzed = self.analyze_user_request(query)
-                preferences.update(analyzed.get('preferences', {}))
+                
+                # Convert ingredients list to dictionary format for consistency
+                if isinstance(analyzed.get('ingredients'), list):
+                    ingredients_dict = {}
+                    for ingredient in analyzed['ingredients']:
+                        ingredients_dict[ingredient] = [ingredient]
+                    analyzed['ingredients'] = ingredients_dict
+                
+                preferences.update(analyzed)
                 
                 # Add session memory context to preferences if available
                 if 'preferences' in session_memory:
