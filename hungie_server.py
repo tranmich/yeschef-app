@@ -1633,38 +1633,30 @@ def migrate_intelligence_endpoint():
         }), 500
 
 def run_intelligence_migration():
-    """Run the intelligence migration logic"""
+    """Run the intelligence migration logic - DATA BACKFILL ONLY"""
     try:
+        logger.info("🤖 Starting intelligence data backfill...")
+        
         conn = get_db_connection()
         cursor = conn.cursor()
+        logger.info("✅ Database connection established")
         
-        logger.info("🔧 Adding intelligence columns to recipes table...")
+        # Skip schema migration since it's already done
+        # Directly proceed to backfill existing recipes
         
-        # Add intelligence columns
-        migration_sql = """
-        ALTER TABLE recipes 
-        ADD COLUMN IF NOT EXISTS meal_role TEXT,
-        ADD COLUMN IF NOT EXISTS meal_role_confidence INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS time_min INTEGER,
-        ADD COLUMN IF NOT EXISTS steps_count INTEGER,
-        ADD COLUMN IF NOT EXISTS pots_pans_count INTEGER DEFAULT 1,
-        ADD COLUMN IF NOT EXISTS is_easy BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS is_one_pot BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS leftover_friendly BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS kid_friendly BOOLEAN DEFAULT FALSE;
-
-        CREATE INDEX IF NOT EXISTS idx_recipes_intelligence 
-        ON recipes(meal_role, is_easy, is_one_pot, time_min);
-        """
-        cursor.execute(migration_sql)
-        conn.commit()
-        logger.info("✅ Intelligence columns added successfully")
-        
-        # Backfill first 100 recipes as a test
-        cursor.execute("SELECT id, title, description, total_time, servings, ingredients FROM recipes ORDER BY id LIMIT 100")
+        # Backfill ALL recipes in production database
+        logger.info("📊 Querying ALL recipes from database...")
+        cursor.execute("SELECT id, title, description, total_time, servings, ingredients FROM recipes ORDER BY id")
         recipes = cursor.fetchall()
         
-        logger.info(f"📊 Backfilling {len(recipes)} recipes...")
+        logger.info(f"📊 Found {len(recipes)} recipes to backfill...")
+        
+        if not recipes:
+            logger.warning("⚠️ No recipes found in database!")
+            return jsonify({
+                'success': False,
+                'error': 'No recipes found to process'
+            }), 404
         
         updated_count = 0
         for recipe in recipes:
@@ -1674,6 +1666,10 @@ def run_intelligence_migration():
                 description = recipe.get('description', '')
                 total_time = recipe.get('total_time', '')
                 ingredients = recipe.get('ingredients', '')
+                
+                # Progress logging every 50 recipes
+                if updated_count % 50 == 0 and updated_count > 0:
+                    logger.info(f"🔄 Processing progress: {updated_count}/{len(recipes)} recipes completed...")
                 
                 # Simple meal role classification
                 text = f"{title} {description or ''}".lower()
@@ -1721,50 +1717,157 @@ def run_intelligence_migration():
                 steps_count = text.count('.') + text.count('\n') if description else 5
                 pots_pans_count = 1 if is_one_pot else 2
                 
-                # Update database
-                cursor.execute("""
-                    UPDATE recipes 
-                    SET meal_role = %s, meal_role_confidence = %s, time_min = %s,
-                        steps_count = %s, pots_pans_count = %s,
-                        is_easy = %s, is_one_pot = %s, leftover_friendly = %s, kid_friendly = %s
-                    WHERE id = %s
-                """, (meal_role, confidence, time_min, steps_count, pots_pans_count,
-                      is_easy, is_one_pot, leftover_friendly, kid_friendly, recipe_id))
-                
-                updated_count += 1
+                # Update database with detailed error handling
+                try:
+                    cursor.execute("""
+                        UPDATE recipes 
+                        SET meal_role = %s, meal_role_confidence = %s, time_min = %s,
+                            steps_count = %s, pots_pans_count = %s,
+                            is_easy = %s, is_one_pot = %s, leftover_friendly = %s, kid_friendly = %s
+                        WHERE id = %s
+                    """, (meal_role, confidence, time_min, steps_count, pots_pans_count,
+                          is_easy, is_one_pot, leftover_friendly, kid_friendly, recipe_id))
+                    
+                    updated_count += 1
+                    if updated_count <= 5:  # Log first 5 updates for debugging
+                        logger.info(f"✅ Updated recipe {recipe_id}: {meal_role} (confidence: {confidence})")
+                        
+                except Exception as sql_error:
+                    logger.error(f"❌ SQL error for recipe {recipe_id}: {sql_error}")
+                    logger.error(f"   Values: meal_role={meal_role}, confidence={confidence}, time_min={time_min}")
+                    logger.error(f"   Values: steps={steps_count}, pots={pots_pans_count}, easy={is_easy}")
+                    # Continue processing other recipes
+                    continue
                 
             except Exception as e:
                 logger.error(f"Error processing recipe {recipe_id}: {e}")
                 continue
         
         conn.commit()
+        logger.info(f"✅ Committed {updated_count} recipe updates to database")
         
-        # Get statistics
-        cursor.execute("SELECT COUNT(*) FROM recipes WHERE meal_role IS NOT NULL")
-        classified_count = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM recipes WHERE is_easy = true")
-        easy_count = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT meal_role, COUNT(*) as count FROM recipes WHERE meal_role IS NOT NULL GROUP BY meal_role")
-        role_stats = cursor.fetchall()
-        
-        conn.close()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Intelligence migration completed successfully!',
-            'statistics': {
+        # Get statistics with error handling
+        try:
+            cursor.execute("SELECT COUNT(*) FROM recipes WHERE meal_role IS NOT NULL")
+            classified_count = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM recipes WHERE is_easy = true")
+            easy_count = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT meal_role, COUNT(*) as count FROM recipes WHERE meal_role IS NOT NULL GROUP BY meal_role")
+            role_stats = cursor.fetchall()
+            
+            statistics = {
                 'recipes_processed': len(recipes),
                 'recipes_updated': updated_count,
                 'total_classified': classified_count,
                 'easy_recipes': easy_count,
                 'meal_role_breakdown': {row['meal_role']: row['count'] for row in role_stats}
             }
+            
+        except Exception as stats_error:
+            logger.error(f"❌ Error gathering statistics: {stats_error}")
+            statistics = {
+                'recipes_processed': len(recipes),
+                'recipes_updated': updated_count,
+                'note': 'Statistics gathering failed'
+            }
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Intelligence migration completed successfully!',
+            'statistics': statistics
         })
         
     except Exception as e:
         logger.error(f"Intelligence migration error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/admin/run-schema-migration', methods=['POST'])
+def run_schema_migration_endpoint():
+    """Admin endpoint to run database schema migrations"""
+    try:
+        # Check authorization
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or auth_header != 'Bearer admin-token-2024':
+            return jsonify({
+                'success': False,
+                'error': 'Unauthorized - Admin token required'
+            }), 401
+        
+        action = request.json.get('action') if request.json else None
+        
+        if action == 'add_intelligence_columns':
+            logger.info("🔧 Running intelligence columns schema migration...")
+            
+            # Embedded SQL migration (avoid file path issues in production)
+            migration_sql = """
+            -- Add intelligence fields to existing recipes table
+            ALTER TABLE recipes 
+            ADD COLUMN IF NOT EXISTS meal_role TEXT,
+            ADD COLUMN IF NOT EXISTS meal_role_confidence INTEGER DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS time_min INTEGER,
+            ADD COLUMN IF NOT EXISTS steps_count INTEGER,
+            ADD COLUMN IF NOT EXISTS pots_pans_count INTEGER DEFAULT 1,
+            ADD COLUMN IF NOT EXISTS is_easy BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS is_one_pot BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS leftover_friendly BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS kid_friendly BOOLEAN DEFAULT FALSE;
+
+            -- Performance index for intelligent filtering
+            CREATE INDEX IF NOT EXISTS idx_recipes_intelligence 
+            ON recipes(meal_role, is_easy, is_one_pot, time_min);
+
+            -- Index for pantry-first searches (future enhancement)
+            CREATE INDEX IF NOT EXISTS idx_recipes_time_difficulty 
+            ON recipes(time_min, is_easy) WHERE time_min IS NOT NULL;
+            """
+            
+            # Execute migration
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            try:
+                # Split and execute each statement
+                statements = [stmt.strip() for stmt in migration_sql.split(';') if stmt.strip()]
+                
+                for stmt in statements:
+                    if stmt.strip():
+                        cursor.execute(stmt)
+                        logger.info(f"✅ Executed: {stmt[:100]}...")
+                
+                conn.commit()
+                conn.close()
+                
+                logger.info("✅ Intelligence columns schema migration completed successfully")
+                return jsonify({
+                    'success': True,
+                    'message': 'Intelligence columns added successfully',
+                    'statements_executed': len(statements)
+                })
+                
+            except Exception as e:
+                conn.rollback()
+                conn.close()
+                logger.error(f"❌ Schema migration failed: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Schema migration failed: {str(e)}'
+                }), 500
+        
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid action. Use action=add_intelligence_columns'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"❌ Schema migration endpoint error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
