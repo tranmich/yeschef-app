@@ -14,28 +14,43 @@ from pathlib import Path
 import logging
 from datetime import datetime
 
-# Import authentication system
-from auth_system import AuthenticationSystem
-from auth_routes import create_auth_routes
-
-# Import database migrations (extracted for cleaner code)
-from database_migrations import (
-    run_intelligence_migration, 
-    run_schema_migration_endpoint,
-    add_sample_recipes,
-    check_database_info
-)
-
-# Import unified search system (Day 4 Enhancement - Full Integration)
-from core_systems.universal_search import UniversalSearchEngine
-
-# Configure logging first
+# Configure logging immediately after basic imports
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
+
+# Import authentication system
+from auth_system import AuthenticationSystem
+from auth_routes import create_auth_routes
+
+# Import database migrations (extracted for cleaner code) - with fallback
+try:
+    from database_migrations import (
+        run_intelligence_migration, 
+        run_schema_migration_endpoint,
+        add_sample_recipes,
+        check_database_info
+    )
+    DATABASE_MIGRATIONS_AVAILABLE = True
+    logger.info("✅ Database migrations module loaded")
+except ImportError as e:
+    DATABASE_MIGRATIONS_AVAILABLE = False
+    logger.warning(f"⚠️ Database migrations not available: {e}")
+    # Define fallback functions
+    def run_intelligence_migration():
+        return {"error": "Database migrations module not available"}
+    def run_schema_migration_endpoint():
+        return {"error": "Database migrations module not available"}
+    def add_sample_recipes():
+        return {"error": "Database migrations module not available"}
+    def check_database_info():
+        return {"error": "Database migrations module not available"}
+
+# Import unified search system (Day 4 Enhancement - Full Integration)
+from core_systems.universal_search import UniversalSearchEngine
 
 # Import meal planning systems
 try:
