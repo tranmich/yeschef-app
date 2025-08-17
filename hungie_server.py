@@ -1817,6 +1817,46 @@ def migrate_recipes_endpoint():
             'error': str(e)
         }), 500
 
+@app.route('/api/db-test', methods=['GET'])
+def database_connection_test():
+    """Test database connection with detailed logging for debugging"""
+    try:
+        logger.info("🔍 Testing database connection...")
+        
+        # Test our get_db_connection function
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Test recipe count
+        cursor.execute('SELECT COUNT(*) FROM recipes')
+        recipe_count = cursor.fetchone()[0]
+        
+        # Test a sample recipe
+        cursor.execute('SELECT id, title FROM recipes LIMIT 1')
+        sample_recipe = cursor.fetchone()
+        
+        conn.close()
+        
+        logger.info(f"✅ Database test successful: {recipe_count} recipes")
+        
+        return jsonify({
+            'success': True,
+            'database_working': True,
+            'recipe_count': recipe_count,
+            'sample_recipe': dict(sample_recipe) if sample_recipe else None,
+            'connection_method': 'public_url_first',
+            'test_time': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Database test failed: {e}")
+        return jsonify({
+            'success': False,
+            'database_working': False,
+            'error': str(e),
+            'test_time': datetime.now().isoformat()
+        }), 500
+
 @app.route('/api/version', methods=['GET'])
 def get_version():
     """Get deployment version and universal search status"""
