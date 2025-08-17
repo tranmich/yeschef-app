@@ -847,7 +847,7 @@ class UniversalSearchEngine:
     # This function can replace ALL 14 scattered search functions across the codebase
     
     def unified_intelligent_search(self, query="", session_memory=None, user_pantry=None, 
-                                  exclude_ids=None, limit=10, include_explanations=True):
+                                  exclude_ids=None, limit=10, include_explanations=True, filters=None):
         """
         UNIFIED SEARCH FUNCTION - Replaces all scattered search functions
         
@@ -865,8 +865,12 @@ class UniversalSearchEngine:
         """
         
         try:
-            # Step 1: Extract intelligence filters from query
+            # Step 1: Extract intelligence filters from query and merge with input filters
             intelligence_filters = self.extract_intelligence_filters(query) if query else {}
+            
+            # Merge input filters with extracted filters (input filters take precedence)
+            if filters:
+                intelligence_filters.update(filters)
             
             # Step 2: Build preferences from session memory and query
             preferences = {'ingredients': {}, 'dietary': [], 'cuisine': []}
