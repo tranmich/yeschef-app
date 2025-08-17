@@ -13,10 +13,11 @@ def run_migration():
     
     # Send intelligence migration request
     payload = {"type": "intelligence"}
+    headers = {"X-Admin-Key": "migrate-recipes-2025"}
     
     try:
         print("🚀 Calling intelligence migration endpoint...")
-        response = requests.post(url, json=payload, timeout=120)
+        response = requests.post(url, json=payload, headers=headers, timeout=120)
         
         if response.status_code == 200:
             data = response.json()

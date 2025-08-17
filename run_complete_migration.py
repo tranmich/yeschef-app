@@ -51,7 +51,7 @@ def run_complete_migration():
                 'X-Admin-Key': 'migrate-recipes-2025'
             },
             json={"type": "intelligence"},
-            timeout=60
+            timeout=300  # 5 minutes for full dataset
         )
         
         print(f"Data backfill response: {response.status_code}")
