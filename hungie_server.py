@@ -115,21 +115,33 @@ except ImportError as e:
 
 # Database connection
 def get_db_connection():
-    """Get PostgreSQL database connection with proper error handling"""
+    """Get PostgreSQL database connection with proper error handling and fallback to public URL"""
     try:
-        # Use PostgreSQL connection from Railway environment
+        # First try the primary DATABASE_URL from environment
         database_url = os.getenv('DATABASE_URL')
         if not database_url:
             raise Exception("DATABASE_URL environment variable not found. PostgreSQL connection required.")
         
-        # PostgreSQL connection
-        conn = psycopg2.connect(database_url)
-        conn.cursor_factory = psycopg2.extras.RealDictCursor
-        logger.info("✅ Connected to PostgreSQL database")
-        return conn
+        # Try primary PostgreSQL connection (internal Railway URL)
+        try:
+            conn = psycopg2.connect(database_url)
+            conn.cursor_factory = psycopg2.extras.RealDictCursor
+            logger.info("✅ Connected to PostgreSQL database via internal URL")
+            return conn
+        except Exception as internal_error:
+            logger.warning(f"⚠️ Internal DATABASE_URL failed: {internal_error}")
+            
+            # Fallback to public URL (for Railway deployment issues)
+            public_database_url = "postgresql://postgres:udQLpljdqTYmESmntwzmwDcOlBVbqlJG@shuttle.proxy.rlwy.net:31331/railway"
+            logger.info("🔄 Trying public DATABASE_URL as fallback...")
+            
+            conn = psycopg2.connect(public_database_url)
+            conn.cursor_factory = psycopg2.extras.RealDictCursor
+            logger.info("✅ Connected to PostgreSQL database via public URL")
+            return conn
         
     except Exception as e:
-        logger.error(f"❌ PostgreSQL connection error: {e}")
+        logger.error(f"❌ All PostgreSQL connection attempts failed: {e}")
         raise
 
 def init_db():
