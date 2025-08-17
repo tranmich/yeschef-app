@@ -1646,10 +1646,16 @@ def run_intelligence_migration():
         
         # Backfill ALL recipes in production database
         logger.info("📊 Querying ALL recipes from database... [VERSION 2.0 - NO LIMITS]")
+        
+        # First check total count
+        cursor.execute("SELECT COUNT(*) FROM recipes")
+        total_count = cursor.fetchone()[0]
+        logger.info(f"🔢 TOTAL RECIPES IN DATABASE: {total_count}")
+        
         cursor.execute("SELECT id, title, description, total_time, servings, ingredients FROM recipes ORDER BY id")
         recipes = cursor.fetchall()
         
-        logger.info(f"📊 Found {len(recipes)} recipes to backfill... [FULL DATASET]")
+        logger.info(f"📊 Found {len(recipes)} recipes to backfill... [FULL DATASET] - Expected: {total_count}")
         
         if not recipes:
             logger.warning("⚠️ No recipes found in database!")
@@ -1770,6 +1776,7 @@ def run_intelligence_migration():
             statistics = {
                 'recipes_processed': len(recipes),
                 'recipes_updated': updated_count,
+                'total_in_database': len(recipes),
                 'note': 'Statistics gathering failed'
             }
         
