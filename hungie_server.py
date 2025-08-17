@@ -453,7 +453,7 @@ def search_recipes():
     """
     try:
         query = request.args.get('q', '').strip()
-        logger.info(f"🌐 Universal API Search request for: '{query}'")
+        logger.info(f"🌐 Universal API Search request for: '{query}' [UNIVERSAL SEARCH ACTIVE]")
         
         if not query:
             return jsonify({
