@@ -1798,6 +1798,23 @@ def migrate_recipes_endpoint():
             'error': str(e)
         }), 500
 
+@app.route('/api/version', methods=['GET'])
+def get_version():
+    """Get deployment version and universal search status"""
+    return jsonify({
+        'version': '2025-08-17-universal-search-v2',
+        'deployment_time': datetime.now().isoformat(),
+        'universal_search_engine_available': search_engine is not None,
+        'universal_search_class': str(type(search_engine)) if search_engine else None,
+        'git_commit': 'df3de02-universal-consolidation',
+        'features': {
+            'universal_search': True,
+            'intelligence_filtering': True,
+            'session_awareness': True,
+            'consolidated_architecture': True
+        }
+    })
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint with backend capabilities"""
@@ -1838,7 +1855,8 @@ def health_check():
         }), 500
 
     logger.info("🚀 Starting Hungie Backend Server...")
-    logger.info("🚀 Server starting on http://localhost:5000")
+    logger.info("� UNIVERSAL SEARCH CONSOLIDATION VERSION: 2025-08-17-v2")
+    logger.info("�🚀 Server starting on http://localhost:5000")
     
     # Windows-stable configuration with error handling
     try:
