@@ -158,34 +158,23 @@ except ImportError as e:
 
 # Database connection
 def get_db_connection():
-    """Get PostgreSQL database connection with proper error handling and fallback to public URL"""
+    """Get PostgreSQL database connection with Railway-optimized approach"""
+    import psycopg2
+    import psycopg2.extras
+    
+    # Railway-proven public URL that works from local testing
+    public_database_url = "postgresql://postgres:udQLpljdqTYmESmntwzmwDcOlBVbqlJG@shuttle.proxy.rlwy.net:31331/railway"
+    
     try:
-        # Always try public URL first for Railway deployment reliability
-        public_database_url = "postgresql://postgres:udQLpljdqTYmESmntwzmwDcOlBVbqlJG@shuttle.proxy.rlwy.net:31331/railway"
-        logger.info("🔄 Trying reliable public DATABASE_URL first...")
-        
-        try:
-            conn = psycopg2.connect(public_database_url)
-            conn.cursor_factory = psycopg2.extras.RealDictCursor
-            logger.info("✅ Connected to PostgreSQL database via public URL")
-            return conn
-        except Exception as public_error:
-            logger.warning(f"⚠️ Public DATABASE_URL failed: {public_error}")
-            
-            # Fallback to environment DATABASE_URL (internal Railway URL)
-            database_url = os.getenv('DATABASE_URL')
-            if not database_url:
-                raise Exception("DATABASE_URL environment variable not found. PostgreSQL connection required.")
-            
-            logger.info("🔄 Trying internal DATABASE_URL as fallback...")
-            conn = psycopg2.connect(database_url)
-            conn.cursor_factory = psycopg2.extras.RealDictCursor
-            logger.info("✅ Connected to PostgreSQL database via internal URL")
-            return conn
-        
+        logger.info("🔄 Connecting to PostgreSQL via Railway public URL...")
+        conn = psycopg2.connect(public_database_url)
+        conn.cursor_factory = psycopg2.extras.RealDictCursor
+        logger.info("✅ Connected to PostgreSQL database successfully")
+        return conn
     except Exception as e:
-        logger.error(f"❌ All PostgreSQL connection attempts failed: {e}")
-        raise
+        logger.error(f"❌ PostgreSQL connection failed: {e}")
+        logger.error(f"❌ Connection string used: {public_database_url[:50]}...")
+        raise Exception(f"Database connection failed: {str(e)}")
 
 def init_db():
     """Initialize PostgreSQL database tables with complete schema"""
@@ -1819,72 +1808,26 @@ def migrate_recipes_endpoint():
 
 @app.route('/api/db-test', methods=['GET'])
 def database_connection_test():
-    """Test database connection with detailed logging for debugging"""
+    """Simple database connection test"""
     try:
-        logger.info("🔍 Testing database connection...")
-        
-        # First, check what DATABASE_URL we have
-        database_url = os.getenv('DATABASE_URL')
-        database_url_available = database_url is not None
-        database_url_preview = database_url[:50] + "..." if database_url else None
-        
-        logger.info(f"📊 DATABASE_URL available: {database_url_available}")
-        logger.info(f"📊 DATABASE_URL preview: {database_url_preview}")
-        
-        # Test our get_db_connection function
         conn = get_db_connection()
         cursor = conn.cursor()
-        
-        # Test recipe count with safe handling
         cursor.execute('SELECT COUNT(*) FROM recipes')
-        count_result = cursor.fetchone()
-        recipe_count = count_result[0] if count_result else 0
-        
-        # Test a sample recipe with safe handling
-        cursor.execute('SELECT id, title FROM recipes LIMIT 1')
-        sample_result = cursor.fetchone()
-        
+        result = cursor.fetchone()
+        recipe_count = result[0] if result else 0
         conn.close()
-        
-        logger.info(f"✅ Database test successful: {recipe_count} recipes")
-        
-        # Safe conversion of sample recipe
-        sample_recipe = None
-        if sample_result:
-            try:
-                sample_recipe = {
-                    'id': sample_result[0],
-                    'title': sample_result[1]
-                }
-            except (IndexError, TypeError) as e:
-                logger.warning(f"Sample recipe conversion issue: {e}")
-                sample_recipe = {'raw_result': str(sample_result)}
         
         return jsonify({
             'success': True,
-            'database_working': True,
             'recipe_count': recipe_count,
-            'sample_recipe': sample_recipe,
-            'connection_method': 'public_url_first',
-            'database_url_available': database_url_available,
-            'database_url_preview': database_url_preview,
-            'test_time': datetime.now().isoformat()
+            'message': f'Found {recipe_count} recipes'
         })
         
     except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        logger.error(f"❌ Database test failed: {e}")
-        logger.error(f"❌ Full traceback: {error_details}")
-        
         return jsonify({
             'success': False,
-            'database_working': False,
             'error': str(e),
-            'error_type': type(e).__name__,
-            'error_details': error_details,
-            'database_url_available': os.getenv('DATABASE_URL') is not None,
-            'test_time': datetime.now().isoformat()
+            'message': 'Database connection failed'
         }), 500
 
 @app.route('/api/version', methods=['GET'])
