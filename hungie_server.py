@@ -29,7 +29,7 @@ from auth_routes import create_auth_routes
 # Import database migrations (extracted for cleaner code) - with fallback
 try:
     from database_migrations import (
-        run_intelligence_migration, 
+        run_intelligence_migration,
         run_schema_migration_endpoint,
         add_sample_recipes,
         check_database_info
@@ -86,7 +86,7 @@ app = Flask(__name__)
 CORS(app, resources={
     r"/api/*": {
         "origins": [
-            "http://localhost:3000", 
+            "http://localhost:3000",
             "http://127.0.0.1:3000",
             "https://yeschef-app.vercel.app"
         ],
@@ -145,8 +145,8 @@ except ImportError as e:
 # Import backend modernization components
 try:
     from backend_modernization_patch import (
-        ModernSessionManager, 
-        EnhancedResponseBuilder, 
+        ModernSessionManager,
+        EnhancedResponseBuilder,
         ConversationSuggestionGenerator,
         get_session_manager
     )
@@ -161,10 +161,10 @@ def get_db_connection():
     """Get PostgreSQL database connection with Railway-optimized approach"""
     import psycopg2
     import psycopg2.extras
-    
+
     # Railway-proven public URL that works from local testing
     public_database_url = "postgresql://postgres:udQLpljdqTYmESmntwzmwDcOlBVbqlJG@shuttle.proxy.rlwy.net:31331/railway"
-    
+
     try:
         logger.info("🔄 Connecting to PostgreSQL via Railway public URL...")
         conn = psycopg2.connect(public_database_url)
@@ -181,7 +181,7 @@ def init_db():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
         # PostgreSQL schema with ALL required columns for migrated recipes
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS recipes (
@@ -207,7 +207,7 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -217,11 +217,11 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
+
         conn.commit()
         conn.close()
         logger.info("? Database tables initialized successfully")
-        
+
     except Exception as e:
         logger.error(f"? Database initialization error: {e}")
         if 'conn' in locals():
@@ -239,7 +239,7 @@ def search_recipes_by_query(query, limit=50):
     """
     try:
         logger.info(f"🔍 Universal Search (consolidated) for: '{query}' (limit: {limit})")
-        
+
         # Use universal search engine - SINGLE SOURCE OF TRUTH
         if search_engine:
             search_result = search_engine.unified_intelligent_search(
@@ -250,11 +250,11 @@ def search_recipes_by_query(query, limit=50):
                 limit=limit,
                 include_explanations=True
             )
-            
+
             if search_result['success']:
                 recipes = search_result['recipes']
                 logger.info(f"🔍 Universal search found {len(recipes)} recipes with intelligence")
-                
+
                 # Transform to expected format for API compatibility
                 enhanced_recipes = []
                 for recipe in recipes:
@@ -284,16 +284,16 @@ def search_recipes_by_query(query, limit=50):
                         'detected_preferences': search_result.get('search_metadata', {})
                     }
                     enhanced_recipes.append(enhanced_recipe)
-                
+
                 logger.info(f"🎯 Universal search returning {len(enhanced_recipes)} enhanced recipes")
                 return enhanced_recipes
             else:
                 logger.warning(f"Universal search failed: {search_result.get('error', 'Unknown error')}")
-        
+
         # This should never happen in production
         logger.error("⚠️ Universal search engine not available - this is a configuration error")
         return []
-        
+
     except Exception as e:
         logger.error(f"Universal search integration error: {e}")
         return []
@@ -303,17 +303,17 @@ def get_recipe_by_id(recipe_id):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
         # PostgreSQL syntax with %s placeholder
         cursor.execute("""
             SELECT * FROM recipes r
             WHERE r.id = %s
         """, (recipe_id,))
-        
+
         row = cursor.fetchone()
         if not row:
             return None
-        
+
         recipe = {
             'id': row['id'],
             'title': row['title'],
@@ -326,7 +326,7 @@ def get_recipe_by_id(recipe_id):
             'ingredients': row['ingredients'] or '',
             'instructions': row['instructions'] or ''
         }
-        
+
         # Parse JSON fields
         for field in ['ingredients', 'instructions']:
             try:
@@ -336,23 +336,23 @@ def get_recipe_by_id(recipe_id):
                         recipe[field] = parsed
             except (json.JSONDecodeError, TypeError):
                 pass
-        
+
         # NEW: Add recipe type classification for individual recipes using universal search
         try:
             from core_systems.universal_search import UniversalSearchEngine
             engine = UniversalSearchEngine()
-            recipe_types = engine.classify_recipe_types(recipe['title'], 
-                                                      ' '.join(recipe['instructions']) if isinstance(recipe['instructions'], list) 
+            recipe_types = engine.classify_recipe_types(recipe['title'],
+                                                      ' '.join(recipe['instructions']) if isinstance(recipe['instructions'], list)
                                                       else str(recipe['instructions']))
             recipe['recipe_types'] = recipe_types
             logger.info(f"🏷️ Recipe '{recipe['title']}' classified as: {recipe_types}")
         except Exception as e:
             logger.warning(f"⚠️ Recipe type classification failed: {e}")
             recipe['recipe_types'] = []
-        
+
         conn.close()
         return recipe
-        
+
     except Exception as e:
         logger.error(f"Get recipe error: {e}")
         return None
@@ -386,11 +386,11 @@ def create_recipe():
                 'success': False,
                 'error': 'Recipe title is required'
             }), 400
-        
+
         # Insert recipe into database
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
         # PostgreSQL syntax with RETURNING
         cursor.execute('''
             INSERT INTO recipes (title, description, ingredients, instructions, image_url, source, category, flavor_profile)
@@ -407,12 +407,12 @@ def create_recipe():
             data.get('flavor_profile', '')
         ))
         recipe_id = cursor.fetchone()['id']
-        
+
         conn.commit()
         conn.close()
-        
+
         logger.info(f"? Recipe created: {data.get('title')} (ID: {recipe_id})")
-        
+
         return jsonify({
             'success': True,
             'data': {
@@ -420,7 +420,7 @@ def create_recipe():
                 'message': 'Recipe created successfully'
             }
         }), 201
-        
+
     except Exception as e:
         logger.error(f"Create recipe API error: {e}")
         return jsonify({
@@ -462,17 +462,17 @@ def search_recipes():
     try:
         query = request.args.get('q', '').strip()
         logger.info(f"🌐 Universal API Search request for: '{query}' [UNIVERSAL SEARCH ACTIVE]")
-        
+
         if not query:
             return jsonify({
                 'success': False,
                 'error': 'Query parameter is required'
             }), 400
-        
+
         # Use universal search engine - SINGLE SOURCE OF TRUTH
         recipes = search_recipes_by_query(query, limit=50)
         logger.info(f"🌐 Universal API returning {len(recipes)} enhanced recipes")
-        
+
         # Extract enhanced search metadata
         search_metadata = {
             'query': query,
@@ -481,7 +481,7 @@ def search_recipes():
             'intelligence_enabled': True,
             'features': ['smart_explanations', 'intelligence_filtering', 'session_awareness']
         }
-        
+
         # Get metadata from universal search results
         if recipes:
             first_recipe = recipes[0]
@@ -492,14 +492,14 @@ def search_recipes():
                 'one_pot_recipes': len([r for r in recipes if r.get('is_one_pot', False)]),
                 'kid_friendly_recipes': len([r for r in recipes if r.get('kid_friendly', False)])
             })
-        
+
         return jsonify({
             'success': True,
             'data': recipes,
             'metadata': search_metadata,
             'universal_search': True  # Flag for frontend to know this is enhanced
         })
-        
+
     except Exception as e:
         logger.error(f"Universal Search API error: {e}")
         return jsonify({
@@ -526,15 +526,15 @@ def intelligent_session_search():
         session_id = data.get('session_id', 'default')
         shown_recipe_ids = data.get('shown_recipe_ids', [])
         page_size = data.get('page_size', 5)
-        
+
         logger.info(f"🧠 Universal intelligent search: '{query}' | Session: {session_id} | Excluding: {len(shown_recipe_ids)} recipes")
-        
+
         if not query:
             return jsonify({
                 'success': False,
                 'error': 'Query parameter is required'
             }), 400
-        
+
         # Use universal search engine with session awareness
         if search_engine:
             search_result = search_engine.unified_intelligent_search(
@@ -545,10 +545,10 @@ def intelligent_session_search():
                 limit=page_size * 3,  # Get more to account for exclusions
                 include_explanations=True
             )
-            
+
             if search_result['success']:
                 all_recipes = search_result['recipes']
-                
+
                 # Format for API compatibility
                 formatted_recipes = []
                 for recipe in all_recipes:
@@ -575,12 +575,12 @@ def intelligent_session_search():
                         'session_aware': True
                     }
                     formatted_recipes.append(formatted_recipe)
-                
+
                 # Return the next batch
                 next_batch = formatted_recipes[:page_size]
-                
+
                 logger.info(f"🧠 Universal intelligent search found {len(all_recipes)} total matches, returning {len(next_batch)} recipes")
-                
+
                 return jsonify({
                     'success': True,
                     'recipes': next_batch,
@@ -599,7 +599,7 @@ def intelligent_session_search():
                 })
             else:
                 logger.warning(f"Universal intelligent search failed: {search_result.get('error', 'Unknown error')}")
-        
+
         # Fallback should never happen in production
         logger.error("⚠️ Universal search engine not available for intelligent search")
         return jsonify({
@@ -607,7 +607,7 @@ def intelligent_session_search():
             'error': 'Universal search engine not configured',
             'universal_search': False
         }), 500
-    
+
     except Exception as e:
         logger.error(f"?? Intelligent search error: {str(e)}")
         return jsonify({
@@ -634,10 +634,10 @@ def search_recipes_with_exclusions(query, exclude_ids=None):
                 limit=2000,  # High limit for intelligent session-aware search
                 include_explanations=True
             )
-            
+
             if search_result['success']:
                 recipes = search_result['recipes']
-                
+
                 # Transform to expected format for API compatibility
                 enhanced_recipes = []
                 for recipe in recipes:
@@ -666,16 +666,16 @@ def search_recipes_with_exclusions(query, exclude_ids=None):
                         'exclusions_applied': True
                     }
                     enhanced_recipes.append(enhanced_recipe)
-                
+
                 logger.info(f"🔍 Universal search with exclusions found {len(enhanced_recipes)} recipes")
                 return enhanced_recipes
             else:
                 logger.warning(f"Universal search with exclusions failed: {search_result.get('error', 'Unknown error')}")
-        
+
         # This should never happen in production
         logger.error("⚠️ Universal search engine not available for exclusion search")
         return []
-        
+
     except Exception as e:
         logger.error(f"Universal search with exclusions error: {e}")
         return []
@@ -690,10 +690,10 @@ def basic_search_with_exclusions(query, exclude_ids=None):
     """
     try:
         logger.info(f"🔄 Basic search with exclusions redirecting to universal search for: '{query}'")
-        
+
         # Use universal search instead of basic search - CONSOLIDATION
         return search_recipes_with_exclusions(query, exclude_ids)
-        
+
     except Exception as e:
         logger.error(f"🔄 Basic search consolidation error: {str(e)}")
         return []
@@ -704,7 +704,7 @@ def get_categories():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        
+
         cursor.execute("""
             SELECT c.id, c.name, COUNT(rc.recipe_id) as recipe_count
             FROM categories c
@@ -712,7 +712,7 @@ def get_categories():
             GROUP BY c.id, c.name
             ORDER BY c.name
         """)
-        
+
         categories = []
         for row in cursor.fetchall():
             categories.append({
@@ -720,13 +720,13 @@ def get_categories():
                 'name': row['name'],
                 'recipe_count': row['recipe_count']
             })
-        
+
         conn.close()
         return jsonify({
             'success': True,
             'data': categories
         })
-        
+
     except Exception as e:
         logger.error(f"Categories API error: {e}")
         return jsonify({
@@ -747,7 +747,7 @@ def smart_search():
         user_message = data.get('message', '').strip()
         query = data.get('query', user_message).strip()  # Support both message and query
         session_id = data.get('session_id', 'default')
-        
+
         # Day 4: Extract intelligence filters from request
         filters = {
             'meal_role': data.get('meal_role'),
@@ -758,25 +758,25 @@ def smart_search():
             'leftover_friendly': data.get('leftover_friendly', False),
             'pantry_first': data.get('pantry_first', False)
         }
-        
+
         # Get user pantry if available (future enhancement)
         user_pantry = data.get('user_pantry', [])
         exclude_ids = data.get('exclude_ids', [])
         limit = data.get('limit', 10)
-        
+
         if not query:
             return jsonify({
                 'success': False,
                 'error': 'Query is required'
             }), 400
-        
+
         # Use universal search engine (consolidated from ALL scattered functions)
         if not search_engine:
             return jsonify({
                 'success': False,
                 'error': 'Universal search engine not available'
             }), 503
-        
+
         # Get session memory if available
         session_memory = None
         if session_manager:
@@ -784,7 +784,7 @@ def smart_search():
                 session_memory = session_manager.get_session_data(session_id)
             except:
                 session_memory = None
-        
+
         # UNIVERSAL SEARCH CALL - replaces ALL 14+ scattered search functions with filter support
         search_result = search_engine.unified_intelligent_search(
             query=query,
@@ -795,17 +795,17 @@ def smart_search():
             include_explanations=True,
             filters=filters  # Day 4: Pass filters to search engine
         )
-        
+
         if not search_result['success']:
             return jsonify({
                 'success': False,
                 'error': search_result.get('error', 'Search failed')
             }), 500
-        
+
         recipes = search_result['recipes']
         filters_applied = search_result['filters_applied']
         search_metadata = search_result['search_metadata']
-        
+
         # Record query in session if available
         if session_manager:
             try:
@@ -820,12 +820,12 @@ def smart_search():
                 )
             except:
                 pass  # Session manager not available
-        
+
         # Generate intelligent response based on results
         if recipes:
             # Smart response based on filters applied
             response_parts = [f"Found {len(recipes)} recipes"]
-            
+
             if filters_applied.get('max_time'):
                 response_parts.append(f"ready in ≤{filters_applied['max_time']} minutes")
             if filters_applied.get('is_easy'):
@@ -836,9 +836,9 @@ def smart_search():
                 response_parts.append("that are kid-friendly")
             if filters_applied.get('meal_role'):
                 response_parts.append(f"perfect for {filters_applied['meal_role']}")
-            
+
             ai_response = " ".join(response_parts) + "! 🍴"
-            
+
             # Generate conversation suggestions if available
             conversation_suggestions = []
             if session_manager:
@@ -848,7 +848,7 @@ def smart_search():
                     )
                 except:
                     conversation_suggestions = []
-            
+
             # Enhanced response with intelligence metadata
             response_data = {
                 'success': True,
@@ -864,17 +864,17 @@ def smart_search():
                     'universal_search': True  # Full integration flag
                 }
             }
-            
+
             # Add conversation suggestions if available
             if conversation_suggestions:
                 response_data['data']['conversation_suggestions'] = conversation_suggestions
-            
+
             return jsonify(response_data)
-            
+
         else:
             # No results found - provide helpful suggestions
             ai_response = "I couldn't find recipes matching those criteria. Try adjusting your filters or being more specific about ingredients or cooking style. 🔍"
-            
+
             return jsonify({
                 'success': True,
                 'data': {
@@ -895,7 +895,7 @@ def smart_search():
                     ]
                 }
             })
-            
+
     except Exception as e:
         logger.error(f"Universal search error: {e}")
         return jsonify({
@@ -917,15 +917,15 @@ def get_recipe_suggestions():
         query = data.get('query', '').strip()
         session_id = data.get('session_id', 'default')
         limit = data.get('limit', 5)
-        
+
         if not query:
             return jsonify({
                 'success': False,
                 'error': 'Query is required'
             }), 400
-        
+
         logger.info(f"💡 Universal recipe suggestions for: '{query}' | Session: {session_id}")
-        
+
         # Use universal search engine for suggestions
         if search_engine:
             search_result = search_engine.unified_intelligent_search(
@@ -936,7 +936,7 @@ def get_recipe_suggestions():
                 limit=limit,
                 include_explanations=True
             )
-            
+
             if search_result['success']:
                 return jsonify({
                     'success': True,
@@ -961,7 +961,7 @@ def get_recipe_suggestions():
                 'success': False,
                 'error': 'Universal search engine not configured'
             }), 500
-        
+
     except Exception as e:
         logger.error(f"Universal recipe suggestions API error: {e}")
         return jsonify({
@@ -975,14 +975,14 @@ def get_database_stats():
     """Get database statistics for debugging - UNIVERSAL SEARCH INTEGRATION"""
     try:
         from core_systems.universal_search import get_database_info
-        
+
         stats = get_database_info()
-        
+
         return jsonify({
             'success': True,
             'data': stats
         })
-        
+
     except Exception as e:
         logger.error(f"Database stats API error: {e}")
         return jsonify({
@@ -995,9 +995,9 @@ def get_recipe_types():
     """Get all available recipe types and their statistics - UNIVERSAL SEARCH INTEGRATION"""
     try:
         from core_systems.universal_search import UniversalSearchEngine
-        
+
         engine = UniversalSearchEngine()
-        
+
         # Get all recipe type categories
         recipe_type_info = {
             'one_pot': {
@@ -1037,22 +1037,22 @@ def get_recipe_types():
                 'count': 0
             }
         }
-        
+
         # Get sample counts by doing quick searches
         for recipe_type, info in recipe_type_info.items():
             try:
                 # Use first keyword to get a count estimate
                 sample_query = info['keywords'][0] if info['keywords'] else recipe_type
                 results = search_recipes_by_query(sample_query, limit=10)
-                
+
                 # Count recipes that actually have this type
                 actual_count = sum(1 for recipe in results if recipe_type in recipe.get('recipe_types', []))
                 info['count'] = actual_count
-                
+
             except Exception as e:
                 logger.warning(f"Failed to get count for {recipe_type}: {e}")
                 info['count'] = 0
-        
+
         return jsonify({
             'success': True,
             'data': {
@@ -1061,7 +1061,7 @@ def get_recipe_types():
                 'classification_available': True
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Recipe types API error: {e}")
         return jsonify({
@@ -1083,16 +1083,16 @@ def search_by_recipe_type(recipe_type):
     """
     try:
         logger.info(f"🏷️ Universal search by recipe type: '{recipe_type}'")
-        
+
         # Validate recipe type - expanded to match intelligence filters
-        valid_types = ['one_pot', 'quick', 'easy', 'challenging', 'low_prep', 'slow_cook', 
+        valid_types = ['one_pot', 'quick', 'easy', 'challenging', 'low_prep', 'slow_cook',
                       'kid_friendly', 'leftover_friendly', 'breakfast', 'lunch', 'dinner', 'snack']
         if recipe_type not in valid_types:
             return jsonify({
                 'success': False,
                 'error': f'Invalid recipe type. Valid types: {valid_types}'
             }), 400
-        
+
         # Use universal search with intelligence filtering
         if search_engine:
             # Map recipe type to intelligence filters
@@ -1107,10 +1107,10 @@ def search_by_recipe_type(recipe_type):
                 intelligence_filters['leftover_friendly'] = True
             elif recipe_type in ['breakfast', 'lunch', 'dinner', 'snack']:
                 intelligence_filters['meal_role'] = recipe_type
-            
+
             # Use type keyword as query
             search_query = recipe_type.replace('_', ' ')
-            
+
             search_result = search_engine.unified_intelligent_search(
                 query=search_query,
                 session_memory=None,
@@ -1120,12 +1120,12 @@ def search_by_recipe_type(recipe_type):
                 include_explanations=True,
                 intelligence_filters=intelligence_filters
             )
-            
+
             if search_result['success']:
                 recipes = search_result['recipes']
-                
+
                 logger.info(f"🏷️ Universal search found {len(recipes)} recipes of type '{recipe_type}'")
-                
+
                 return jsonify({
                     'success': True,
                     'data': recipes,
@@ -1151,7 +1151,7 @@ def search_by_recipe_type(recipe_type):
                 'success': False,
                 'error': 'Universal search engine not configured'
             }), 500
-        
+
     except Exception as e:
         logger.error(f"Universal search by type API error: {e}")
         return jsonify({
@@ -1159,7 +1159,7 @@ def search_by_recipe_type(recipe_type):
             'error': str(e),
             'universal_search': False
         }), 500
-        
+
     except Exception as e:
         logger.error(f"Search by type API error: {e}")
         return jsonify({
@@ -1177,13 +1177,13 @@ def analyze_recipe(recipe_id):
                 'success': False,
                 'error': 'Recipe not found'
             }), 404
-        
+
         if not client:
             return jsonify({
                 'success': False,
                 'error': 'AI service not available'
             }), 503
-        
+
         # Create analysis prompt
         prompt = f"""
         Analyze this recipe and provide helpful cooking insights:
@@ -1199,7 +1199,7 @@ def analyze_recipe(recipe_id):
         4. Helpful tips
         5. Possible substitutions
         """
-        
+
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -1209,9 +1209,9 @@ def analyze_recipe(recipe_id):
             max_tokens=600,
             temperature=0.7
         )
-        
+
         analysis = response.choices[0].message.content
-        
+
         return jsonify({
             'success': True,
             'data': {
@@ -1219,7 +1219,7 @@ def analyze_recipe(recipe_id):
                 'analysis': analysis
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Recipe analysis error: {e}")
         return jsonify({
@@ -1236,20 +1236,20 @@ def get_session_stats(session_id):
                 'success': False,
                 'error': 'Session management not available'
             }), 503
-        
+
         stats = session_manager.get_session_stats(session_id)
-        
+
         if not stats:
             return jsonify({
                 'success': False,
                 'error': 'Session not found'
             }), 404
-        
+
         return jsonify({
             'success': True,
             'data': stats
         })
-        
+
     except Exception as e:
         logger.error(f"Session stats API error: {e}")
         return jsonify({
@@ -1266,9 +1266,9 @@ def get_session_shown_recipes(session_id):
                 'success': False,
                 'error': 'Session management not available'
             }), 503
-        
+
         shown_recipes = session_manager.get_shown_recipes(session_id)
-        
+
         return jsonify({
             'success': True,
             'data': {
@@ -1277,7 +1277,7 @@ def get_session_shown_recipes(session_id):
                 'count': len(shown_recipes)
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Session shown recipes API error: {e}")
         return jsonify({
@@ -1299,15 +1299,15 @@ def get_conversation_suggestions():
         user_query = data.get('query', '')
         search_results = data.get('search_results', [])
         session_id = data.get('session_id', 'default')
-        
+
         if not user_query:
             return jsonify({
                 'success': False,
                 'error': 'Query is required'
             }), 400
-        
+
         logger.info(f"💬 Universal conversation suggestions for: '{user_query}' | Session: {session_id}")
-        
+
         # Use universal search for contextual suggestions
         if search_engine:
             # Generate contextual follow-up queries based on user query
@@ -1318,7 +1318,7 @@ def get_conversation_suggestions():
                 f"kid friendly {user_query}",
                 f"{user_query} with leftovers"
             ]
-            
+
             suggestions = []
             for query in follow_up_queries:
                 search_result = search_engine.unified_intelligent_search(
@@ -1329,7 +1329,7 @@ def get_conversation_suggestions():
                     limit=3,
                     include_explanations=True
                 )
-                
+
                 if search_result['success'] and search_result['recipes']:
                     suggestions.append({
                         'text': query.title(),
@@ -1338,7 +1338,7 @@ def get_conversation_suggestions():
                         'preview_recipes': [r['title'] for r in search_result['recipes'][:2]],
                         'intelligence_enabled': True
                     })
-            
+
             return jsonify({
                 'success': True,
                 'data': {
@@ -1357,7 +1357,7 @@ def get_conversation_suggestions():
                 {'text': f"Quick {user_query}", 'type': 'search_suggestion'},
                 {'text': f"One pot {user_query}", 'type': 'search_suggestion'}
             ]
-            
+
             return jsonify({
                 'success': True,
                 'data': {
@@ -1368,7 +1368,7 @@ def get_conversation_suggestions():
                     'universal_search_used': False
                 }
             })
-        
+
     except Exception as e:
         logger.error(f"Universal conversation suggestions API error: {e}")
         return jsonify({
@@ -1389,7 +1389,7 @@ def create_meal_plan():
             'success': False,
             'error': 'Meal planning system not available'
         }), 503
-    
+
     try:
         data = request.get_json()
         if not data:
@@ -1397,21 +1397,21 @@ def create_meal_plan():
                 'success': False,
                 'error': 'No data provided'
             }), 400
-        
+
         plan_name = data.get('plan_name', f'Meal Plan {datetime.now().strftime("%Y-%m-%d")}')
         week_start_date = data.get('week_start_date', datetime.now().strftime("%Y-%m-%d"))
         meal_data = data.get('meal_data', {})
-        
+
         meal_planner = MealPlanningSystem()
         plan_id = meal_planner.create_meal_plan(plan_name, week_start_date, meal_data)
-        
+
         return jsonify({
             'success': True,
             'plan_id': plan_id,
             'plan_name': plan_name,
             'week_start_date': week_start_date
         })
-        
+
     except Exception as e:
         logger.error(f"Create meal plan error: {e}")
         return jsonify({
@@ -1427,19 +1427,19 @@ def list_meal_plans():
             'success': False,
             'error': 'Meal planning system not available'
         }), 503
-    
+
     try:
         limit = request.args.get('limit', 50, type=int)
-        
+
         meal_planner = MealPlanningSystem()
         plans = meal_planner.list_meal_plans(limit=limit)
-        
+
         return jsonify({
             'success': True,
             'meal_plans': plans,
             'count': len(plans)
         })
-        
+
     except Exception as e:
         logger.error(f"List meal plans error: {e}")
         return jsonify({
@@ -1455,22 +1455,22 @@ def get_meal_plan(plan_id):
             'success': False,
             'error': 'Meal planning system not available'
         }), 503
-    
+
     try:
         meal_planner = MealPlanningSystem()
         plan = meal_planner.get_meal_plan(plan_id)
-        
+
         if not plan:
             return jsonify({
                 'success': False,
                 'error': 'Meal plan not found'
             }), 404
-        
+
         return jsonify({
             'success': True,
             'meal_plan': plan
         })
-        
+
     except Exception as e:
         logger.error(f"Get meal plan error: {e}")
         return jsonify({
@@ -1486,7 +1486,7 @@ def update_meal_plan(plan_id):
             'success': False,
             'error': 'Meal planning system not available'
         }), 503
-    
+
     try:
         data = request.get_json()
         if not data:
@@ -1494,23 +1494,23 @@ def update_meal_plan(plan_id):
                 'success': False,
                 'error': 'No data provided'
             }), 400
-        
+
         meal_data = data.get('meal_data', {})
-        
+
         meal_planner = MealPlanningSystem()
         success = meal_planner.update_meal_plan(plan_id, meal_data)
-        
+
         if not success:
             return jsonify({
                 'success': False,
                 'error': 'Meal plan not found'
             }), 404
-        
+
         return jsonify({
             'success': True,
             'plan_id': plan_id
         })
-        
+
     except Exception as e:
         logger.error(f"Update meal plan error: {e}")
         return jsonify({
@@ -1526,13 +1526,13 @@ def get_grocery_list(plan_id):
             'success': False,
             'error': 'Meal planning system not available'
         }), 503
-    
+
     try:
         grocery_generator = GroceryListGenerator()
         grocery_list = grocery_generator.generate_grocery_list_from_meal_plan(plan_id)
-        
+
         return jsonify(grocery_list)
-        
+
     except Exception as e:
         logger.error(f"Generate grocery list error: {e}")
         return jsonify({
@@ -1548,7 +1548,7 @@ def generate_grocery_list_from_recipes():
             'success': False,
             'error': 'Meal planning system not available'
         }), 503
-    
+
     try:
         data = request.get_json()
         if not data:
@@ -1556,19 +1556,19 @@ def generate_grocery_list_from_recipes():
                 'success': False,
                 'error': 'No data provided'
             }), 400
-        
+
         recipe_ids = data.get('recipe_ids', [])
         if not recipe_ids:
             return jsonify({
                 'success': False,
                 'error': 'No recipe IDs provided'
             }), 400
-        
+
         grocery_generator = GroceryListGenerator()
         grocery_list = grocery_generator.generate_grocery_list_from_recipes(recipe_ids)
-        
+
         return jsonify(grocery_list)
-        
+
     except Exception as e:
         logger.error(f"Generate grocery list from recipes error: {e}")
         return jsonify({
@@ -1588,7 +1588,7 @@ def toggle_favorite():
             'success': False,
             'error': 'Favorites system not available'
         }), 503
-    
+
     try:
         data = request.get_json()
         if not data:
@@ -1596,21 +1596,21 @@ def toggle_favorite():
                 'success': False,
                 'error': 'No data provided'
             }), 400
-        
+
         recipe_id = data.get('recipe_id')
         notes = data.get('notes', '')
-        
+
         if not recipe_id:
             return jsonify({
                 'success': False,
                 'error': 'Recipe ID required'
             }), 400
-        
+
         favorites_manager = FavoritesManager()
         result = favorites_manager.toggle_favorite(recipe_id, notes)
-        
+
         return jsonify(result)
-        
+
     except Exception as e:
         logger.error(f"Toggle favorite error: {e}")
         return jsonify({
@@ -1626,22 +1626,22 @@ def get_favorites():
             'success': False,
             'error': 'Favorites system not available'
         }), 503
-    
+
     try:
         limit = request.args.get('limit', 50, type=int)
         offset = request.args.get('offset', 0, type=int)
-        
+
         favorites_manager = FavoritesManager()
         favorites = favorites_manager.get_favorites(limit=limit, offset=offset)
         total_count = favorites_manager.get_favorites_count()
-        
+
         return jsonify({
             'success': True,
             'favorites': favorites,
             'count': len(favorites),
             'total_count': total_count
         })
-        
+
     except Exception as e:
         logger.error(f"Get favorites error: {e}")
         return jsonify({
@@ -1657,7 +1657,7 @@ def check_favorites():
             'success': False,
             'error': 'Favorites system not available'
         }), 503
-    
+
     try:
         data = request.get_json()
         if not data:
@@ -1665,22 +1665,22 @@ def check_favorites():
                 'success': False,
                 'error': 'No data provided'
             }), 400
-        
+
         recipe_ids = data.get('recipe_ids', [])
         if not recipe_ids:
             return jsonify({
                 'success': False,
                 'error': 'No recipe IDs provided'
             }), 400
-        
+
         favorites_manager = FavoritesManager()
         favorite_status = favorites_manager.bulk_check_favorites(recipe_ids)
-        
+
         return jsonify({
             'success': True,
             'favorite_status': favorite_status
         })
-        
+
     except Exception as e:
         logger.error(f"Check favorites error: {e}")
         return jsonify({
@@ -1696,16 +1696,16 @@ def get_favorites_summary():
             'success': False,
             'error': 'Favorites system not available'
         }), 503
-    
+
     try:
         favorites_manager = FavoritesManager()
         summary = favorites_manager.get_favorites_summary()
-        
+
         return jsonify({
             'success': True,
             'summary': summary
         })
-        
+
     except Exception as e:
         logger.error(f"Get favorites summary error: {e}")
         return jsonify({
@@ -1756,15 +1756,15 @@ def run_schema_migration_endpoint_route():
                 'success': False,
                 'error': 'Unauthorized - Admin token required'
             }), 401
-        
+
         action = request.json.get('action') if request.json else None
         result = run_schema_migration_endpoint(action)
-        
+
         if result['success']:
             return jsonify(result)
         else:
             return jsonify(result), 400 if 'Invalid action' in result['error'] else 500
-            
+
     except Exception as e:
         logger.error(f"? Schema migration endpoint error: {e}")
         return jsonify({
@@ -1778,14 +1778,14 @@ def migrate_recipes_endpoint():
     try:
         # Check if this is an intelligence migration request
         migrate_type = request.json.get('type', 'recipes') if request.json else 'recipes'
-        
+
         if migrate_type == 'intelligence':
             result = run_intelligence_migration()
             if result['success']:
                 return jsonify(result)
             else:
                 return jsonify(result), 500
-        
+
         # Check authorization for recipe migration
         admin_key = request.headers.get('X-Admin-Key')
         if admin_key != 'migrate-recipes-2025':
@@ -1793,13 +1793,13 @@ def migrate_recipes_endpoint():
                 'success': False,
                 'error': 'Unauthorized - Admin key required'
             }), 401
-        
+
         result = add_sample_recipes()
         if result['success']:
             return jsonify(result)
         else:
             return jsonify(result), 500
-        
+
     except Exception as e:
         logger.error(f"? Migration error: {e}")
         return jsonify({
@@ -1817,13 +1817,13 @@ def database_connection_test():
         result = cursor.fetchone()
         recipe_count = result[0] if result else 0
         conn.close()
-        
+
         return jsonify({
             'success': True,
             'recipe_count': recipe_count,
             'message': f'Found {recipe_count} recipes'
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -1860,7 +1860,7 @@ def health_check():
             'ai_chat': client is not None,
             'database_connection': True
         }
-        
+
         # Test database connection
         try:
             conn = get_db_connection()
@@ -1872,14 +1872,14 @@ def health_check():
         except Exception as e:
             capabilities['database_connection'] = False
             capabilities['database_error'] = str(e)
-        
+
         return jsonify({
             'success': True,
             'status': 'healthy',
             'capabilities': capabilities,
             'timestamp': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -1890,7 +1890,7 @@ def health_check():
     logger.info("🚀 Starting Hungie Backend Server...")
     logger.info("� UNIVERSAL SEARCH CONSOLIDATION VERSION: 2025-08-17-v2")
     logger.info("�🚀 Server starting on http://localhost:5000")
-    
+
     # Windows-stable configuration with error handling
     try:
         app.run(
@@ -1917,14 +1917,14 @@ def health_check():
             logger.error("Please check if ports are available and try again")
 if __name__ == "__main__":
     logger.info("?? Starting Yes Chef! Backend Server...")
-    
+
     # Initialize database
     try:
         init_db()
         logger.info("? Database initialization completed")
     except Exception as e:
         logger.error(f"? Database initialization failed: {e}")
-    
+
     # Initialize Authentication System with database connection
     try:
         auth_system = AuthenticationSystem(app, get_db_connection)
@@ -1934,19 +1934,19 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"? Failed to initialize authentication system: {e}")
         auth_system = None
-    
+
     # Universal Search Engine status check
     if search_engine:
         logger.info("🔍 Universal search engine ready - ALL search functions consolidated")
     else:
         logger.warning("⚠️ Universal search engine not available - some features may be limited")
-    
+
     # Production hosting configuration (Railway/Heroku compatible)
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
-    
+
     logger.info(f"?? Server starting on {host}:{port}")
-    
+
     try:
         app.run(
             host=host,

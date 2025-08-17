@@ -6,7 +6,7 @@ We have **14 scattered search functions** across 4 files creating maintenance ni
 
 #### hungie_server.py (7 functions):
 - `search_recipes_by_query()` - Basic keyword search
-- `search_recipes()` - API endpoint wrapper  
+- `search_recipes()` - API endpoint wrapper
 - `search_recipes_with_exclusions()` - Search excluding certain recipes
 - `search_by_recipe_type()` - Filter by recipe category
 - `intelligent_session_search()` - Session-aware search
@@ -85,7 +85,7 @@ intelligence_filters = {
     'meal_role': 'dinner'
 }
 
-# User query: "one pot breakfast"  
+# User query: "one pot breakfast"
 intelligence_filters = {
     'is_one_pot': True,
     'meal_role': 'breakfast'
@@ -118,7 +118,7 @@ intelligence_filters = {
 
 **🎯 FUTURE ENHANCEMENTS:**
 - [ ] Pantry-aware recipe ranking
-- [ ] Seasonal ingredient suggestions  
+- [ ] Seasonal ingredient suggestions
 - [ ] Dietary restriction auto-detection
 - [ ] Recipe complexity scoring
 - [ ] Meal planning integration
@@ -139,7 +139,7 @@ intelligence_filters = {
 
 ### 🚀 READY FOR DEPLOYMENT
 
-The unified search system is **ready to replace all scattered functions**. 
+The unified search system is **ready to replace all scattered functions**.
 
 **Your choice:**
 1. **Gradual migration** - Replace functions one by one

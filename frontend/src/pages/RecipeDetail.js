@@ -10,10 +10,10 @@ import SessionMemoryManager from '../utils/SessionMemoryManager';
 
 const RecipeDetail = () => {
   console.log('🚀 RecipeDetail component loaded - ENHANCED SESSION VERSION 2025-08-16');
-  
+
   // --- Enhanced Session Memory with Backend Coordination ---
   const [sessionMemory] = useState(() => new SessionMemoryManager());
-  
+
   // --- Chat State ---
   const [messages, setMessages] = useState([
     {
@@ -64,7 +64,7 @@ const RecipeDetail = () => {
 
   const handleDragEnd = (event) => {
     const { over } = event;
-    
+
     // Only add recipe if there's a valid drop target AND dragged recipe
     if (over && draggedRecipe) {
       // Parse the drop zone ID
@@ -82,7 +82,7 @@ const RecipeDetail = () => {
         }));
       }
     }
-    
+
     // Reset drag state
     setDraggedRecipe(null);
     setIsDragging(false);
@@ -100,9 +100,9 @@ const RecipeDetail = () => {
     if (isDragging) {
       return;
     }
-    
+
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ 
+      messagesEndRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "end"
       });
@@ -158,7 +158,7 @@ const RecipeDetail = () => {
         setIsLoading(false);
         return;
       }
-      
+
       // Add user message to chat
       const userMessageObj = {
         type: 'user',
@@ -166,30 +166,30 @@ const RecipeDetail = () => {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, userMessageObj]);
-      
+
       console.log('🧠 [' + new Date().toLocaleTimeString() + '] Starting enhanced search for:', userMessage);
-      
+
       let searchResult;
       let isIntelligentAvailable = false;
-      
+
       // Try intelligent session-aware search first, fallback to standard if unavailable
       try {
         isIntelligentAvailable = await api.isIntelligentSearchAvailable();
         console.log('🧠 Intelligent search available:', isIntelligentAvailable);
-        
+
         if (isIntelligentAvailable) {
           // Use enhanced session-aware search
           const data = await api.searchRecipesIntelligent(
-            userMessage, 
-            sessionMemory.sessionId, 
-            sessionMemory.getShownRecipeIds(), 
+            userMessage,
+            sessionMemory.sessionId,
+            sessionMemory.getShownRecipeIds(),
             5
           );
-          
+
           if (data.success) {
             // Track the new recipes as shown
             sessionMemory.recordShownRecipes(data.recipes);
-            
+
             searchResult = {
               recipes: data.recipes,
               hasMore: data.has_more,
@@ -210,7 +210,7 @@ const RecipeDetail = () => {
         const response = await api.searchRecipes(userMessage);
         const recipes = response.recipes || response.data || [];
         const newRecipes = sessionMemory.filterNewRecipes(recipes);
-        
+
         searchResult = {
           recipes: newRecipes,
           hasMore: false,
@@ -218,16 +218,16 @@ const RecipeDetail = () => {
           shownCount: sessionMemory.shownRecipes.size,
           metadata: { fallback_search_used: true }
         };
-        
+
         // Mark displayed recipes as shown
         const displayedRecipes = newRecipes.slice(0, 5);
         sessionMemory.recordShownRecipes(displayedRecipes);
       }
-      
+
       if (searchResult.error) {
         throw new Error(searchResult.error);
       }
-      
+
       // Check if we have new recipes to show
       if (searchResult.recipes.length === 0) {
         const noNewRecipesMessage = {
@@ -240,14 +240,14 @@ const RecipeDetail = () => {
       } else {
         // Generate intelligent response based on search metadata
         let responseContent = `Here are some great ${userMessage} recipes I found for you! 🍴`;
-        
+
         if (searchResult.hasMore) {
           const remaining = searchResult.totalAvailable - searchResult.shownCount;
           responseContent += `\n\n📊 Showing ${searchResult.recipes.length} recipes. I have ${remaining} more ${userMessage} recipes available! Search again to see more.`;
         } else if (searchResult.totalAvailable > searchResult.recipes.length) {
           responseContent += `\n\n✨ These are the last ${searchResult.recipes.length} new ${userMessage} recipes I have for you!`;
         }
-        
+
         const aiMessage = {
           type: 'hungie',
           content: responseContent,
@@ -256,7 +256,7 @@ const RecipeDetail = () => {
           searchMetadata: searchResult.metadata
         };
         setMessages(prev => [...prev, aiMessage]);
-        
+
         console.log('✅ Enhanced search complete:', {
           shown: searchResult.recipes.length,
           totalAvailable: searchResult.totalAvailable,
@@ -265,12 +265,12 @@ const RecipeDetail = () => {
           usingIntelligentSearch: isIntelligentAvailable
         });
       }
-      
+
     } catch (error) {
       console.error('❌ Search error details:', error);
       console.error('❌ Error message:', error.message);
       console.error('❌ Error stack:', error.stack);
-      
+
       const errorMessage = {
         type: 'hungie',
         content: `I'm having trouble finding recipes right now. Error: ${error.message}. Please try again! 🍴`,
@@ -310,11 +310,11 @@ const RecipeDetail = () => {
       <div className="app-container">
         {/* Compact Header */}
         <CompactHeader />
-        
+
         {/* Main Content Area */}
         <div className="main-content">
           {/* Sidebar Navigation - Always visible */}
-          <SidebarNavigation 
+          <SidebarNavigation
             showMealPlanner={showMealPlanner}
             onToggleMealPlanner={toggleMealPlanner}
             onFeatureSelect={(feature) => {
@@ -322,7 +322,7 @@ const RecipeDetail = () => {
               console.log('Feature selected:', feature);
             }}
           />
-          
+
           {/* Chat Area */}
           <div className={`chat-area ${showMealPlanner ? 'with-meal-planner' : ''}`}>
             <div className="chat-container">
@@ -341,14 +341,14 @@ const RecipeDetail = () => {
                   </div>
                 </div>
               )}
-              
+
               {/* Chat Messages */}
               {hasStartedChat && (
                 <div className="chat-box">
                   {messages.map((msg, index) => (
                     <div key={index} className={`chat-message ${msg.type}`} style={{ whiteSpace: 'pre-line', marginBottom: msg.recipes && msg.recipes.length > 0 ? '10px' : undefined }}>
                       {msg.content || msg.text}
-                      
+
                       {/* Recipe list with RecipeDropdown components */}
                       {msg.type === 'hungie' && msg.recipes && msg.recipes.length > 0 && (
                         <div className="chat-recipe-dropdown" style={{ marginTop: '8px' }}>
@@ -364,7 +364,7 @@ const RecipeDetail = () => {
                       )}
                     </div>
                   ))}
-                  
+
                   <div ref={messagesEndRef} />
                 </div>
               )}
@@ -390,22 +390,22 @@ const RecipeDetail = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Meal Planner Sidebar - Notion-inspired */}
           <div className={`meal-planner-sidebar ${showMealPlanner ? 'visible' : ''}`}>
             {/* Resize Handle */}
             <div className="meal-planner-resize-handle"></div>
-            
+
             {/* Close Button */}
-            <button 
+            <button
               className="meal-planner-close"
               onClick={toggleMealPlanner}
               title="Close meal planner"
             >
               ✕
             </button>
-            
-            <MealPlannerView 
+
+            <MealPlannerView
               searchResults={[]} // No separate search results - drag from chat
               isVisible={showMealPlanner}
               isCompactMode={true} // New prop for sidebar mode

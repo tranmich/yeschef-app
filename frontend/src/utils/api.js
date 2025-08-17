@@ -4,7 +4,7 @@ const getApiUrl = () => {
   // Use environment variable if available, otherwise fallback to hardcoded URL
   const envUrl = process.env.REACT_APP_API_URL;
   const fallbackUrl = "https://yeschefapp-production.up.railway.app";
-  
+
   const apiUrl = envUrl || fallbackUrl;
   console.log("🌐 Current window location:", window.location.href);
   console.log("🔧 Environment variables:", {
@@ -14,7 +14,7 @@ const getApiUrl = () => {
   });
   console.log("📡 API URL Source:", envUrl ? "Environment Variable" : "Hardcoded Fallback");
   console.log("📡 Final API URL:", apiUrl);
-  
+
   return apiUrl;
 };
 
@@ -128,11 +128,11 @@ api.isIntelligentSearchAvailable = async () => {
     const response = await fetch(`${apiUrl}/api/search/intelligent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        query: 'test', 
-        session_id: 'test', 
-        shown_recipe_ids: [], 
-        page_size: 1 
+      body: JSON.stringify({
+        query: 'test',
+        session_id: 'test',
+        shown_recipe_ids: [],
+        page_size: 1
       })
     });
     return response.status !== 404;

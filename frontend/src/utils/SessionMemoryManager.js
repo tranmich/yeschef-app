@@ -38,7 +38,7 @@ class SessionMemoryManager {
   recordQuery(userQuery, queryAnalysis, searchResults, displayedRecipes = null) {
     // Use displayedRecipes if provided, otherwise fall back to all search results
     const recipesToTrack = displayedRecipes || (searchResults.recipes || []);
-    
+
     const queryRecord = {
       timestamp: new Date(),
       query: userQuery,
@@ -55,7 +55,7 @@ class SessionMemoryManager {
 
     if (recipesToTrack.length > 0) {
       this.sessionStats.successfulSearches++;
-      
+
       // Track search term -> results mapping
       const searchKey = this.normalizeSearchTerm(userQuery);
       if (!this.searchHistory.has(searchKey)) {
@@ -84,18 +84,18 @@ class SessionMemoryManager {
     if (!this.recipeInteractions.has(recipeId)) {
       this.recipeInteractions.set(recipeId, []);
     }
-    
+
     this.recipeInteractions.get(recipeId).push({
       ...interaction,
       timestamp: new Date()
     });
-    
+
     // Update user preferences based on interaction
     if (interaction.action === 'view_details' || interaction.action === 'favorite') {
       this.sessionStats.recipesViewed++;
       this.learnFromInteraction(recipeId, interaction);
     }
-    
+
     console.log(`[SessionMemory] Recorded interaction for recipe ${recipeId}:`, interaction.action);
   }
 
@@ -105,32 +105,32 @@ class SessionMemoryManager {
   getRecipeVariationStrategy(userQuery, queryAnalysis) {
     const searchKey = this.normalizeSearchTerm(userQuery);
     const previousSearches = this.searchHistory.get(searchKey) || [];
-    
+
     console.log(`🔍 Variation Detection:`, {
       originalQuery: userQuery,
       normalizedKey: searchKey,
       previousSearchCount: previousSearches.length,
       allShownRecipes: this.shownRecipes.size
     });
-    
+
     // Check if user is explicitly asking for variations
     const variationIndicators = ['different', 'other', 'another', 'new', 'alternative', 'more', 'else', 'something else'];
-    const isExplicitVariationRequest = variationIndicators.some(indicator => 
+    const isExplicitVariationRequest = variationIndicators.some(indicator =>
       userQuery.toLowerCase().includes(indicator)
     );
-    
+
     console.log(`🔍 Explicit Variation Request:`, {
       isExplicitVariationRequest,
       foundIndicators: variationIndicators.filter(indicator => userQuery.toLowerCase().includes(indicator))
     });
-    
+
     // If no previous searches but user is asking for variations, check all shown recipes
     if (previousSearches.length === 0 && isExplicitVariationRequest) {
       // Look for any recipes of this type that were already shown
       const allShownIds = Array.from(this.shownRecipes);
-      
+
       console.log(`🔄 Triggering variation mode - excluding ${allShownIds.length} previously shown recipes`);
-      
+
       return {
         isRepeatSearch: true, // Treat as repeat to trigger variation
         strategy: 'alternative_ingredients',
@@ -143,7 +143,7 @@ class SessionMemoryManager {
         }
       };
     }
-    
+
     if (previousSearches.length === 0) {
       return {
         isRepeatSearch: false,
@@ -236,7 +236,7 @@ class SessionMemoryManager {
 
     // Apply variation modifiers
     const modifiers = variationStrategy.searchModifiers || {};
-    
+
     if (modifiers.addIngredients) {
       modifiedQuery.searchTerms.push(...modifiers.addIngredients);
     }
@@ -263,14 +263,14 @@ class SessionMemoryManager {
     console.log('🧠 SessionMemory: Filtering recipes');
     console.log('🧠 Input recipes:', recipes?.length || 0);
     console.log('🧠 Shown recipe IDs:', Array.from(this.shownRecipes));
-    
+
     const excludeSet = new Set([...excludeRecipeIds, ...this.shownRecipes]);
     const newRecipes = recipes.filter(recipe => {
       const isNew = !excludeSet.has(recipe.id);
       console.log(`🧠 Recipe "${recipe.title}" (ID: ${recipe.id}): ${isNew ? 'NEW' : 'ALREADY SHOWN'}`);
       return isNew;
     });
-    
+
     console.log('🧠 Filtered to new recipes:', newRecipes.length);
     return newRecipes;
   }
@@ -281,7 +281,7 @@ class SessionMemoryManager {
   getConversationContext() {
     const recentQueries = this.conversationHistory.slice(-5);
     const totalRecipesShown = this.shownRecipes.size;
-    
+
     return {
       sessionId: this.sessionId,
       conversationLength: this.conversationHistory.length,
@@ -308,7 +308,7 @@ class SessionMemoryManager {
       contextualPrompt += `\n\nCONVERSATION CONTEXT:`;
       contextualPrompt += `\n- This is message ${context.conversationLength} in our conversation`;
       contextualPrompt += `\n- I've shown ${context.totalRecipesShown} recipes so far`;
-      
+
       if (context.recentQueries.length > 1) {
         contextualPrompt += `\n- Recent queries: ${context.recentQueries.map(q => q.query).join(', ')}`;
       }
@@ -338,25 +338,25 @@ class SessionMemoryManager {
   // Helper methods
   normalizeSearchTerm(query) {
     const normalized = query.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
-    
+
     // Extract core ingredients/terms, handling variation requests
     const variationIndicators = ['different', 'other', 'another', 'new', 'alternative', 'more', 'else'];
     const coreTerms = [];
-    
+
     // Look for main ingredients/foods
     const foodTerms = ['chicken', 'beef', 'pork', 'fish', 'pasta', 'rice', 'salad', 'soup', 'pizza'];
-    
+
     foodTerms.forEach(term => {
       if (normalized.includes(term)) {
         coreTerms.push(term);
       }
     });
-    
+
     // If we found core terms and variation indicators, return the core terms
     if (coreTerms.length > 0 && variationIndicators.some(indicator => normalized.includes(indicator))) {
       return coreTerms.join(' ');
     }
-    
+
     return normalized;
   }
 
@@ -387,7 +387,7 @@ class SessionMemoryManager {
       if (interaction.title) {
         // Extract likely preferences from recipe titles
         const title = interaction.title.toLowerCase();
-        
+
         // Learn cuisine preferences
         const cuisines = ['italian', 'mexican', 'asian', 'indian', 'mediterranean', 'french', 'thai', 'chinese'];
         cuisines.forEach(cuisine => {
@@ -395,7 +395,7 @@ class SessionMemoryManager {
             this.userPreferences.preferredCuisines.add(cuisine);
           }
         });
-        
+
         // Learn ingredient preferences
         const ingredients = ['chicken', 'beef', 'pork', 'fish', 'vegetarian', 'pasta', 'rice'];
         ingredients.forEach(ingredient => {
@@ -416,7 +416,7 @@ class SessionMemoryManager {
     };
 
     const result = [];
-    
+
     // Check context for ingredients
     if (context.ingredients) {
       for (const ingredient of context.ingredients) {
@@ -428,7 +428,7 @@ class SessionMemoryManager {
         }
       }
     }
-    
+
     // Check mealType for ingredients
     if (context.mealType) {
       for (const [base, alts] of Object.entries(alternatives)) {
@@ -475,13 +475,13 @@ class SessionMemoryManager {
 
   getDiscoverySearchTerms(analysis) {
     const { intent, context } = analysis;
-    
+
     // Return completely different search terms based on what hasn't been explored
     const discoveryTerms = [
       'fusion', 'unusual', 'creative', 'gourmet', 'comfort food',
       'international', 'traditional', 'modern', 'rustic', 'elegant'
     ];
-    
+
     return [discoveryTerms[Math.floor(Math.random() * discoveryTerms.length)]];
   }
 
@@ -559,7 +559,7 @@ class SessionMemoryManager {
     const recentQueries = this.conversationHistory
       .slice(-5) // Last 5 queries
       .map(q => q.query.toLowerCase());
-    
+
     // Extract common themes from recent queries
     const themes = [];
     if (recentQueries.some(q => q.includes('quick') || q.includes('fast'))) {
@@ -584,10 +584,10 @@ class SessionMemoryManager {
     try {
       console.log('🧠 SessionMemory: Starting intelligent search for:', query);
       console.log('🧠 SessionMemory: Current shown recipes:', Array.from(this.shownRecipes));
-      
+
       // If this is a new query, update our records but keep exclusions
-      if (this.conversationHistory.length === 0 || 
-          this.conversationHistory[this.conversationHistory.length - 1]?.query !== query) {
+      if (this.conversationHistory.length === 0 ||
+        this.conversationHistory[this.conversationHistory.length - 1]?.query !== query) {
         this.recordSimpleQuery(query);
       }
 

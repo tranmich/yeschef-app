@@ -1,10 +1,10 @@
 # 🧠 DATA ENHANCEMENT GUIDE
 **Smart Recipe Intelligence & User Experience Enhancement Plan**
 
-> **🎯 PURPOSE:** Track comprehensive data enhancement analysis and implementation planning for transforming basic recipe search into intelligent meal planning system  
-> **📅 CREATED:** August 17, 2025  
-> **🔗 RELATED:** [`PROJECT_MASTER_GUIDE.md`](PROJECT_MASTER_GUIDE.md) - Main project documentation  
-> **⚡ STATUS:** Ready for Implementation - Optimized for Existing Architecture  
+> **🎯 PURPOSE:** Track comprehensive data enhancement analysis and implementation planning for transforming basic recipe search into intelligent meal planning system
+> **📅 CREATED:** August 17, 2025
+> **🔗 RELATED:** [`PROJECT_MASTER_GUIDE.md`](PROJECT_MASTER_GUIDE.md) - Main project documentation
+> **⚡ STATUS:** Ready for Implementation - Optimized for Existing Architecture
 
 ---
 
@@ -53,7 +53,7 @@ Based on comprehensive market research, we identified these critical pain points
 ### **🚀 Foundation Features (Address Core Pain Points):**
 
 **1. 🥬 Fridge-First Suggestions** → *Solves Food Waste*
-- Use pantry to rank results: "uses 5 items you already have" 
+- Use pantry to rank results: "uses 5 items you already have"
 - Show "missing 2 ingredients (easy to grab!)"
 - Reduce overbuy, maximize what's already owned
 
@@ -81,7 +81,7 @@ Based on comprehensive market research, we identified these critical pain points
 
 ## 🏗️ **IMPLEMENTATION STRATEGY - Architecture-Optimized**
 
-### **✅ Strategy A: Inline Enhancement** 
+### **✅ Strategy A: Inline Enhancement**
 **Extend existing files with minimal additions - no new folder structure needed**
 
 ### **📊 Implementation Mapping:**
@@ -103,7 +103,7 @@ Based on comprehensive market research, we identified these critical pain points
 ```sql
 -- Migration: add_recipe_intelligence.sql
 -- Enhance existing recipes table (preserve all current data)
-ALTER TABLE recipes 
+ALTER TABLE recipes
 ADD COLUMN IF NOT EXISTS meal_role TEXT,
 ADD COLUMN IF NOT EXISTS meal_role_confidence INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS time_min INTEGER,
@@ -115,7 +115,7 @@ ADD COLUMN IF NOT EXISTS leftover_friendly BOOLEAN DEFAULT FALSE,
 ADD COLUMN IF NOT EXISTS kid_friendly BOOLEAN DEFAULT FALSE;
 
 -- Performance index
-CREATE INDEX IF NOT EXISTS idx_recipes_intelligence 
+CREATE INDEX IF NOT EXISTS idx_recipes_intelligence
 ON recipes(meal_role, is_easy, is_one_pot, time_min);
 ```
 
@@ -126,7 +126,7 @@ ON recipes(meal_role, is_easy, is_one_pot, time_min);
 ### **🏆 "Easy" Recipe Scoring (0-15 points):**
 ```python
 # Time scoring (0-3 points): ≤20 min = 3pts, 21-30 min = 2pts, 31-45 min = 1pt
-# Steps scoring (0-3 points): ≤5 steps = 3pts, 6-7 steps = 2pts, 8-10 steps = 1pt  
+# Steps scoring (0-3 points): ≤5 steps = 3pts, 6-7 steps = 2pts, 8-10 steps = 1pt
 # Ingredients scoring (0-3 points): ≤7 ingredients = 3pts, 8-10 = 2pts, 11-14 = 1pt
 # Equipment scoring (0-3 points): 1 pot/pan = 3pts, 2 = 2pts, 3 = 1pt
 # Technique scoring (0-3 points): Basic only = 3pts, Mixed = 1pt, Advanced = 0pts
@@ -137,7 +137,7 @@ ON recipes(meal_role, is_easy, is_one_pot, time_min);
 ```python
 MEAL_KEYWORDS = {
     "breakfast": ["breakfast", "pancake", "oatmeal", "omelet", "frittata", "waffle"],
-    "lunch": ["sandwich", "wrap", "panini", "grain bowl", "salad"],  
+    "lunch": ["sandwich", "wrap", "panini", "grain bowl", "salad"],
     "dinner": ["dinner", "stew", "roast", "curry", "casserole", "pasta"],
     "snack": ["snack", "dip", "hummus", "energy balls", "trail mix"],
     "dessert": ["dessert", "cake", "cookie", "brownie", "pie", "ice cream"],
@@ -155,25 +155,25 @@ MEAL_KEYWORDS = {
 ```python
 class SmartRecipeSuggestionEngine:
     # ... existing methods ...
-    
+
     def classify_meal_role(self, title, description, time_min=None, servings=None):
         """Auto-classify meal role during recipe import"""
         text = f"{title} {description}".lower()
         scores = {role: 0 for role in MEAL_KEYWORDS.keys()}
-        
+
         # Keyword scoring + time/serving hints
         # Return (meal_role, confidence, candidates)
-        
+
     def analyze_recipe_complexity(self, recipe_data):
         """Analyze recipe for easy/one-pot/leftover flags"""
         # Calculate easy_score, detect one_pot, assess leftover_friendly
         # Return complexity flags
-        
+
     def calculate_pantry_match(self, recipe_ingredients, user_pantry):
         """Calculate pantry overlap for smart ranking"""
         # Count matches, identify missing ingredients
         # Return (match_percentage, missing_list)
-        
+
     def enhance_search_with_intelligence(self, query, user_context, filters):
         """Add intelligence to existing search"""
         # Apply filters, calculate pantry matches, generate explanations
@@ -187,7 +187,7 @@ class SmartRecipeSuggestionEngine:
 def smart_search():
     data = request.json
     query = data.get('query', '')
-    
+
     # NEW: Extract filter parameters
     filters = {
         'meal_role': data.get('meal_role'),
@@ -197,11 +197,11 @@ def smart_search():
         'kid_friendly': data.get('kid_friendly', False),
         'pantry_first': data.get('pantry_first', False)
     }
-    
+
     # Use enhanced existing engine
     engine = SmartRecipeSuggestionEngine()
     recipes = engine.enhance_search_with_intelligence(query, user_context, filters)
-    
+
     return jsonify({'recipes': recipes, 'filters_applied': filters})
 ```
 
@@ -234,7 +234,7 @@ const SmartFilters = ({ onFiltersChange }) => {
           👶 Kid-Friendly
         </button>
       </div>
-      
+
       <select value={filters.meal_role}>
         <option value="breakfast">Breakfast</option>
         <option value="lunch">Lunch</option>
@@ -249,14 +249,14 @@ const SmartFilters = ({ onFiltersChange }) => {
 const RecipeCard = ({ recipe }) => (
   <div className="recipe-card">
     <h3>{recipe.title}</h3>
-    
+
     {/* NEW: Intelligence badges */}
     <div className="recipe-badges">
       {recipe.is_easy && <span className="badge easy">⚡ Easy</span>}
       {recipe.is_one_pot && <span className="badge one-pot">🍲 One-Pot</span>}
       {recipe.leftover_friendly && <span className="badge leftover">📦 Leftovers</span>}
     </div>
-    
+
     {/* NEW: Smart explanations */}
     {recipe.explanations && (
       <div className="recipe-why">{recipe.explanations}</div>
@@ -273,21 +273,21 @@ const RecipeCard = ({ recipe }) => (
 # scripts/backfill_recipe_intelligence.py
 def backfill_recipe_intelligence():
     """One-time script to add intelligence to existing 750 recipes"""
-    
+
     engine = SmartRecipeSuggestionEngine()
     recipes = db.session.execute("SELECT * FROM recipes").fetchall()
-    
+
     print(f"Processing {len(recipes)} recipes...")
-    
+
     for recipe in recipes:
         # Classify meal role
         meal_role, confidence, candidates = engine.classify_meal_role(
             recipe.title, recipe.description, recipe.total_time, recipe.servings
         )
-        
+
         # Analyze complexity
         complexity_flags = engine.analyze_recipe_complexity(recipe)
-        
+
         # Update database
         db.session.execute("""
             UPDATE recipes 
@@ -298,7 +298,7 @@ def backfill_recipe_intelligence():
         """, (meal_role, confidence, complexity_flags['time_min'],
               complexity_flags['is_easy'], complexity_flags['is_one_pot'],
               complexity_flags['leftover_friendly'], recipe.id))
-    
+
     db.session.commit()
     print("✅ Backfill complete!")
 ```
@@ -347,7 +347,7 @@ def backfill_recipe_intelligence():
 
 ### **🎯 Research-Validated Benefits:**
 - **Intelligent Pantry Awareness** → Reduces food waste by 40% potential
-- **Context-Aware Defaults** → Eliminates decision fatigue on weeknights  
+- **Context-Aware Defaults** → Eliminates decision fatigue on weeknights
 - **Family-Centric Intelligence** → Handles picky eating complexity
 - **Real Budget Consciousness** → Transparent cost per serving
 

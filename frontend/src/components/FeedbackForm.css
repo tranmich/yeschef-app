@@ -175,11 +175,11 @@
     margin: 1rem;
     width: calc(100% - 2rem);
   }
-  
+
   .form-actions {
     flex-direction: column;
   }
-  
+
   .cancel-btn,
   .submit-btn {
     width: 100%;
