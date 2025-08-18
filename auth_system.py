@@ -30,8 +30,21 @@ class AuthenticationSystem:
             
         self.bcrypt = Bcrypt(app)
         
-        # Configure JWT
-        app.config['JWT_SECRET_KEY'] = secrets.token_hex(32)  # Generate secure secret
+        # Configure JWT with persistent secret
+        jwt_secret = os.getenv('JWT_SECRET_KEY')
+        if not jwt_secret:
+            # Use a consistent secret based on environment or generate one
+            database_url = os.getenv('DATABASE_URL', '')
+            if database_url:
+                # Generate a consistent secret from DATABASE_URL for production
+                import hashlib
+                jwt_secret = hashlib.sha256(database_url.encode()).hexdigest()
+            else:
+                # For local development, use a fixed secret
+                jwt_secret = 'dev-secret-key-for-local-testing-only'
+            logger.info("Generated consistent JWT secret from environment")
+        
+        app.config['JWT_SECRET_KEY'] = jwt_secret
         app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
         self.jwt = JWTManager(app)
         

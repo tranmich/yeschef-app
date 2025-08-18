@@ -535,78 +535,176 @@ def intelligent_session_search():
                 'error': 'Query parameter is required'
             }), 400
 
-        # Use universal search engine with session awareness
+        # Try universal search engine first
         if search_engine:
-            search_result = search_engine.unified_intelligent_search(
-                query=query,
-                session_memory={'session_id': session_id, 'shown_recipes': shown_recipe_ids},
-                user_pantry=[],
-                exclude_ids=shown_recipe_ids,
-                limit=page_size * 3,  # Get more to account for exclusions
-                include_explanations=True
-            )
+            try:
+                search_result = search_engine.unified_intelligent_search(
+                    query=query,
+                    session_memory={'session_id': session_id, 'shown_recipes': shown_recipe_ids},
+                    user_pantry=[],
+                    exclude_ids=shown_recipe_ids,
+                    limit=page_size * 3,  # Get more to account for exclusions
+                    include_explanations=True
+                )
 
-            if search_result['success']:
-                all_recipes = search_result['recipes']
+                if search_result['success']:
+                    all_recipes = search_result['recipes']
 
-                # Format for API compatibility
-                formatted_recipes = []
-                for recipe in all_recipes:
-                    formatted_recipe = {
-                        'id': recipe['id'],
-                        'title': recipe['title'],
-                        'name': recipe['title'],
-                        'description': recipe['description'] or '',
-                        'servings': recipe['servings'] or '4 servings',
-                        'prep_time': recipe.get('prep_time', ''),
-                        'cook_time': recipe.get('cook_time', '30 minutes'),
-                        'total_time': recipe['total_time'] or '30 minutes',
-                        'ingredients': recipe['ingredients'] or '',
-                        'instructions': recipe['instructions'] or '',
-                        'source': recipe['source'] or 'Recipe Collection',
-                        'category': recipe.get('category', 'Main Course'),
-                        # NEW: Intelligence metadata
-                        'explanations': recipe.get('explanations', ''),
-                        'meal_role': recipe.get('meal_role'),
-                        'is_easy': recipe.get('is_easy', False),
-                        'is_one_pot': recipe.get('is_one_pot', False),
-                        'kid_friendly': recipe.get('kid_friendly', False),
-                        'universal_search': True,
-                        'session_aware': True
-                    }
-                    formatted_recipes.append(formatted_recipe)
+                    # Format for API compatibility
+                    formatted_recipes = []
+                    for recipe in all_recipes:
+                        formatted_recipe = {
+                            'id': recipe['id'],
+                            'title': recipe['title'],
+                            'name': recipe['title'],
+                            'description': recipe['description'] or '',
+                            'servings': recipe['servings'] or '4 servings',
+                            'prep_time': recipe.get('prep_time', ''),
+                            'cook_time': recipe.get('cook_time', '30 minutes'),
+                            'total_time': recipe['total_time'] or '30 minutes',
+                            'ingredients': recipe['ingredients'] or '',
+                            'instructions': recipe['instructions'] or '',
+                            'source': recipe['source'] or 'Recipe Collection',
+                            'category': recipe.get('category', 'Main Course'),
+                            # NEW: Intelligence metadata
+                            'explanations': recipe.get('explanations', ''),
+                            'meal_role': recipe.get('meal_role'),
+                            'is_easy': recipe.get('is_easy', False),
+                            'is_one_pot': recipe.get('is_one_pot', False),
+                            'kid_friendly': recipe.get('kid_friendly', False),
+                            'universal_search': True,
+                            'session_aware': True
+                        }
+                        formatted_recipes.append(formatted_recipe)
 
-                # Return the next batch
-                next_batch = formatted_recipes[:page_size]
+                    # Return the next batch
+                    next_batch = formatted_recipes[:page_size]
 
-                logger.info(f"🧠 Universal intelligent search found {len(all_recipes)} total matches, returning {len(next_batch)} recipes")
+                    logger.info(f"🧠 Universal intelligent search found {len(all_recipes)} total matches, returning {len(next_batch)} recipes")
 
-                return jsonify({
-                    'success': True,
-                    'recipes': next_batch,
-                    'total_available': len(all_recipes),
-                    'has_more': len(all_recipes) > page_size,
-                    'shown_count': len(shown_recipe_ids),
-                    'session_id': session_id,
-                    'search_metadata': {
-                        'query': query,
-                        'universal_search_used': True,
-                        'intelligence_enabled': True,
-                        'session_aware': True,
-                        'exclusions_applied': len(shown_recipe_ids),
-                        'search_explanations': search_result.get('search_metadata', {})
-                    }
-                })
-            else:
-                logger.warning(f"Universal intelligent search failed: {search_result.get('error', 'Unknown error')}")
-
-        # Fallback should never happen in production
-        logger.error("⚠️ Universal search engine not available for intelligent search")
-        return jsonify({
-            'success': False,
-            'error': 'Universal search engine not configured',
-            'universal_search': False
-        }), 500
+                    return jsonify({
+                        'success': True,
+                        'recipes': next_batch,
+                        'total_available': len(all_recipes),
+                        'has_more': len(all_recipes) > page_size,
+                        'shown_count': len(shown_recipe_ids),
+                        'session_id': session_id,
+                        'search_metadata': {
+                            'query': query,
+                            'universal_search_used': True,
+                            'intelligence_enabled': True,
+                            'session_aware': True,
+                            'exclusions_applied': len(shown_recipe_ids),
+                            'search_explanations': search_result.get('search_metadata', {})
+                        }
+                    })
+                else:
+                    logger.warning(f"Universal intelligent search failed: {search_result.get('error', 'Unknown error')}")
+            except Exception as e:
+                logger.error(f"⚠️ Universal search engine error: {str(e)}")
+        
+        # FALLBACK: Use basic search with session awareness
+        logger.warning("⚠️ Falling back to basic search with session awareness")
+        
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Build search query with exclusions
+            where_conditions = []
+            params = []
+            
+            if query:
+                where_conditions.append("(LOWER(r.title) LIKE %s OR LOWER(r.ingredients) LIKE %s)")
+                search_term = f"%{query.lower()}%"
+                params.extend([search_term, search_term])
+            
+            # Add exclusions
+            if shown_recipe_ids:
+                placeholders = ','.join(['%s' for _ in shown_recipe_ids])
+                where_conditions.append(f"r.id NOT IN ({placeholders})")
+                params.extend(shown_recipe_ids)
+            
+            where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+            
+            # If no new recipes found with exclusions, remove exclusions (fallback behavior you requested)
+            fallback_query = f"""
+            SELECT DISTINCT r.id, r.title, r.description, r.servings, r.total_time,
+                   r.ingredients, r.instructions, r.source, r.category
+            FROM recipes r
+            WHERE {where_clause}
+            ORDER BY r.id
+            LIMIT %s
+            """
+            params.append(page_size * 2)
+            
+            cursor.execute(fallback_query, params)
+            recipes = cursor.fetchall()
+            
+            # If no results and we had exclusions, try again without exclusions
+            if not recipes and shown_recipe_ids and query:
+                logger.info(f"🔄 No new {query} recipes found, showing all {query} recipes as fallback")
+                where_conditions = ["(LOWER(r.title) LIKE %s OR LOWER(r.ingredients) LIKE %s)"]
+                search_term = f"%{query.lower()}%"
+                params = [search_term, search_term, page_size]
+                
+                fallback_query = f"""
+                SELECT DISTINCT r.id, r.title, r.description, r.servings, r.total_time,
+                       r.ingredients, r.instructions, r.source, r.category
+                FROM recipes r
+                WHERE {where_conditions[0]}
+                ORDER BY r.id
+                LIMIT %s
+                """
+                
+                cursor.execute(fallback_query, params)
+                recipes = cursor.fetchall()
+            
+            # Format recipes
+            formatted_recipes = []
+            for recipe in recipes:
+                formatted_recipe = {
+                    'id': recipe['id'],
+                    'title': recipe['title'],
+                    'name': recipe['title'],
+                    'description': recipe['description'] or '',
+                    'servings': recipe['servings'] or '4 servings',
+                    'total_time': recipe['total_time'] or '30 minutes',
+                    'ingredients': recipe['ingredients'] or '',
+                    'instructions': recipe['instructions'] or '',
+                    'source': recipe['source'] or 'Recipe Collection',
+                    'category': recipe['category'] or 'Main Course',
+                    'universal_search': False,
+                    'fallback_search': True
+                }
+                formatted_recipes.append(formatted_recipe)
+            
+            conn.close()
+            
+            logger.info(f"🔄 Fallback search found {len(formatted_recipes)} recipes for '{query}'")
+            
+            return jsonify({
+                'success': True,
+                'recipes': formatted_recipes,
+                'total_available': len(formatted_recipes),
+                'has_more': False,
+                'shown_count': len(shown_recipe_ids),
+                'session_id': session_id,
+                'search_metadata': {
+                    'query': query,
+                    'universal_search_used': False,
+                    'fallback_used': True,
+                    'exclusions_applied': len(shown_recipe_ids)
+                }
+            })
+            
+        except Exception as fallback_error:
+            logger.error(f"❌ Fallback search also failed: {str(fallback_error)}")
+            return jsonify({
+                'success': False,
+                'error': f'Both universal and fallback search failed: {str(fallback_error)}',
+                'universal_search': False
+            }), 500
 
     except Exception as e:
         logger.error(f"?? Intelligent search error: {str(e)}")

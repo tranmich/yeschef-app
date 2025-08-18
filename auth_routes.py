@@ -78,16 +78,47 @@ def create_auth_routes(auth_system):
         """Get current user information"""
         try:
             user_id = get_jwt_identity()
+            logger.info(f"[AUTH] Getting user info for ID: {user_id}")
+            
             user = auth_system.get_user_by_id(user_id)
             
             if user:
+                logger.info(f"[AUTH] Successfully retrieved user: {user.get('email', 'Unknown')}")
                 return jsonify({'success': True, 'user': user}), 200
             else:
+                logger.warning(f"[AUTH] User not found for ID: {user_id}")
                 return jsonify({'success': False, 'message': 'User not found'}), 404
                 
         except Exception as e:
             logger.error(f"[ERROR] Get user API error: {e}")
-            return jsonify({'success': False, 'message': 'Failed to get user'}), 500
+            import traceback
+            traceback.print_exc()
+            
+            # Provide more specific error messages
+            if "Not enough segments" in str(e):
+                return jsonify({
+                    'success': False, 
+                    'message': 'Invalid token format. Please log in again.',
+                    'error_type': 'invalid_token'
+                }), 422
+            elif "signature verification failed" in str(e).lower():
+                return jsonify({
+                    'success': False, 
+                    'message': 'Token signature invalid. Please log in again.',
+                    'error_type': 'invalid_signature'
+                }), 422
+            elif "token has expired" in str(e).lower():
+                return jsonify({
+                    'success': False, 
+                    'message': 'Token has expired. Please log in again.',
+                    'error_type': 'expired_token'
+                }), 422
+            else:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Authentication failed. Please log in again.',
+                    'error_type': 'auth_error'
+                }), 500
     
     @auth_bp.route('/google', methods=['GET'])
     def google_login():
