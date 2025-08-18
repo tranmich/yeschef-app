@@ -1170,9 +1170,9 @@ class UniversalSearchEngine:
         # Combine opening with details
         if details:
             detail_text = " " + " and ".join(details[:2])  # Limit details for readability
-            response = f"{opening} I found {len(suggestions)} recipes {detail_text}."
+            response = f"{opening} Here are some delicious recipes {detail_text}."
         else:
-            response = f"{opening} Here are {len(suggestions)} amazing recipes I picked just for you."
+            response = f"{opening} Here are some more amazing recipes I picked just for you."
         
         return response
     
