@@ -134,7 +134,7 @@ class UniversalSearchEngine:
             'vegetarian': ['vegetarian', 'veggie', 'vegetables', 'meatless', 'plant-based'],
             'salad': ['salad', 'salads', 'lettuce', 'greens', 'mixed greens', 'caesar salad', 'garden salad'],
             'vegan': ['vegan', 'plant based', 'dairy free'],
-            'quick': ['quick', 'easy', 'fast', '30 minute', '15 minute', 'simple'],
+            'quick': ['quick', 'fast', '30 minute', '15 minute', 'simple'],  # Removed 'easy' - should be difficulty filter, not ingredient
             'comfort': ['comfort', 'hearty', 'warming', 'cozy'],
             'healthy': ['healthy', 'light', 'fresh', 'nutritious', 'clean eating'],
             'spicy': ['spicy', 'hot', 'jalapeño', 'chili', 'cayenne'],
@@ -881,13 +881,74 @@ class UniversalSearchEngine:
                     if word in ['chicken', 'beef', 'pork', 'fish', 'vegetarian', 'vegan']:
                         preferences['ingredients'][word] = [word]
             
-            # Step 3: Search with intelligence filters
+            # Step 3: Search with intelligence filters using PROGRESSIVE BATCHING
+            # Calculate smart limit based on exclusions to avoid artificial ceilings
+            base_multiplier = 3
+            exclusion_count = len(exclude_ids or [])
+            
+            # Progressive batch sizing: as more recipes are excluded, fetch larger batches
+            if exclusion_count == 0:
+                search_limit = limit * base_multiplier  # Initial: 5 * 3 = 15
+            elif exclusion_count < 20:
+                search_limit = limit * (base_multiplier + 2)  # 5 * 5 = 25
+            elif exclusion_count < 50:
+                search_limit = limit * (base_multiplier + 5)  # 5 * 8 = 40
+            else:
+                search_limit = limit * (base_multiplier + 10)  # 5 * 13 = 65
+            
+            # Cap at reasonable maximum to prevent performance issues
+            search_limit = min(search_limit, 100)
+            
+            print(f"🎯 Progressive batching: {exclusion_count} exclusions → searching {search_limit} recipes (returning {limit})")
+            
             recipes = self.search_recipes_with_intelligence(
                 preferences=preferences,
                 exclude_ids=exclude_ids or [],
                 filters=intelligence_filters,
-                limit=limit * 3  # Get more results for better filtering
+                limit=search_limit  # Progressive limit instead of fixed limit * 3
             )
+            
+            # Step 3.5: SMART FALLBACK - If no results with intelligence filters + exclusions, try without filters
+            if not recipes and intelligence_filters and exclude_ids:
+                print(f"🔄 No results with intelligence filters + exclusions. Trying fallback for: '{query}'")
+                
+                # Try without intelligence filters but keep exclusions
+                fallback_recipes = self.search_recipes_with_intelligence(
+                    preferences=preferences,
+                    exclude_ids=exclude_ids,
+                    filters={},  # Remove intelligence filters
+                    limit=search_limit  # Use same progressive limit
+                )
+                
+                if fallback_recipes:
+                    recipes = fallback_recipes
+                    print(f"✅ Fallback successful: Found {len(recipes)} recipes without intelligence filters")
+                    # Mark this as a fallback for transparency
+                    intelligence_filters['fallback_used'] = True
+                elif exclude_ids:
+                    # Last resort: Remove exclusions entirely and get fresh results
+                    print(f"🔄 Final fallback: Removing all exclusions for fresh results")
+                    fresh_recipes = self.search_recipes_with_intelligence(
+                        preferences=preferences,
+                        exclude_ids=[],  # No exclusions
+                        filters={},  # No intelligence filters
+                        limit=search_limit
+                    )
+                    if fresh_recipes:
+                        recipes = fresh_recipes
+                        print(f"✅ Fresh results: Found {len(recipes)} recipes without exclusions")
+                        intelligence_filters['exclusions_removed'] = True
+                    print(f"🔄 Still no results. Removing exclusions for: '{query}'")
+                    final_fallback = self.search_recipes_with_intelligence(
+                        preferences=preferences,
+                        exclude_ids=[],  # Remove exclusions
+                        filters=intelligence_filters,  # Keep original filters
+                        limit=search_limit  # Use progressive limit
+                    )
+                    if final_fallback:
+                        recipes = final_fallback
+                        print(f"✅ Final fallback successful: Found {len(recipes)} recipes without exclusions")
+                        intelligence_filters['exclusions_removed'] = True
             
             # Step 4: Add pantry matching (if user_pantry provided)
             if user_pantry:
