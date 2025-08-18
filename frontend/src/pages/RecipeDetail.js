@@ -8,12 +8,16 @@ import RecipeDropdown from '../components/RecipeDropdown';
 import './RecipeDetail.css';
 import { api } from '../utils/api';
 import SessionMemoryManager from '../utils/SessionMemoryManager';
+import { usePantry } from '../hooks/usePantry';
 
 const RecipeDetail = () => {
   console.log('🚀 RecipeDetail component loaded - ENHANCED SESSION VERSION 2025-08-16');
 
   // --- Enhanced Session Memory with Backend Coordination ---
   const [sessionMemory] = useState(() => new SessionMemoryManager());
+  
+  // --- Pantry Integration ---
+  const { pantryItems, getPantryForAPI, hasItems: hasPantryItems } = usePantry();
 
   // --- Chat State ---
   const [messages, setMessages] = useState([
@@ -138,6 +142,11 @@ const RecipeDetail = () => {
     setShowMealPlanner(!showMealPlanner);
   };
 
+  // Toggle pantry visibility
+  const togglePantry = () => {
+    setShowPantry(!showPantry);
+  };
+
   // --- Chat Message Send Function ---
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -182,12 +191,26 @@ const RecipeDetail = () => {
         console.log('🧠 Intelligent search available:', isIntelligentAvailable);
 
         if (isIntelligentAvailable) {
+          // Get pantry data for enhanced search
+          const userPantry = getPantryForAPI();
+          const pantryFirst = hasPantryItems;
+          
+          console.log('🥫 RecipeDetail - Pantry Integration:', {
+            pantryItems: userPantry.map(item => item.name),
+            pantryFirst,
+            userMessage
+          });
+          
           // Use enhanced session-aware search
           const data = await api.searchRecipesIntelligent(
             userMessage,
             sessionMemory.sessionId,
             sessionMemory.getShownRecipeIds(),
-            5
+            5,
+            {
+              user_pantry: userPantry,
+              pantry_first: pantryFirst
+            }
           );
 
           if (data.success) {
@@ -333,13 +356,12 @@ const RecipeDetail = () => {
           <SidebarNavigation
             showMealPlanner={showMealPlanner}
             onToggleMealPlanner={toggleMealPlanner}
+            showPantry={showPantry}
+            onTogglePantry={togglePantry}
             onFeatureSelect={(feature) => {
               // Handle feature navigation
               console.log('Feature selected:', feature);
-              if (feature === 'pantry') {
-                setShowPantry(true);
-                setShowMealPlanner(false);
-              } else if (feature === 'chat') {
+              if (feature === 'chat') {
                 setShowPantry(false);
                 setShowMealPlanner(false);
               }
@@ -396,20 +418,36 @@ const RecipeDetail = () => {
             {/* Chat Input - Always at bottom */}
             <div className="chat-input-container">
               <div className="chat-input">
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Tell me what you're craving..."
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={isLoading || !inputMessage.trim()}
-                >
-                  {isLoading ? "🔄" : "🍴"}
-                </button>
+                {/* Pantry Status Indicator */}
+                {hasPantryItems && (
+                  <div className="pantry-status-indicator">
+                    🥫 Using your pantry ({pantryItems.length} items) for smarter recipe suggestions
+                    <button 
+                      className="pantry-link"
+                      onClick={() => setShowPantry(true)}
+                      title="Manage your pantry"
+                    >
+                      Manage Pantry
+                    </button>
+                  </div>
+                )}
+                
+                <div>
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Tell me what you're craving..."
+                    disabled={isLoading}
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={isLoading || !inputMessage.trim()}
+                  >
+                    {isLoading ? "🔄" : "🍴"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

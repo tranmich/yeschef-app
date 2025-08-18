@@ -48,9 +48,14 @@ const MealPlannerView = ({
 
             if (data.success) {
                 setSavedMealPlans(data.meal_plans);
+            } else {
+                // Gracefully handle disabled/unavailable meal planning system
+                console.log('Meal planning system not available:', data.error);
+                setSavedMealPlans([]);
             }
         } catch (error) {
             console.error('Error loading meal plans:', error);
+            setSavedMealPlans([]);
         }
     };
 
@@ -61,9 +66,14 @@ const MealPlannerView = ({
 
             if (data.success) {
                 setFavorites(data.favorites);
+            } else {
+                // Gracefully handle disabled favorites system
+                console.log('Favorites system not available:', data.error);
+                setFavorites([]);
             }
         } catch (error) {
             console.error('Error loading favorites:', error);
+            setFavorites([]);
         }
     };
 

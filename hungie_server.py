@@ -499,8 +499,18 @@ def intelligent_session_search():
         session_id = data.get('session_id', 'default')
         shown_recipe_ids = data.get('shown_recipe_ids', [])
         page_size = data.get('page_size', 5)
+        
+        # Extract pantry data from request
+        user_pantry = data.get('user_pantry', [])
+        pantry_first = data.get('pantry_first', False)
 
         logger.info(f"🧠 Universal intelligent search: '{query}' | Session: {session_id} | Excluding: {len(shown_recipe_ids)} recipes")
+        
+        # Debug pantry integration
+        if user_pantry:
+            logger.info(f"🥫 Intelligent search - Pantry data received: {[item.get('name') for item in user_pantry]} (pantry_first: {pantry_first})")
+        else:
+            logger.info("📝 Intelligent search - No pantry data provided")
 
         if not query:
             return jsonify({
@@ -514,10 +524,11 @@ def intelligent_session_search():
                 search_result = search_engine.unified_intelligent_search(
                     query=query,
                     session_memory={'session_id': session_id, 'shown_recipes': shown_recipe_ids},
-                    user_pantry=[],
+                    user_pantry=user_pantry,
                     exclude_ids=shown_recipe_ids,
                     limit=page_size * 3,  # Get more to account for exclusions
-                    include_explanations=True
+                    include_explanations=True,
+                    filters={'pantry_first': pantry_first}
                 )
 
                 if search_result['success']:
@@ -815,6 +826,8 @@ def smart_search():
     """
     try:
         data = request.get_json()
+        logger.info(f"🔍 Smart search request received: {data}")
+        
         user_message = data.get('message', '').strip()
         query = data.get('query', user_message).strip()  # Support both message and query
         session_id = data.get('session_id', 'default')
@@ -834,6 +847,12 @@ def smart_search():
         user_pantry = data.get('user_pantry', [])
         exclude_ids = data.get('exclude_ids', [])
         limit = data.get('limit', 10)
+        
+        # Debug logging for pantry integration
+        if user_pantry:
+            logger.info(f"🥫 Pantry data received: {[item.get('name') for item in user_pantry]} (pantry_first: {filters['pantry_first']})")
+        else:
+            logger.info("📝 No pantry data provided in request")
 
         if not query:
             return jsonify({
@@ -1956,23 +1975,66 @@ def remove_pantry_item(item_id):
 def get_ingredients():
     """Get available canonical ingredients for pantry"""
     try:
+        logger.info("🔍 Fetching canonical ingredients from PostgreSQL...")
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get distinct ingredients from canonical_ingredients table
-        cursor.execute("""
-            SELECT DISTINCT name, category 
+        # Get query parameter for search filtering
+        query = request.args.get('query', '').strip()
+        logger.info(f"📝 Search query parameter: '{query}'")
+        
+        # Get clean ingredients (exclude entries with measurements, brackets, or complex formatting)
+        sql_query = """
+            SELECT DISTINCT 
+                canonical_name, 
+                category,
+                CASE category 
+                    WHEN 'protein' THEN 1
+                    WHEN 'produce' THEN 2
+                    WHEN 'dairy' THEN 3
+                    WHEN 'grain' THEN 4
+                    WHEN 'spice' THEN 5
+                    WHEN 'herb' THEN 6
+                    WHEN 'cooking' THEN 7
+                    WHEN 'baking' THEN 8
+                    ELSE 9
+                END as category_order
             FROM canonical_ingredients 
-            ORDER BY category, name
-            LIMIT 100
-        """)
+            WHERE canonical_name NOT LIKE '%cup%'
+            AND canonical_name NOT LIKE '%teaspoon%'
+            AND canonical_name NOT LIKE '%tablespoon%'
+            AND canonical_name NOT LIKE '%[%'
+            AND canonical_name NOT LIKE '"%'
+            AND canonical_name NOT LIKE '%{%'
+            AND canonical_name NOT LIKE '½%'
+            AND canonical_name NOT LIKE '¼%'
+            AND canonical_name NOT LIKE '1%'
+            AND canonical_name NOT LIKE '2%'
+            AND canonical_name NOT LIKE '3%'
+            AND canonical_name NOT LIKE '4%'
+            AND canonical_name NOT LIKE '5%'
+            AND LENGTH(canonical_name) < 50
+        """
+        
+        # Add search filter if query provided
+        if query:
+            sql_query += " AND canonical_name ILIKE %s"
+            cursor.execute(sql_query + " ORDER BY category_order, canonical_name LIMIT 200", (f'%{query}%',))
+            logger.info(f"🔍 Applied search filter for: '{query}'")
+        else:
+            cursor.execute(sql_query + " ORDER BY category_order, canonical_name LIMIT 200")
+            logger.info("📋 Fetching all ingredients (no search filter)")
         
         ingredients = []
         for row in cursor.fetchall():
             ingredients.append({
-                'name': row['name'],
+                'name': row['canonical_name'],
                 'category': row['category'] or 'other'
             })
+        
+        logger.info(f"✅ Retrieved {len(ingredients)} ingredients from canonical_ingredients table")
+        if ingredients:
+            logger.info(f"📊 Sample ingredients: {[ing['name'] for ing in ingredients[:5]]}")
         
         cursor.close()
         conn.close()
@@ -1980,7 +2042,8 @@ def get_ingredients():
         return jsonify({
             'success': True,
             'ingredients': ingredients,
-            'count': len(ingredients)
+            'count': len(ingredients),
+            'query': query
         })
         
     except Exception as e:
@@ -1999,12 +2062,15 @@ def get_pantry_status():
         
         config = get_config()
         status = config.get_status()
-        pantry_info = status['pantry']
+        
+        # Extract pantry status information
+        pantry_enabled = status.get('pantry_enabled', True)
+        status_text = "🟢 PANTRY: ENABLED" if pantry_enabled else "🔴 PANTRY: DISABLED"
         
         return jsonify({
             'success': True,
-            'status': pantry_info['status'],
-            'enabled': pantry_info['enabled']
+            'status': status_text,
+            'enabled': pantry_enabled
         })
         
     except Exception as e:
@@ -2079,35 +2145,6 @@ def health_check():
             'status': 'unhealthy',
             'error': str(e)
         }), 500
-
-    logger.info("🚀 Starting Hungie Backend Server...")
-    logger.info("� UNIVERSAL SEARCH CONSOLIDATION VERSION: 2025-08-17-v2")
-    logger.info("�🚀 Server starting on http://localhost:5000")
-
-    # Windows-stable configuration with error handling
-    try:
-        app.run(
-            host="127.0.0.1",   # Use localhost only for Windows stability
-            port=5000,          # Use standard Flask port
-            debug=False,        # Disable debug for stability
-            use_reloader=False, # Disable reloader to prevent conflicts
-            threaded=True       # Enable threading
-        )
-    except Exception as e:
-        logger.error(f"❌ Server startup failed: {e}")
-        # Try alternative port as fallback
-        try:
-            logger.info("🔄 Trying alternative port 5001...")
-            app.run(
-                host="127.0.0.1",
-                port=5001,
-                debug=False,
-                use_reloader=False,
-                threaded=True
-            )
-        except Exception as e2:
-            logger.error(f"❌ Fallback also failed: {e2}")
-            logger.error("Please check if ports are available and try again")
 if __name__ == "__main__":
     logger.info("?? Starting Yes Chef! Backend Server...")
 

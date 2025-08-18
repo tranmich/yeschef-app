@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './SidebarNavigation.css';
 
-const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlanner }) => {
+const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlanner, showPantry, onTogglePantry }) => {
   const navigate = useNavigate();
   const [activeFeature, setActiveFeature] = useState('chat');
 
@@ -47,8 +47,8 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
       description: 'Track ingredients',
       available: true,
       onClick: () => {
+        onTogglePantry?.();
         setActiveFeature('pantry');
-        onFeatureSelect?.('pantry');
       }
     },
     {
@@ -84,7 +84,7 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
             {features.map((feature) => (
               <button
                 key={feature.id}
-                className={`nav-item ${activeFeature === feature.id ? 'active' : ''} ${!feature.available ? 'disabled' : ''} ${feature.id === 'meal-planner' && showMealPlanner ? 'active' : ''}`}
+                className={`nav-item ${activeFeature === feature.id ? 'active' : ''} ${!feature.available ? 'disabled' : ''} ${feature.id === 'meal-planner' && showMealPlanner ? 'active' : ''} ${feature.id === 'pantry' && showPantry ? 'active' : ''}`}
                 onClick={feature.onClick}
                 disabled={!feature.available}
                 title={feature.available ? feature.description : `${feature.description} (Coming Soon)`}

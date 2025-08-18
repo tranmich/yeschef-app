@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pantry Search Debug Helper</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .code { background: #f5f5f5; padding: 10px; border-radius: 3px; font-family: monospace; }
+        .highlight { background: yellow; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Pantry Search Debug Helper</h1>
+    
+    <div class="debug-section">
+        <h2>Frontend Debugging (Browser Console)</h2>
+        <p>Open your browser's Developer Tools (F12) and look for these console messages when using the pantry search:</p>
+        <div class="code">
+🔍 Loading ingredients from API...<br>
+✅ Ingredients loaded from API: { count: 168, sample: [...] }<br>
+🔍 Search Debug: { searchTerm: "chicken", totalIngredients: 168, ... }<br>
+➕ Adding ingredient to pantry: { name: "Chicken Breast", category: "protein" }<br>
+📦 Updated pantry items: ["Chicken Breast", ...]
+        </div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>Backend Debugging (Server Terminal)</h2>
+        <p>Watch your server terminal for these log messages:</p>
+        <div class="code">
+🔍 Fetching canonical ingredients from PostgreSQL...<br>
+📝 Search query parameter: 'chicken'<br>
+🔍 Applied search filter for: 'chicken'<br>
+✅ Retrieved 5 ingredients from canonical_ingredients table<br>
+📊 Sample ingredients: ['Chicken Breast', 'Chicken Thigh', ...]
+        </div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>Testing Steps</h2>
+        <ol>
+            <li>Start your backend server on port 5000</li>
+            <li>Start your frontend server on port 3000</li>
+            <li>Open browser console (F12 → Console tab)</li>
+            <li>Navigate to the Pantry Manager page</li>
+            <li>Type in the ingredient search box</li>
+            <li>Watch console logs and server terminal</li>
+            <li>Add ingredients to pantry and verify filtering</li>
+        </ol>
+    </div>
+    
+    <div class="debug-section">
+        <h2>API Test</h2>
+        <p>You can also test the API directly:</p>
+        <div class="code">
+curl "http://localhost:5000/api/ingredients?query=chicken"<br><br>
+python test_pantry_search_debug.py
+        </div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>What to Look For</h2>
+        <ul>
+            <li><span class="highlight">API Call</span>: Verify ingredients are loaded from PostgreSQL</li>
+            <li><span class="highlight">Search Filtering</span>: Confirm search terms filter the ingredient list</li>
+            <li><span class="highlight">Pantry Exclusion</span>: Check that added items don't appear in search results</li>
+            <li><span class="highlight">Database Query</span>: Ensure backend queries canonical_ingredients table</li>
+        </ul>
+    </div>
+    
+    <p><strong>Note:</strong> All debugging logs are now active in both frontend and backend!</p>
+</body>
+</html>

@@ -18,21 +18,21 @@ load_dotenv()
 
 def create_additional_pantry_tables():
     """Create additional tables for Day 2 pantry intelligence features"""
-    
+
     connection = None
-    
+
     try:
         # Connect to Railway PostgreSQL database using DATABASE_URL
         db_url = os.getenv('DATABASE_URL')
         if not db_url:
             raise Exception("DATABASE_URL environment variable required")
-            
+
         connection = psycopg2.connect(db_url)
-        
+
         cursor = connection.cursor()
-        
+
         print("🗄️ Creating additional pantry intelligence tables...")
-        
+
         # 1. Ingredient Review Queue - For uncertain auto-mappings
         print("📝 Creating ingredient_review_queue table...")
         cursor.execute("""
@@ -53,13 +53,13 @@ def create_additional_pantry_tables():
                 FOREIGN KEY (suggested_canonical_id) REFERENCES canonical_ingredients(id)
             );
         """)
-        
+
         # Add index for efficient queue retrieval
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_review_queue_created 
             ON ingredient_review_queue(created_at);
         """)
-        
+
         # 2. Recipe Processing Logs - Track processing statistics
         print("📊 Creating recipe_processing_logs table...")
         cursor.execute("""
@@ -77,13 +77,13 @@ def create_additional_pantry_tables():
                 FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
             );
         """)
-        
+
         # Add index for analytics queries
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_processing_logs_date 
             ON recipe_processing_logs(created_at);
         """)
-        
+
         # 3. Ingredient Mapping Logs - Track mapping decisions for learning
         print("🧠 Creating ingredient_mapping_logs table...")
         cursor.execute("""
@@ -103,18 +103,18 @@ def create_additional_pantry_tables():
                 UNIQUE(raw_text, suggested_id, verified_id)
             );
         """)
-        
+
         # Add indexes for learning queries
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_mapping_logs_raw_text 
             ON ingredient_mapping_logs(raw_text);
         """)
-        
+
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_mapping_logs_accuracy 
             ON ingredient_mapping_logs(was_correct, created_at);
         """)
-        
+
         # 4. Add verified_manually column to recipe_ingredients (if not exists)
         print("🔧 Enhancing recipe_ingredients table...")
         cursor.execute("""
@@ -124,25 +124,25 @@ def create_additional_pantry_tables():
             ADD COLUMN IF NOT EXISTS confidence DECIMAL(3,2),
             ADD COLUMN IF NOT EXISTS modifiers TEXT[];
         """)
-        
+
         # Copy data from ingredient_id to canonical_ingredient_id if needed
         cursor.execute("""
             UPDATE recipe_ingredients 
             SET canonical_ingredient_id = ingredient_id 
             WHERE canonical_ingredient_id IS NULL AND ingredient_id IS NOT NULL;
         """)
-        
+
         # Add index for verified mappings
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_recipe_ingredients_verified 
             ON recipe_ingredients(verified_manually);
         """)
-        
+
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_recipe_ingredients_canonical 
             ON recipe_ingredients(recipe_id, canonical_ingredient_id);
         """)
-        
+
         # 5. Update user_pantry to ensure all needed columns exist
         print("🥫 Enhancing user_pantry table...")
         # Note: actual columns are user_id, ingredient_id, amount_status, expiry_date, notes, added_at
@@ -155,37 +155,37 @@ def create_additional_pantry_tables():
             ADD COLUMN IF NOT EXISTS unit VARCHAR(50),
             ADD COLUMN IF NOT EXISTS updated_date TIMESTAMP DEFAULT NOW();
         """)
-        
+
         # Update to use canonical_ingredient_id instead of ingredient_id for consistency
         cursor.execute("""
             ALTER TABLE user_pantry 
             ADD COLUMN IF NOT EXISTS canonical_ingredient_id INTEGER;
         """)
-        
+
         # Copy data from ingredient_id to canonical_ingredient_id if needed
         cursor.execute("""
             UPDATE user_pantry 
             SET canonical_ingredient_id = ingredient_id 
             WHERE canonical_ingredient_id IS NULL AND ingredient_id IS NOT NULL;
         """)
-        
+
         # Add indexes for pantry queries (after columns are added)
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_user_pantry_status 
             ON user_pantry(user_id, status);
         """)
-        
+
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_user_pantry_expiry 
             ON user_pantry(user_id, expiry_date) 
             WHERE expiry_date IS NOT NULL;
         """)
-        
+
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_user_pantry_canonical 
             ON user_pantry(user_id, canonical_ingredient_id);
         """)
-        
+
         # 6. Create view for pantry intelligence analytics
         print("📈 Creating pantry intelligence analytics view...")
         cursor.execute("""
@@ -227,10 +227,10 @@ def create_additional_pantry_tables():
             FROM recipe_processing_logs
             WHERE created_at >= NOW() - INTERVAL '7 days';
         """)
-        
+
         # Commit all changes
         connection.commit()
-        
+
         print("\n✅ Successfully created additional pantry intelligence tables:")
         print("   📝 ingredient_review_queue - Uncertain mappings awaiting review")
         print("   📊 recipe_processing_logs - Processing statistics and monitoring")
@@ -238,92 +238,92 @@ def create_additional_pantry_tables():
         print("   🔧 Enhanced recipe_ingredients - Added verification tracking")
         print("   🥫 Enhanced user_pantry - Added location, notes, timestamps")
         print("   📈 pantry_intelligence_stats - Analytics view for monitoring")
-        
+
         print(f"\n🎊 Day 2 database enhancement complete!")
         print("   Ready for core pantry intelligence system deployment!")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"❌ Failed to create additional tables: {e}")
         if connection:
             connection.rollback()
         return False
-        
+
     finally:
         if connection:
             connection.close()
 
 def verify_additional_tables():
     """Verify that all additional tables were created successfully"""
-    
+
     connection = None
-    
+
     try:
         db_url = os.getenv('DATABASE_URL')
         if not db_url:
             raise Exception("DATABASE_URL environment variable required")
-            
+
         connection = psycopg2.connect(db_url)
-        
+
         cursor = connection.cursor()
-        
+
         print("🔍 Verifying additional pantry intelligence tables...")
-        
+
         # Check each table exists and has expected structure
         tables_to_check = [
             'ingredient_review_queue',
-            'recipe_processing_logs', 
+            'recipe_processing_logs',
             'ingredient_mapping_logs'
         ]
-        
+
         for table_name in tables_to_check:
             cursor.execute("""
                 SELECT COUNT(*) FROM information_schema.tables 
                 WHERE table_name = %s
             """, (table_name,))
-            
+
             if cursor.fetchone()[0] > 0:
                 # Get column count
                 cursor.execute("""
                     SELECT COUNT(*) FROM information_schema.columns
                     WHERE table_name = %s
                 """, (table_name,))
-                
+
                 column_count = cursor.fetchone()[0]
                 print(f"   ✅ {table_name}: exists with {column_count} columns")
             else:
                 print(f"   ❌ {table_name}: NOT FOUND")
                 return False
-        
+
         # Check the analytics view
         cursor.execute("""
             SELECT COUNT(*) FROM information_schema.views 
             WHERE table_name = 'pantry_intelligence_stats'
         """)
-        
+
         if cursor.fetchone()[0] > 0:
             print(f"   ✅ pantry_intelligence_stats: analytics view created")
         else:
             print(f"   ❌ pantry_intelligence_stats: view NOT FOUND")
             return False
-        
+
         # Test the analytics view
         cursor.execute("SELECT metric, value, unit FROM pantry_intelligence_stats LIMIT 1")
         test_result = cursor.fetchone()
-        
+
         if test_result:
             print(f"   ✅ Analytics view functional: {test_result[0]} = {test_result[1]} {test_result[2]}")
-        
+
         print("\n🎊 All additional tables verified successfully!")
         print("   Database is ready for Day 2 core system deployment!")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"❌ Verification failed: {e}")
         return False
-        
+
     finally:
         if connection:
             connection.close()
@@ -331,10 +331,10 @@ def verify_additional_tables():
 if __name__ == "__main__":
     print("🗄️ DAY 2 ADDITIONAL DATABASE TABLES CREATION")
     print("=" * 60)
-    
+
     # Create additional tables
     if create_additional_pantry_tables():
-        
+
         # Verify tables were created correctly
         if verify_additional_tables():
             print("\n🚀 DATABASE ENHANCEMENT COMPLETE!")

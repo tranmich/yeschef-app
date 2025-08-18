@@ -335,15 +335,53 @@
 /* Chat Input Styles - Clean new layout */
 .chat-input {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 1.5rem 1.5rem 1.5rem 1.5rem;
   /* Match chat-box padding exactly */
   background: white;
   border-radius: 0 0 20px 20px;
-  align-items: center;
   border-top: 1px solid #f0f0f0;
   /* Subtle separator */
   box-sizing: border-box;
+}
+
+/* Pantry Status Indicator for RecipeDetail */
+.chat-input .pantry-status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #e8f5e8, #f0f9f0);
+  border: 1px solid #4CAF50;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  font-size: 0.85em;
+  color: #2e7d32;
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.1);
+}
+
+.chat-input .pantry-link {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.8em;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.chat-input .pantry-link:hover {
+  background: #45a049;
+}
+
+/* Input container for actual input and button */
+.chat-input > div:last-child {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 .chat-input input {

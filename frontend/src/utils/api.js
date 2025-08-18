@@ -89,7 +89,9 @@ export const smartSearch = (message, context = '', options = {}) => apiCall('/ap
   body: JSON.stringify({
     message,
     context,
-    skipRecipeSearch: options.skipRecipeSearch || false
+    skipRecipeSearch: options.skipRecipeSearch || false,
+    user_pantry: options.user_pantry || [],
+    pantry_first: options.pantry_first || false
   }),
 });
 
@@ -99,7 +101,7 @@ api.getRecipe = getRecipe;
 api.smartSearch = smartSearch;
 
 // Add intelligent session-aware search function
-api.searchRecipesIntelligent = async (query, sessionId, shownRecipeIds, pageSize = 5) => {
+api.searchRecipesIntelligent = async (query, sessionId, shownRecipeIds, pageSize = 5, options = {}) => {
   const apiUrl = getApiUrl();
   const response = await fetch(`${apiUrl}/api/search/intelligent`, {
     method: 'POST',
@@ -110,7 +112,9 @@ api.searchRecipesIntelligent = async (query, sessionId, shownRecipeIds, pageSize
       query: query.trim(),
       session_id: sessionId,
       shown_recipe_ids: shownRecipeIds,
-      page_size: pageSize
+      page_size: pageSize,
+      user_pantry: options.user_pantry || [],
+      pantry_first: options.pantry_first || false
     })
   });
 

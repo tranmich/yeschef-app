@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { usePantry } from '../hooks/usePantry';
 import './PantryManager.css';
 
 const PantryManager = () => {
-  const [pantryItems, setPantryItems] = useState([]);
+  // Use shared pantry hook
+  const { 
+    pantryItems, 
+    addPantryItem: addToPantry, 
+    removePantryItem, 
+    updatePantryAmount 
+  } = usePantry();
+  
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pantryStatus, setPantryStatus] = useState(null);
@@ -11,38 +19,24 @@ const PantryManager = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetchPantryData();
     checkPantryStatus();
     loadAvailableIngredients();
+    setIsLoading(false); // Since pantry data comes from hook
   }, []);
-
-  const fetchPantryData = async () => {
-    try {
-      setIsLoading(true);
-      // For now, use mock data since backend pantry endpoints might not be fully implemented
-      // TODO: Replace with actual API call to backend pantry system
-      setTimeout(() => {
-        setPantryItems([
-          { id: 1, name: 'Chicken Breast', amount: 'some', category: 'protein' },
-          { id: 3, name: 'Onion', amount: 'plenty', category: 'produce' },
-          { id: 5, name: 'Olive Oil', amount: 'some', category: 'cooking' }
-        ]);
-        setIsLoading(false);
-      }, 500);
-    } catch (err) {
-      setError('Failed to load pantry items');
-      setIsLoading(false);
-    }
-  };
 
   const loadAvailableIngredients = async () => {
     try {
+      console.log('🔍 Loading ingredients from API...');
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/ingredients`);
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Ingredients loaded from API:', {
+          count: data.ingredients?.length || 0,
+          sample: data.ingredients?.slice(0, 5) || []
+        });
         setAvailableIngredients(data.ingredients || []);
       } else {
-        console.log('Failed to load ingredients, using fallback');
+        console.log('⚠️ Failed to load ingredients, using fallback');
         setAvailableIngredients([
           { name: 'Chicken Breast', category: 'protein' },
           { name: 'Rice', category: 'grain' },
@@ -51,7 +45,7 @@ const PantryManager = () => {
         ]);
       }
     } catch (err) {
-      console.log('Ingredients loading error:', err);
+      console.log('❌ Ingredients loading error:', err);
       setAvailableIngredients([]);
     }
   };
@@ -97,26 +91,13 @@ const PantryManager = () => {
   };
 
   const addPantryItem = (ingredient) => {
-    const newItem = {
-      id: Date.now(), // Generate temporary ID
-      name: ingredient.name,
-      category: ingredient.category,
-      amount: 'some'
-    };
-    setPantryItems(prev => [...prev, newItem]);
+    console.log('➕ Adding ingredient to pantry:', ingredient);
+    addToPantry(ingredient);
     setSearchTerm(''); // Clear search after adding
   };
 
-  const removePantryItem = (ingredientId) => {
-    setPantryItems(prev => prev.filter(item => item.id !== ingredientId));
-  };
-
   const updateAmount = (ingredientId, newAmount) => {
-    setPantryItems(prev => 
-      prev.map(item => 
-        item.id === ingredientId ? { ...item, amount: newAmount } : item
-      )
-    );
+    updatePantryAmount(ingredientId, newAmount);
   };
 
   const getAmountColor = (amount) => {
@@ -213,14 +194,27 @@ const PantryManager = () => {
             />
           </div>
           <div className="available-ingredients">
-            {availableIngredients
-              .filter(ingredient => {
-                const alreadyAdded = pantryItems.find(item => item.name === ingredient.name);
-                const matchesSearch = ingredient.name.toLowerCase().includes(searchTerm.toLowerCase());
-                return !alreadyAdded && matchesSearch;
-              })
-              .slice(0, 20) // Limit to 20 results
-              .map((ingredient, index) => (
+            {(() => {
+              const filteredIngredients = availableIngredients
+                .filter(ingredient => {
+                  const alreadyAdded = pantryItems.find(item => item.name === ingredient.name);
+                  const matchesSearch = ingredient.name.toLowerCase().includes(searchTerm.toLowerCase());
+                  return !alreadyAdded && matchesSearch;
+                })
+                .slice(0, 20); // Limit to 20 results
+              
+              // Debug logging for search filtering
+              if (searchTerm) {
+                console.log('🔍 Search Debug:', {
+                  searchTerm,
+                  totalIngredients: availableIngredients.length,
+                  currentPantryItems: pantryItems.map(item => item.name),
+                  matchingIngredients: filteredIngredients.map(ing => ing.name),
+                  filteredCount: filteredIngredients.length
+                });
+              }
+              
+              return filteredIngredients.map((ingredient, index) => (
                 <button
                   key={`${ingredient.name}-${index}`}
                   onClick={() => addPantryItem(ingredient)}
@@ -230,7 +224,8 @@ const PantryManager = () => {
                   <span className="ingredient-category">{ingredient.category}</span>
                   <span className="add-icon">➕</span>
                 </button>
-              ))}
+              ));
+            })()}
           </div>
           {searchTerm && availableIngredients.filter(ingredient => 
             ingredient.name.toLowerCase().includes(searchTerm.toLowerCase())

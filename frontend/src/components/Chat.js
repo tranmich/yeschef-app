@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import RecipeCard from './RecipeCard';
 import RecipeDropdown from './RecipeDropdown';
 import { api } from '../utils/api';
-import './Chat.css';
+import { usePantry } from '../hooks/usePantry';
+import '../pages/Chat/Chat.css';
 
 const Chat = () => {
   const [messages, setMessages] = useState([
@@ -18,6 +19,9 @@ const Chat = () => {
   const [suggestedRecipes, setSuggestedRecipes] = useState([]);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
+  
+  // Add pantry hook
+  const { pantryItems, getPantryForAPI, hasItems: hasPantryItems } = usePantry();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,7 +55,28 @@ const Chat = () => {
         `${msg.type}: ${msg.content}`
       ).join('\n');
 
-      const data = await api.smartSearch(userMessage, context);
+      // Get current pantry data for recipe recommendations
+      const userPantry = getPantryForAPI();
+      const pantryFirst = hasPantryItems; // Prioritize pantry-based recipes if user has items
+      
+      console.log('🥫 Chat Debug - Pantry Integration:', {
+        pantryItems: userPantry.map(item => item.name),
+        pantryFirst,
+        userMessage,
+        fullPantryData: userPantry
+      });
+      
+      console.log('🚀 Sending API request with pantry data:', {
+        message: userMessage,
+        context,
+        user_pantry: userPantry,
+        pantry_first: pantryFirst
+      });
+
+      const data = await api.smartSearch(userMessage, context, {
+        user_pantry: userPantry,
+        pantry_first: pantryFirst
+      });
       // Support both top-level and nested fullResponse for recipes/chat_response
       const recipes = data.recipes || (data.fullResponse && data.fullResponse.recipes) || [];
       const chat_response = data.chat_response || (data.fullResponse && data.fullResponse.chat_response) || '';
@@ -206,6 +231,20 @@ const Chat = () => {
       )}
 
       <div className="chat-input">
+        {/* Pantry Status Indicator */}
+        {hasPantryItems && (
+          <div className="pantry-status-indicator">
+            🥫 Using your pantry ({pantryItems.length} items) to suggest recipes
+            <button 
+              className="pantry-link"
+              onClick={() => navigate('/pantry')}
+              title="Manage your pantry"
+            >
+              Manage Pantry
+            </button>
+          </div>
+        )}
+        
         <div className="input-container">
           <textarea
             value={inputMessage}

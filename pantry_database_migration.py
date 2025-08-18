@@ -26,7 +26,8 @@ class PantryDatabaseMigration:
     """
     
     def __init__(self):
-        self.db_url = os.getenv('DATABASE_URL')
+        # Use the same database URL as the server
+        self.db_url = os.getenv('DATABASE_URL') or "postgresql://postgres:udQLpljdqTYmESmntwzmwDcOlBVbqlJG@shuttle.proxy.rlwy.net:31331/railway"
         if not self.db_url:
             raise Exception("DATABASE_URL environment variable required")
         
