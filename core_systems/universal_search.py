@@ -162,45 +162,21 @@ class UniversalSearchEngine:
         }
 
     def get_database_connection(self):
-        """Get database connection using shared connection logic from hungie_server.py"""
+        """Get database connection - SELF-SUFFICIENT VERSION (no circular imports)"""
         try:
-            # Import the shared connection function from the main server
-            import sys
-            import os
-            sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-            # Use the shared get_db_connection function from hungie_server.py
-            from hungie_server import get_db_connection
-
-            conn = get_db_connection()
-            if conn:
-                # Detect database type based on connection object
-                if hasattr(conn, 'server_version'):
-                    # PostgreSQL connection
-                    self.is_postgresql = True
-                else:
-                    # Should be PostgreSQL in production, but handle gracefully
-                    self.is_postgresql = True
-                return conn
-            else:
-                print("Failed to get database connection from shared function")
-                return None
-        except ImportError as e:
-            print(f"Could not import shared connection function: {e}")
-            # Direct PostgreSQL connection as fallback
+            # Direct PostgreSQL connection without importing hungie_server.py
             database_url = os.getenv('DATABASE_URL')
-            if database_url:
-                # PostgreSQL connection
-                conn = psycopg2.connect(database_url)
-                conn.cursor_factory = psycopg2.extras.RealDictCursor
-                self.is_postgresql = True
-                return conn
-            else:
-                print("❌ No DATABASE_URL found - PostgreSQL connection required")
-                print("💡 For local testing, use: railway run python your_script.py")
-                return None
+            if not database_url:
+                # Railway-proven public URL for production
+                database_url = "postgresql://postgres:udQLpljdqTYmESmntwzmwDcOlBVbqlJG@shuttle.proxy.rlwy.net:31331/railway"
+            
+            # PostgreSQL connection
+            conn = psycopg2.connect(database_url)
+            conn.cursor_factory = psycopg2.extras.RealDictCursor
+            self.is_postgresql = True
+            return conn
         except Exception as e:
-            print(f"Database connection error: {e}")
+            print(f"Universal Search Engine database connection error: {e}")
             return None
 
     def get_placeholder(self):
