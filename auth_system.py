@@ -4,7 +4,6 @@ Authentication System for Hungie
 Handles user registration, login, JWT tokens, and OAuth integration
 """
 
-import sqlite3
 import psycopg2
 import psycopg2.extras
 import hashlib
@@ -23,13 +22,13 @@ class AuthenticationSystem:
     def __init__(self, app, get_db_connection=None):
         self.app = app
         self.get_db_connection = get_db_connection
-        
+
         # Fallback to direct database connection if not provided
         if not self.get_db_connection:
             self.get_db_connection = self._get_default_db_connection
-            
+
         self.bcrypt = Bcrypt(app)
-        
+
         # Configure JWT with persistent secret
         jwt_secret = os.getenv('JWT_SECRET_KEY')
         if not jwt_secret:
@@ -43,20 +42,20 @@ class AuthenticationSystem:
                 # For local development, use a fixed secret
                 jwt_secret = 'dev-secret-key-for-local-testing-only'
             logger.info("Generated consistent JWT secret from environment")
-        
+
         app.config['JWT_SECRET_KEY'] = jwt_secret
         app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
         self.jwt = JWTManager(app)
-        
+
         # Configure OAuth
         self.oauth = OAuth(app)
         self._setup_oauth()
-        
+
         # Initialize database
         self._init_user_database()
-        
+
         logger.info("[OK] Authentication system initialized")
-    
+
     def _get_default_db_connection(self):
         """Default database connection for fallback"""
         try:
@@ -68,16 +67,10 @@ class AuthenticationSystem:
                 conn.cursor_factory = psycopg2.extras.RealDictCursor
                 logger.info("✅ Auth system connected to PostgreSQL database")
                 return conn
-            else:
-                # Fallback to SQLite for local development
-                conn = sqlite3.connect('hungie.db')
-                conn.row_factory = sqlite3.Row
-                logger.info("✅ Auth system connected to SQLite database (local)")
-                return conn
         except Exception as e:
             logger.error(f"Auth database connection error: {e}")
             raise
-    
+
     def _setup_oauth(self):
         """Setup Google and Facebook OAuth"""
         # Google OAuth
@@ -90,7 +83,7 @@ class AuthenticationSystem:
             },
             server_metadata_url='https://accounts.google.com/.well-known/openid_configuration'
         )
-        
+
         # Facebook OAuth
         self.facebook = self.oauth.register(
             name='facebook',
@@ -101,17 +94,24 @@ class AuthenticationSystem:
             access_token_url='https://graph.facebook.com/oauth/access_token',
             authorize_url='https://www.facebook.com/dialog/oauth',
         )
-    
+
+    def _is_postgresql(self, conn):
+        """Check if the connection is PostgreSQL"""
+        try:
+            return hasattr(conn, 'cursor_factory') or 'psycopg' in str(type(conn))
+        except:
+            return False
+
     def _init_user_database(self):
         """Initialize user tables in the database"""
         try:
             conn = self.get_db_connection()
             cursor = conn.cursor()
-            
+
             # Check if we're using PostgreSQL or SQLite
-            database_url = os.getenv('DATABASE_URL')
-            
-            if database_url:
+            is_postgresql = self._is_postgresql(conn)
+
+            if is_postgresql:
                 # PostgreSQL schema - Users table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS users (
@@ -127,7 +127,7 @@ class AuthenticationSystem:
                         profile_picture TEXT
                     )
                 ''')
-                
+
                 # User preferences table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS user_preferences (
@@ -144,7 +144,7 @@ class AuthenticationSystem:
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
-                
+
                 # User pantry table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS user_pantry (
@@ -160,7 +160,7 @@ class AuthenticationSystem:
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
-                
+
                 # Saved recipes table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS saved_recipes (
@@ -174,7 +174,7 @@ class AuthenticationSystem:
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
-                
+
                 # Saved meal plans table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS saved_meal_plans (
@@ -203,7 +203,7 @@ class AuthenticationSystem:
                         profile_picture TEXT
                     )
                 ''')
-                
+
                 # User preferences table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS user_preferences (
@@ -220,7 +220,7 @@ class AuthenticationSystem:
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
-                
+
                 # User pantry table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS user_pantry (
@@ -236,7 +236,7 @@ class AuthenticationSystem:
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
-                
+
                 # Saved recipes table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS saved_recipes (
@@ -250,7 +250,7 @@ class AuthenticationSystem:
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
-                
+
                 # Saved meal plans table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS saved_meal_plans (
@@ -263,37 +263,37 @@ class AuthenticationSystem:
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
-            
+
             conn.commit()
             conn.close()
             logger.info("[OK] User database tables created successfully")
-            
+
         except Exception as e:
             logger.error(f"[ERROR] Error creating user tables: {e}")
             raise
-    
+
     def register_user(self, name, email, password, oauth_provider=None, oauth_id=None):
         """Register a new user"""
         try:
             conn = self.get_db_connection()
             cursor = conn.cursor()
-            
+
             # Check if we're using PostgreSQL or SQLite
-            database_url = os.getenv('DATABASE_URL')
-            placeholder = '%s' if database_url else '?'
-            
+            is_postgresql = self._is_postgresql(conn)
+            placeholder = '%s' if is_postgresql else '?'
+
             # Check if user already exists
             cursor.execute(f'SELECT id FROM users WHERE email = {placeholder}', (email,))
             if cursor.fetchone():
                 return {'success': False, 'message': 'User already exists'}
-            
+
             # Hash password if provided
             password_hash = None
             if password:
                 password_hash = self.bcrypt.generate_password_hash(password).decode('utf-8')
-            
+
             # Insert new user with proper ID retrieval for PostgreSQL vs SQLite
-            if database_url:
+            if is_postgresql:
                 # PostgreSQL - use RETURNING clause
                 cursor.execute(f'''
                     INSERT INTO users (name, email, password_hash, oauth_provider, oauth_id)
@@ -302,7 +302,7 @@ class AuthenticationSystem:
                 ''', (name, email, password_hash, oauth_provider, oauth_id))
                 result = cursor.fetchone()
                 user_id = result['id'] if result else None
-                
+
                 if not user_id:
                     logger.error("Failed to get user ID after PostgreSQL insert")
                     return {'success': False, 'message': 'Registration failed - database error'}
@@ -313,20 +313,20 @@ class AuthenticationSystem:
                     VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
                 ''', (name, email, password_hash, oauth_provider, oauth_id))
                 user_id = cursor.lastrowid
-            
+
             # Create default preferences
             cursor.execute(f'''
                 INSERT INTO user_preferences (user_id, dietary_restrictions, allergies, 
                                             preferred_cuisines, cooking_skill_level)
                 VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
             ''', (user_id, '[]', '[]', '[]', 'beginner'))
-            
+
             conn.commit()
             conn.close()
-            
+
             # Generate JWT token
             access_token = create_access_token(identity=user_id)
-            
+
             logger.info(f"[OK] User registered successfully: {email}")
             return {
                 'success': True,
@@ -338,42 +338,42 @@ class AuthenticationSystem:
                     'email': email
                 }
             }
-            
+
         except Exception as e:
             logger.error(f"[ERROR] Registration error: {e}")
             return {'success': False, 'message': 'Registration failed'}
-    
+
     def authenticate_user(self, email, password):
         """Authenticate user with email and password"""
         try:
             conn = self.get_db_connection()
             cursor = conn.cursor()
-            
+
             # Check if we're using PostgreSQL or SQLite
-            database_url = os.getenv('DATABASE_URL')
-            placeholder = '%s' if database_url else '?'
-            
+            is_postgresql = self._is_postgresql(conn)
+            placeholder = '%s' if is_postgresql else '?'
+
             cursor.execute(f'''
                 SELECT id, name, email, password_hash, is_active 
                 FROM users WHERE email = {placeholder}
             ''', (email,))
-            
+
             user = cursor.fetchone()
             conn.close()
-            
+
             if not user:
                 return {'success': False, 'message': 'Invalid credentials'}
-            
+
             if not user['is_active']:
                 return {'success': False, 'message': 'Account disabled'}
-            
+
             if not user['password_hash']:
                 return {'success': False, 'message': 'Please use social login'}
-            
+
             # Check password
             if self.bcrypt.check_password_hash(user['password_hash'], password):
                 access_token = create_access_token(identity=user['id'])
-                
+
                 logger.info(f"[OK] User authenticated: {email}")
                 return {
                     'success': True,
@@ -386,50 +386,50 @@ class AuthenticationSystem:
                 }
             else:
                 return {'success': False, 'message': 'Invalid credentials'}
-                
+
         except Exception as e:
             logger.error(f"[ERROR] Authentication error: {e}")
             return {'success': False, 'message': 'Authentication failed'}
-    
+
     def get_user_by_id(self, user_id):
         """Get user information by ID"""
         try:
             conn = self.get_db_connection()
             cursor = conn.cursor()
-            
+
             # Check if we're using PostgreSQL or SQLite
             database_url = os.getenv('DATABASE_URL')
             placeholder = '%s' if database_url else '?'
-            
+
             cursor.execute(f'''
                 SELECT id, name, email, created_at, profile_picture
                 FROM users WHERE id = {placeholder} AND is_active = TRUE
             ''', (user_id,))
-            
+
             user = cursor.fetchone()
             conn.close()
-            
+
             if user:
                 return dict(user)
             return None
-            
+
         except Exception as e:
             logger.error(f"[ERROR] Error getting user: {e}")
             return None
-    
+
     def wipe_user_data(self, user_id=None):
         """Wipe user data for testing purposes"""
         try:
             conn = self.get_db_connection()
             cursor = conn.cursor()
-            
+
             # Check if we're using PostgreSQL or SQLite
             database_url = os.getenv('DATABASE_URL')
             placeholder = '%s' if database_url else '?'
-            
+
             if user_id:
                 # Wipe specific user
-                tables = ['saved_meal_plans', 'saved_recipes', 'user_pantry', 
+                tables = ['saved_meal_plans', 'saved_recipes', 'user_pantry',
                          'user_preferences', 'users']
                 for table in tables:
                     cursor.execute(f'DELETE FROM {table} WHERE user_id = {placeholder}', (user_id,))
@@ -437,17 +437,17 @@ class AuthenticationSystem:
                         cursor.execute(f'DELETE FROM {table} WHERE id = {placeholder}', (user_id,))
             else:
                 # Wipe all user data
-                tables = ['saved_meal_plans', 'saved_recipes', 'user_pantry', 
+                tables = ['saved_meal_plans', 'saved_recipes', 'user_pantry',
                          'user_preferences', 'users']
                 for table in tables:
                     cursor.execute(f'DELETE FROM {table}')
-            
+
             conn.commit()
             conn.close()
-            
+
             logger.info(f"[OK] User data wiped {'for user ' + str(user_id) if user_id else 'completely'}")
             return {'success': True, 'message': 'User data wiped successfully'}
-            
+
         except Exception as e:
             logger.error(f"[ERROR] Error wiping user data: {e}")
             return {'success': False, 'message': 'Failed to wipe user data'}

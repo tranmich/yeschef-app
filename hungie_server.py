@@ -56,7 +56,6 @@ from core_systems.universal_search import UniversalSearchEngine
 try:
     from core_systems.meal_planning_system import MealPlanningSystem
     from core_systems.grocery_list_generator import GroceryListGenerator
-    from core_systems.favorites_manager import FavoritesManager
     MEAL_PLANNING_AVAILABLE = True
     logger.info("✅ Meal planning systems imported successfully")
 except ImportError as e:
@@ -108,24 +107,17 @@ except Exception as e:
     auth_system = None
 
 # Enhanced systems - with proper error handling
-ENHANCED_SEARCH_AVAILABLE = False
-FLAVOR_PROFILE_AVAILABLE = False
+UNIVERSAL_SEARCH_AVAILABLE = False
 
 # Global Universal Search Engine
 search_engine = None
-
-try:
-    from core_systems.enhanced_search import EnhancedSearchEngine
-    ENHANCED_SEARCH_AVAILABLE = True
-    logger.info("🧠 Enhanced search loaded")
-except ImportError as e:
-    logger.warning(f"⚠️ Enhanced search not available: {e}")
 
 # Initialize Universal Search Engine (Day 4 Full Integration)
 try:
     from core_systems.universal_search import UniversalSearchEngine
     # Initialize universal search engine
     search_engine = UniversalSearchEngine()
+    UNIVERSAL_SEARCH_AVAILABLE = True
     logger.info("🔍 Universal search engine initialized - ALL search functions consolidated")
 except ImportError as e:
     logger.warning(f"⚠️ Universal search engine not available: {e}")
@@ -134,27 +126,8 @@ except Exception as e:
     logger.error(f"❌ Failed to initialize universal search engine: {e}")
     search_engine = None
 
-try:
-    from core_systems.production_flavor_system import FlavorProfileSystem, enhance_recipe_with_flavor_intelligence
-    from recipe_database_enhancer import RecipeDatabaseEnhancer
-    FLAVOR_PROFILE_AVAILABLE = True
-    logger.info("🔥 Flavor profile system loaded")
-except ImportError as e:
-    logger.warning(f"⚠️ Flavor profile system not available: {e}")
-
-# Import backend modernization components
-try:
-    from backend_modernization_patch import (
-        ModernSessionManager,
-        EnhancedResponseBuilder,
-        ConversationSuggestionGenerator,
-        get_session_manager
-    )
-    session_manager = get_session_manager()
-    logger.info("✅ Backend modernization patch loaded")
-except ImportError as e:
-    session_manager = None
-    logger.warning(f"⚠️ Backend modernization patch not available: {e}")
+# Session management (disabled)
+session_manager = None
 
 # Database connection
 def get_db_connection():
@@ -602,31 +575,31 @@ def intelligent_session_search():
                     logger.warning(f"Universal intelligent search failed: {search_result.get('error', 'Unknown error')}")
             except Exception as e:
                 logger.error(f"⚠️ Universal search engine error: {str(e)}")
-        
+
         # FALLBACK: Use basic search with session awareness
         logger.warning("⚠️ Falling back to basic search with session awareness")
-        
+
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
-            
+
             # Build search query with exclusions
             where_conditions = []
             params = []
-            
+
             if query:
                 where_conditions.append("(LOWER(r.title) LIKE %s OR LOWER(r.ingredients) LIKE %s)")
                 search_term = f"%{query.lower()}%"
                 params.extend([search_term, search_term])
-            
+
             # Add exclusions
             if shown_recipe_ids:
                 placeholders = ','.join(['%s' for _ in shown_recipe_ids])
                 where_conditions.append(f"r.id NOT IN ({placeholders})")
                 params.extend(shown_recipe_ids)
-            
+
             where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
-            
+
             # If no new recipes found with exclusions, remove exclusions (fallback behavior you requested)
             fallback_query = f"""
             SELECT DISTINCT r.id, r.title, r.description, r.servings, r.total_time,
@@ -637,17 +610,17 @@ def intelligent_session_search():
             LIMIT %s
             """
             params.append(page_size * 2)
-            
+
             cursor.execute(fallback_query, params)
             recipes = cursor.fetchall()
-            
+
             # If no results and we had exclusions, try again without exclusions
             if not recipes and shown_recipe_ids and query:
                 logger.info(f"🔄 No new {query} recipes found, showing all {query} recipes as fallback")
                 where_conditions = ["(LOWER(r.title) LIKE %s OR LOWER(r.ingredients) LIKE %s)"]
                 search_term = f"%{query.lower()}%"
                 params = [search_term, search_term, page_size]
-                
+
                 fallback_query = f"""
                 SELECT DISTINCT r.id, r.title, r.description, r.servings, r.total_time,
                        r.ingredients, r.instructions, r.source, r.category
@@ -656,10 +629,10 @@ def intelligent_session_search():
                 ORDER BY r.id
                 LIMIT %s
                 """
-                
+
                 cursor.execute(fallback_query, params)
                 recipes = cursor.fetchall()
-            
+
             # Format recipes
             formatted_recipes = []
             for recipe in recipes:
@@ -678,11 +651,11 @@ def intelligent_session_search():
                     'fallback_search': True
                 }
                 formatted_recipes.append(formatted_recipe)
-            
+
             conn.close()
-            
+
             logger.info(f"🔄 Fallback search found {len(formatted_recipes)} recipes for '{query}'")
-            
+
             return jsonify({
                 'success': True,
                 'recipes': formatted_recipes,
@@ -697,7 +670,7 @@ def intelligent_session_search():
                     'exclusions_applied': len(shown_recipe_ids)
                 }
             })
-            
+
         except Exception as fallback_error:
             logger.error(f"❌ Fallback search also failed: {str(fallback_error)}")
             return jsonify({
@@ -938,14 +911,8 @@ def smart_search():
             ai_response = " ".join(response_parts) + "! 🍴"
 
             # Generate conversation suggestions if available
+            # Conversation suggestions disabled
             conversation_suggestions = []
-            if session_manager:
-                try:
-                    conversation_suggestions = ConversationSuggestionGenerator.generate_suggestions(
-                        query, recipes
-                    )
-                except:
-                    conversation_suggestions = []
 
             # Enhanced response with intelligence metadata
             response_data = {
@@ -1001,72 +968,10 @@ def smart_search():
             'error': str(e),
             'universal_search': True
         }), 500
-@app.route('/api/recipe-suggestions', methods=['POST'])
-def get_recipe_suggestions():
-    """
-    Get recipe suggestions based on user preferences - UNIVERSAL SEARCH INTEGRATION
-    
-    ✨ CONSOLIDATION: Now uses UniversalSearchEngine for suggestions
-    🎯 FEATURES: Intelligence filtering, smart explanations, preference learning
-    📈 PERFORMANCE: Optimized queries with universal search engine
-    """
-    try:
-        data = request.get_json()
-        query = data.get('query', '').strip()
-        session_id = data.get('session_id', 'default')
-        limit = data.get('limit', 5)
 
-        if not query:
-            return jsonify({
-                'success': False,
-                'error': 'Query is required'
-            }), 400
-
-        logger.info(f"💡 Universal recipe suggestions for: '{query}' | Session: {session_id}")
-
-        # Use universal search engine for suggestions
-        if search_engine:
-            search_result = search_engine.unified_intelligent_search(
-                query=query,
-                session_memory={'session_id': session_id},
-                user_pantry=[],
-                exclude_ids=[],
-                limit=limit,
-                include_explanations=True
-            )
-
-            if search_result['success']:
-                return jsonify({
-                    'success': True,
-                    'data': {
-                        'suggestions': search_result['recipes'],
-                        'preferences_detected': search_result.get('search_metadata', {}),
-                        'universal_search_used': True,
-                        'intelligence_enabled': True,
-                        'session_id': session_id
-                    }
-                })
-            else:
-                logger.warning(f"Universal recipe suggestions failed: {search_result.get('error', 'Unknown error')}")
-                return jsonify({
-                    'success': False,
-                    'error': search_result.get('error', 'Universal search failed'),
-                    'universal_search': False
-                }), 500
-        else:
-            logger.error("⚠️ Universal search engine not available for recipe suggestions")
-            return jsonify({
-                'success': False,
-                'error': 'Universal search engine not configured'
-            }), 500
-
-    except Exception as e:
-        logger.error(f"Universal recipe suggestions API error: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'universal_search': False
-        }), 500
+# ===================================
+# DATABASE STATISTICS ENDPOINTS
+# ===================================
 
 @app.route('/api/database-stats', methods=['GET'])
 def get_database_stats():
@@ -1680,136 +1585,35 @@ def generate_grocery_list_from_recipes():
 
 @app.route('/api/favorites', methods=['POST'])
 def toggle_favorite():
-    """Add or remove a recipe from favorites"""
-    if not MEAL_PLANNING_AVAILABLE:
-        return jsonify({
-            'success': False,
-            'error': 'Favorites system not available'
-        }), 503
-
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({
-                'success': False,
-                'error': 'No data provided'
-            }), 400
-
-        recipe_id = data.get('recipe_id')
-        notes = data.get('notes', '')
-
-        if not recipe_id:
-            return jsonify({
-                'success': False,
-                'error': 'Recipe ID required'
-            }), 400
-
-        favorites_manager = FavoritesManager()
-        result = favorites_manager.toggle_favorite(recipe_id, notes)
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Toggle favorite error: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+    """Add or remove a recipe from favorites - DISABLED"""
+    return jsonify({
+        'success': False,
+        'error': 'Favorites system temporarily disabled'
+    }), 503
 
 @app.route('/api/favorites', methods=['GET'])
 def get_favorites():
-    """Get user's favorite recipes"""
-    if not MEAL_PLANNING_AVAILABLE:
-        return jsonify({
-            'success': False,
-            'error': 'Favorites system not available'
-        }), 503
-
-    try:
-        limit = request.args.get('limit', 50, type=int)
-        offset = request.args.get('offset', 0, type=int)
-
-        favorites_manager = FavoritesManager()
-        favorites = favorites_manager.get_favorites(limit=limit, offset=offset)
-        total_count = favorites_manager.get_favorites_count()
-
-        return jsonify({
-            'success': True,
-            'favorites': favorites,
-            'count': len(favorites),
-            'total_count': total_count
-        })
-
-    except Exception as e:
-        logger.error(f"Get favorites error: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+    """Get user's favorite recipes - DISABLED"""
+    return jsonify({
+        'success': False,
+        'error': 'Favorites system temporarily disabled'
+    }), 503
 
 @app.route('/api/favorites/check', methods=['POST'])
 def check_favorites():
-    """Check favorite status for multiple recipes"""
-    if not MEAL_PLANNING_AVAILABLE:
-        return jsonify({
-            'success': False,
-            'error': 'Favorites system not available'
-        }), 503
-
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({
-                'success': False,
-                'error': 'No data provided'
-            }), 400
-
-        recipe_ids = data.get('recipe_ids', [])
-        if not recipe_ids:
-            return jsonify({
-                'success': False,
-                'error': 'No recipe IDs provided'
-            }), 400
-
-        favorites_manager = FavoritesManager()
-        favorite_status = favorites_manager.bulk_check_favorites(recipe_ids)
-
-        return jsonify({
-            'success': True,
-            'favorite_status': favorite_status
-        })
-
-    except Exception as e:
-        logger.error(f"Check favorites error: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+    """Check favorite status for multiple recipes - DISABLED"""
+    return jsonify({
+        'success': False,
+        'error': 'Favorites system temporarily disabled'
+    }), 503
 
 @app.route('/api/favorites/summary', methods=['GET'])
 def get_favorites_summary():
-    """Get favorites summary information"""
-    if not MEAL_PLANNING_AVAILABLE:
-        return jsonify({
-            'success': False,
-            'error': 'Favorites system not available'
-        }), 503
-
-    try:
-        favorites_manager = FavoritesManager()
-        summary = favorites_manager.get_favorites_summary()
-
-        return jsonify({
-            'success': True,
-            'summary': summary
-        })
-
-    except Exception as e:
-        logger.error(f"Get favorites summary error: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+    """Get favorites summary information - DISABLED"""
+    return jsonify({
+        'success': False,
+        'error': 'Favorites system temporarily disabled'
+    }), 503
 
 @app.route('/api/admin/migrate-intelligence', methods=['POST'])
 def migrate_intelligence_endpoint():
@@ -1946,13 +1750,304 @@ def get_version():
         }
     })
 
+@app.route('/api/config', methods=['GET'])
+def get_configuration():
+    """Get current system configuration"""
+    try:
+        from core_systems.config import get_config
+        config = get_config()
+        
+        return jsonify({
+            'success': True,
+            'config': config.get_status(),
+            'message': 'Configuration retrieved successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Configuration retrieval error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to retrieve configuration'
+        }), 500
+
+@app.route('/api/config/pantry/toggle', methods=['POST'])
+def toggle_pantry_system():
+    """Toggle the pantry system on/off"""
+    try:
+        from core_systems.config import toggle_pantry, get_config
+        
+        new_state = toggle_pantry()
+        config = get_config()
+        
+        return jsonify({
+            'success': True,
+            'pantry_enabled': new_state,
+            'config': config.get_status(),
+            'message': f'Pantry system {"enabled" if new_state else "disabled"}'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Pantry toggle error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to toggle pantry system'
+        }), 500
+
+@app.route('/api/config/pantry/enable', methods=['POST'])
+def enable_pantry_system():
+    """Enable the pantry system"""
+    try:
+        from core_systems.config import enable_pantry, get_config
+        
+        enable_pantry()
+        config = get_config()
+        
+        return jsonify({
+            'success': True,
+            'pantry_enabled': True,
+            'config': config.get_status(),
+            'message': 'Pantry system enabled'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Pantry enable error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to enable pantry system'
+        }), 500
+
+@app.route('/api/config/pantry/disable', methods=['POST'])
+def disable_pantry_system():
+    """Disable the pantry system"""
+    try:
+        from core_systems.config import disable_pantry, get_config
+        
+        disable_pantry()
+        config = get_config()
+        
+        return jsonify({
+            'success': True,
+            'pantry_enabled': False,
+            'config': config.get_status(),
+            'message': 'Pantry system disabled'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Pantry disable error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to disable pantry system'
+        }), 500
+
+# ===================================
+# PANTRY MANAGEMENT ENDPOINTS
+# ===================================
+
+@app.route('/api/pantry', methods=['GET'])
+def get_pantry_items():
+    """Get all pantry items"""
+    try:
+        from core_systems.pantry_system import PantrySystem
+        pantry = PantrySystem()
+        items = pantry.get_all_pantry_items()
+        
+        return jsonify({
+            'success': True,
+            'items': items,
+            'count': len(items)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get pantry items error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/pantry', methods=['POST'])
+def add_pantry_item():
+    """Add item to pantry"""
+    try:
+        from core_systems.pantry_system import PantrySystem
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        ingredient_name = data.get('ingredient_name', '').strip()
+        amount = data.get('amount', 1)
+        
+        if not ingredient_name:
+            return jsonify({
+                'success': False,
+                'error': 'Ingredient name required'
+            }), 400
+        
+        pantry = PantrySystem()
+        result = pantry.add_pantry_item(ingredient_name, amount)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Add pantry item error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/pantry/<int:item_id>', methods=['PUT'])
+def update_pantry_item(item_id):
+    """Update pantry item"""
+    try:
+        from core_systems.pantry_system import PantrySystem
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        amount = data.get('amount')
+        if amount is None:
+            return jsonify({
+                'success': False,
+                'error': 'Amount required'
+            }), 400
+        
+        pantry = PantrySystem()
+        result = pantry.update_pantry_item(item_id, amount)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Update pantry item error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/pantry/<int:item_id>', methods=['DELETE'])
+def remove_pantry_item(item_id):
+    """Remove item from pantry"""
+    try:
+        from core_systems.pantry_system import PantrySystem
+        
+        pantry = PantrySystem()
+        result = pantry.remove_pantry_item(item_id)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Remove pantry item error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/ingredients', methods=['GET'])
+def get_ingredients():
+    """Get available canonical ingredients for pantry"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get distinct ingredients from canonical_ingredients table
+        cursor.execute("""
+            SELECT DISTINCT name, category 
+            FROM canonical_ingredients 
+            ORDER BY category, name
+            LIMIT 100
+        """)
+        
+        ingredients = []
+        for row in cursor.fetchall():
+            ingredients.append({
+                'name': row['name'],
+                'category': row['category'] or 'other'
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'ingredients': ingredients,
+            'count': len(ingredients)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get ingredients error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'ingredients': []
+        }), 500
+
+@app.route('/api/pantry/status', methods=['GET'])
+def get_pantry_status():
+    """Get current pantry system status - frontend compatibility"""
+    try:
+        from core_systems.config import get_config
+        
+        config = get_config()
+        status = config.get_status()
+        pantry_info = status['pantry']
+        
+        return jsonify({
+            'success': True,
+            'status': pantry_info['status'],
+            'enabled': pantry_info['enabled']
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get pantry status error: {e}")
+        return jsonify({
+            'success': False,
+            'status': '🔴 PANTRY: ERROR',
+            'error': str(e)
+        }), 500
+
+@app.route('/api/pantry/toggle', methods=['GET'])
+def get_pantry_toggle_status():
+    """Get current pantry system status"""
+    try:
+        from core_systems.config import get_config
+        
+        config = get_config()
+        status = config.get_status()
+        
+        return jsonify({
+            'success': True,
+            'pantry_enabled': status['pantry']['enabled'],
+            'status': status['pantry']['status']
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get pantry toggle status error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ===================================
+# HEALTH CHECK ENDPOINT
+# ===================================
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint with backend capabilities"""
     try:
         capabilities = {
-            'enhanced_search': ENHANCED_SEARCH_AVAILABLE,
-            'flavor_profile': FLAVOR_PROFILE_AVAILABLE,
+            'universal_search': UNIVERSAL_SEARCH_AVAILABLE,
+            'flavor_profile': False,
             'meal_planning': MEAL_PLANNING_AVAILABLE,
             'session_management': session_manager is not None,
             'ai_chat': client is not None,

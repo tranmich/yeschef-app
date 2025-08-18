@@ -3,6 +3,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from 
 import CompactHeader from '../components/CompactHeader';
 import SidebarNavigation from '../components/SidebarNavigation';
 import MealPlannerView from '../components/MealPlannerView';
+import PantryManager from '../components/PantryManager';
 import RecipeDropdown from '../components/RecipeDropdown';
 import './RecipeDetail.css';
 import { api } from '../utils/api';
@@ -29,6 +30,9 @@ const RecipeDetail = () => {
 
   // NEW: Meal Planner State
   const [showMealPlanner, setShowMealPlanner] = useState(false);
+  
+  // NEW: Pantry State
+  const [showPantry, setShowPantry] = useState(false);
 
   // NEW: Drag and Drop State
   const [draggedRecipe, setDraggedRecipe] = useState(null);
@@ -230,22 +234,34 @@ const RecipeDetail = () => {
 
       // Check if we have new recipes to show
       if (searchResult.recipes.length === 0) {
+        // Clean the search term to avoid "recipes recipes" duplication
+        const cleanSearchTerm = userMessage.toLowerCase().includes('recipes') 
+          ? userMessage.replace(/\s*recipes?\s*$/i, '') 
+          : userMessage;
+          
         const noNewRecipesMessage = {
           type: 'hungie',
-          content: `I've already shown you all the ${userMessage} recipes I found! 🤔\n\nI searched through ${searchResult.totalAvailable || 'all available'} recipes.\n\nOptions:\n• Try searching for something different\n• Search for variations (e.g., "spicy ${userMessage}" or "healthy ${userMessage}")\n• Type "reset memory" to see all recipes again\n\nWhat would you like to explore?`,
+          content: `I've already shown you all the ${cleanSearchTerm} recipes I found! 🤔\n\nI searched through ${searchResult.totalAvailable || 'all available'} recipes.\n\nOptions:\n• Try searching for something different\n• Search for variations (e.g., "spicy ${cleanSearchTerm}" or "healthy ${cleanSearchTerm}")\n• Type "reset memory" to see all recipes again\n\nWhat would you like to explore?`,
           recipes: [],
           timestamp: new Date()
         };
         setMessages(prev => [...prev, noNewRecipesMessage]);
       } else {
+        // Clean the search term to avoid "recipes recipes" duplication
+        const cleanSearchTerm = userMessage.toLowerCase().includes('recipes') 
+          ? userMessage.replace(/\s*recipes?\s*$/i, '') 
+          : userMessage;
+        
         // Generate intelligent response based on search metadata
-        let responseContent = `Here are some great ${userMessage} recipes I found for you! 🍴`;
+        let responseContent = `Here are some great ${cleanSearchTerm} recipes I found for you! 🍴`;
 
-        if (searchResult.hasMore) {
-          const remaining = searchResult.totalAvailable - searchResult.shownCount;
-          responseContent += `\n\n📊 Showing ${searchResult.recipes.length} recipes. I have ${remaining} more ${userMessage} recipes available! Search again to see more.`;
-        } else if (searchResult.totalAvailable > searchResult.recipes.length) {
-          responseContent += `\n\n✨ These are the last ${searchResult.recipes.length} new ${userMessage} recipes I have for you!`;
+        // Simplified count message that focuses on current results
+        if (searchResult.recipes.length > 0) {
+          if (searchResult.hasMore || searchResult.totalAvailable > searchResult.recipes.length) {
+            responseContent += `\n\n📊 Showing ${searchResult.recipes.length} recipes. Search again for more ${cleanSearchTerm} recipes!`;
+          } else {
+            responseContent += `\n\n✨ Found ${searchResult.recipes.length} delicious ${cleanSearchTerm} recipes for you!`;
+          }
         }
 
         const aiMessage = {
@@ -318,8 +334,15 @@ const RecipeDetail = () => {
             showMealPlanner={showMealPlanner}
             onToggleMealPlanner={toggleMealPlanner}
             onFeatureSelect={(feature) => {
-              // Handle future feature navigation
+              // Handle feature navigation
               console.log('Feature selected:', feature);
+              if (feature === 'pantry') {
+                setShowPantry(true);
+                setShowMealPlanner(false);
+              } else if (feature === 'chat') {
+                setShowPantry(false);
+                setShowMealPlanner(false);
+              }
             }}
           />
 
@@ -389,6 +412,20 @@ const RecipeDetail = () => {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Pantry Sidebar */}
+          <div className={`pantry-sidebar ${showPantry ? 'visible' : ''}`}>
+            {/* Close Button */}
+            <button
+              className="pantry-close"
+              onClick={() => setShowPantry(false)}
+              title="Close pantry"
+            >
+              ✕
+            </button>
+
+            <PantryManager />
           </div>
 
           {/* Meal Planner Sidebar - Notion-inspired */}

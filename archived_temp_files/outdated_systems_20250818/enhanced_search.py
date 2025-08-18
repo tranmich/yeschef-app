@@ -1,11 +1,13 @@
 """
 Enhanced Search System using Recipe Analysis
 Integrates with the recipe analyzer to provide intelligent suggestions
+Includes pantry-based search when enabled
 """
 import sqlite3
 import json
 from typing import Dict, List, Any, Optional
 from pathlib import Path
+from .config import is_pantry_enabled, get_config
 
 class EnhancedSearchEngine:
     """Search engine that leverages recipe analysis for better results"""
@@ -13,7 +15,7 @@ class EnhancedSearchEngine:
     def __init__(self, db_path: str = "hungie.db"):
         self.db_path = Path(db_path)
         
-    def smart_search_with_analysis(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def smart_search_with_analysis(self, query: str, limit: int = 10, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Enhanced search using analysis data"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -28,8 +30,12 @@ class EnhancedSearchEngine:
         # Get recipes with analysis data
         recipes = self._search_with_analysis_filters(cursor, keywords, search_intent, limit)
         
+        # Apply pantry-based enhancement if enabled and user provided
+        if is_pantry_enabled() and user_id and get_config().is_pantry_search_enabled():
+            recipes = self._enhance_with_pantry_data(cursor, recipes, user_id)
+        
         # Score and rank results
-        scored_recipes = self._score_recipes(recipes, keywords, search_intent)
+        scored_recipes = self._score_recipes(recipes, keywords, search_intent, user_id)
         
         conn.close()
         return scored_recipes[:limit]
@@ -204,7 +210,7 @@ class EnhancedSearchEngine:
         return [dict(row) for row in cursor.fetchall()]
         
     def _score_recipes(self, recipes: List[Dict[str, Any]], keywords: List[str], 
-                      intent: Dict[str, Any]) -> List[Dict[str, Any]]:
+                      intent: Dict[str, Any], user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Score and rank recipes based on relevance"""
         
         for recipe in recipes:
@@ -213,6 +219,21 @@ class EnhancedSearchEngine:
             # Base score for having analysis data
             if recipe.get('cuisine_type'):
                 score += 10
+            
+            # Pantry-based scoring boost if enabled
+            if is_pantry_enabled() and user_id and recipe.get('pantry_match_percentage'):
+                pantry_percentage = recipe['pantry_match_percentage']
+                # Add significant boost for high pantry matches
+                if pantry_percentage >= 80:
+                    score += 50  # High boost for very good matches
+                elif pantry_percentage >= 60:
+                    score += 30  # Good boost for decent matches
+                elif pantry_percentage >= 40:
+                    score += 15  # Small boost for partial matches
+                
+                # Add display info for pantry matches
+                recipe['pantry_boost'] = True
+                recipe['pantry_message'] = f"🥫 {pantry_percentage}% pantry match"
                 
             # Keyword matching scores
             recipe_text = f"{recipe.get('title', '')} {recipe.get('description', '')}".lower()
@@ -298,6 +319,72 @@ class EnhancedSearchEngine:
         
         conn.close()
         return candidates[:limit]
+        
+    def _enhance_with_pantry_data(self, cursor, recipes: List[Dict[str, Any]], user_id: str) -> List[Dict[str, Any]]:
+        """Enhance recipes with pantry matching data if pantry system is enabled"""
+        if not recipes:
+            return recipes
+            
+        # Get user's pantry ingredients
+        cursor.execute("""
+            SELECT ci.name as ingredient_name
+            FROM user_pantry up
+            JOIN canonical_ingredients ci ON up.canonical_ingredient_id = ci.id
+            WHERE up.user_id = ? AND up.quantity > 0
+        """, (user_id,))
+        
+        pantry_ingredients = {row[0].lower() for row in cursor.fetchall()}
+        
+        if not pantry_ingredients:
+            return recipes
+            
+        # Calculate pantry match percentage for each recipe
+        for recipe in recipes:
+            try:
+                # Get recipe ingredients
+                recipe_ingredients_text = recipe.get('ingredients', '')
+                if recipe_ingredients_text:
+                    # Simple ingredient matching - extract ingredient names
+                    recipe_ingredient_names = self._extract_ingredient_names(recipe_ingredients_text)
+                    
+                    if recipe_ingredient_names:
+                        # Calculate match percentage
+                        matches = sum(1 for ing in recipe_ingredient_names if any(pantry_ing in ing.lower() for pantry_ing in pantry_ingredients))
+                        match_percentage = int((matches / len(recipe_ingredient_names)) * 100)
+                        recipe['pantry_match_percentage'] = match_percentage
+                        recipe['pantry_matches'] = matches
+                        recipe['total_ingredients'] = len(recipe_ingredient_names)
+                    else:
+                        recipe['pantry_match_percentage'] = 0
+                else:
+                    recipe['pantry_match_percentage'] = 0
+                    
+            except Exception as e:
+                # Don't fail the search if pantry matching has issues
+                recipe['pantry_match_percentage'] = 0
+                
+        return recipes
+        
+    def _extract_ingredient_names(self, ingredients_text: str) -> List[str]:
+        """Extract ingredient names from recipe ingredients text"""
+        import re
+        
+        # Split by common delimiters
+        lines = re.split(r'[,\n\r\*\-•]', ingredients_text)
+        
+        # Clean and extract meaningful ingredient names
+        ingredient_names = []
+        for line in lines:
+            line = line.strip()
+            if line and len(line) > 3:  # Skip very short items
+                # Remove measurements and common words
+                cleaned = re.sub(r'\d+(?:\.\d+)?(?:\s*(?:cups?|tbsp|tsp|lbs?|oz|ml|g|kg|tablespoons?|teaspoons?))?', '', line, flags=re.IGNORECASE)
+                cleaned = re.sub(r'\b(?:of|the|a|an|to|for|with|fresh|dried|chopped|diced|sliced|minced)\b', '', cleaned, flags=re.IGNORECASE)
+                cleaned = cleaned.strip()
+                if cleaned and len(cleaned) > 2:
+                    ingredient_names.append(cleaned)
+                    
+        return ingredient_names
         
     def _calculate_similarity(self, target: Dict[str, Any], candidate: Dict[str, Any]) -> float:
         """Calculate similarity score between two recipes"""

@@ -13,20 +13,38 @@ Features:
 - Export formats (text, JSON, Google Keep compatible)
 """
 
-import sqlite3
+import psycopg2
 import json
 from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
 import re
 import logging
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class GroceryListGenerator:
     """Generate and manage grocery lists from meal plans."""
     
-    def __init__(self, db_path: str = 'hungie.db'):
-        """Initialize grocery list generator with database connection."""
-        self.db_path = db_path
+    def __init__(self):
+        """Initialize grocery list generator with PostgreSQL connection."""
+        self.db_connection = None
         self.logger = logging.getLogger(__name__)
+        
+    def _get_db_connection(self):
+        """Get PostgreSQL database connection"""
+        if not self.db_connection:
+            try:
+                db_url = os.getenv('DATABASE_URL')
+                if not db_url:
+                    raise Exception("DATABASE_URL environment variable required")
+                
+                self.db_connection = psycopg2.connect(db_url)
+            except Exception as e:
+                print(f"❌ Database connection failed: {e}")
+                raise
+        return self.db_connection
         
         # Common unit conversions for ingredient aggregation
         self.unit_conversions = {
@@ -169,7 +187,7 @@ class GroceryListGenerator:
         """Get recipe IDs from a meal plan."""
         from .meal_planning_system import MealPlanningSystem
         
-        meal_planner = MealPlanningSystem(self.db_path)
+        meal_planner = MealPlanningSystem()
         return meal_planner.get_recipes_from_meal_plan(meal_plan_id)
     
     def _get_ingredients_for_recipes(self, recipe_ids: List[int]) -> List[Dict]:
@@ -182,12 +200,12 @@ class GroceryListGenerator:
         Returns:
             List[Dict]: List of ingredient information
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_db_connection()
         cursor = conn.cursor()
         
         try:
             # Get ingredients directly from recipes table since the normalized tables have parsing issues
-            placeholders = ','.join(['?' for _ in recipe_ids])
+            placeholders = ','.join(['%s' for _ in recipe_ids])
             query = f'''
                 SELECT id, title, ingredients
                 FROM recipes
@@ -593,9 +611,9 @@ class GroceryListGenerator:
 
 
 # Convenience function for quick access
-def get_grocery_list_generator(db_path: str = 'hungie.db') -> GroceryListGenerator:
+def get_grocery_list_generator() -> GroceryListGenerator:
     """Get initialized grocery list generator instance."""
-    return GroceryListGenerator(db_path)
+    return GroceryListGenerator()
 
 
 if __name__ == "__main__":

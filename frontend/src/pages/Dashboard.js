@@ -49,7 +49,7 @@ const Dashboard = () => {
             <div className="card-icon">🥕</div>
             <h3>Pantry Management</h3>
             <p>Track your ingredients and pantry items</p>
-            <button className="card-button" disabled>Coming Soon</button>
+            <button className="card-button">Manage Pantry</button>
           </div>
 
           <div className="dashboard-card">

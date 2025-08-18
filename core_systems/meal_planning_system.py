@@ -4,7 +4,7 @@
 
 Purpose: Main meal planning functionality for Me Hungie
 Created: August 11, 2025
-Integration: Works with hungie.db and hungie_server.py
+Integration: Works with PostgreSQL database and hungie_server.py
 
 Features:
 - Create and manage meal plans
@@ -13,31 +13,49 @@ Features:
 - Integration with recipe database
 """
 
-import sqlite3
+import psycopg2
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import logging
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class MealPlanningSystem:
     """Core meal planning functionality for Me Hungie."""
     
-    def __init__(self, db_path: str = 'hungie.db'):
-        """Initialize meal planning system with database connection."""
-        self.db_path = db_path
+    def __init__(self):
+        """Initialize meal planning system with PostgreSQL connection."""
+        self.db_connection = None
         self.logger = logging.getLogger(__name__)
         self.init_database_tables()
     
+    def _get_db_connection(self):
+        """Get PostgreSQL database connection"""
+        if not self.db_connection:
+            try:
+                db_url = os.getenv('DATABASE_URL')
+                if not db_url:
+                    raise Exception("DATABASE_URL environment variable required")
+                
+                self.db_connection = psycopg2.connect(db_url)
+            except Exception as e:
+                print(f"❌ Database connection failed: {e}")
+                raise
+        return self.db_connection
+    
     def init_database_tables(self):
         """Initialize required database tables for meal planning."""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_db_connection()
         cursor = conn.cursor()
         
         try:
             # Meal plans table - stores meal plan metadata and data
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS meal_plans (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id SERIAL PRIMARY KEY,
                     plan_name TEXT NOT NULL,
                     week_start_date TEXT NOT NULL,
                     plan_data_json TEXT NOT NULL,
@@ -73,7 +91,7 @@ class MealPlanningSystem:
         Returns:
             int: ID of the created meal plan
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_db_connection()
         cursor = conn.cursor()
         
         try:
@@ -84,7 +102,7 @@ class MealPlanningSystem:
             # Insert meal plan
             cursor.execute('''
                 INSERT INTO meal_plans (plan_name, week_start_date, plan_data_json)
-                VALUES (?, ?, ?)
+                VALUES (%s, %s, %s)
             ''', (plan_name, week_start_date, json.dumps(meal_data)))
             
             plan_id = cursor.lastrowid
@@ -111,7 +129,7 @@ class MealPlanningSystem:
         Returns:
             bool: True if update successful
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_db_connection()
         cursor = conn.cursor()
         
         try:
@@ -121,9 +139,9 @@ class MealPlanningSystem:
             
             # Update meal plan
             cursor.execute('''
-                UPDATE meal_plans 
-                SET plan_data_json = ?, updated_date = CURRENT_TIMESTAMP
-                WHERE id = ?
+                UPDATE meal_plans
+                SET plan_data_json = %s, updated_date = CURRENT_TIMESTAMP
+                WHERE id = %s
             ''', (json.dumps(meal_data), plan_id))
             
             if cursor.rowcount == 0:
@@ -151,7 +169,7 @@ class MealPlanningSystem:
         Returns:
             Dict or None: Meal plan data if found
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_db_connection()
         cursor = conn.cursor()
         
         try:
@@ -159,7 +177,7 @@ class MealPlanningSystem:
                 SELECT id, plan_name, week_start_date, plan_data_json, 
                        created_date, updated_date
                 FROM meal_plans 
-                WHERE id = ?
+                WHERE id = %s
             ''', (plan_id,))
             
             row = cursor.fetchone()
@@ -191,7 +209,7 @@ class MealPlanningSystem:
         Returns:
             List[Dict]: List of meal plan summaries
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_db_connection()
         cursor = conn.cursor()
         
         try:
@@ -199,7 +217,7 @@ class MealPlanningSystem:
                 SELECT id, plan_name, week_start_date, created_date, updated_date
                 FROM meal_plans 
                 ORDER BY updated_date DESC
-                LIMIT ?
+                LIMIT %s
             ''', (limit,))
             
             rows = cursor.fetchall()
@@ -231,11 +249,11 @@ class MealPlanningSystem:
         Returns:
             bool: True if deletion successful
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_db_connection()
         cursor = conn.cursor()
         
         try:
-            cursor.execute('DELETE FROM meal_plans WHERE id = ?', (plan_id,))
+            cursor.execute('DELETE FROM meal_plans WHERE id = %s', (plan_id,))
             
             if cursor.rowcount == 0:
                 self.logger.warning(f"No meal plan found with ID {plan_id}")

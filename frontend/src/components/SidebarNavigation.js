@@ -45,7 +45,7 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
       icon: '🥕',
       label: 'Pantry',
       description: 'Track ingredients',
-      available: false,
+      available: true,
       onClick: () => {
         setActiveFeature('pantry');
         onFeatureSelect?.('pantry');

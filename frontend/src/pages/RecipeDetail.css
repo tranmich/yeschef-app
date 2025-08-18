@@ -97,6 +97,90 @@
   background: #a8a8a8;
 }
 
+/* === PANTRY SIDEBAR STYLES === */
+.pantry-sidebar {
+  flex: 0 0 0%;
+  width: 0;
+  height: calc(100vh - 50px);
+  background: #ffffff;
+  border-left: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.pantry-sidebar.visible {
+  flex: 0 0 40% !important;
+  width: auto !important;
+  opacity: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+.pantry-sidebar.visible::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.pantry-sidebar.visible::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+.pantry-sidebar.visible::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 6px;
+}
+
+.pantry-sidebar.visible::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.pantry-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: #f5f5f5;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #666;
+  z-index: 20;
+  transition: all 0.2s ease;
+}
+
+.pantry-close:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+/* Ensure pantry manager fits well in sidebar */
+.pantry-sidebar .pantry-manager {
+  padding: 60px 15px 15px 15px;
+  background: transparent;
+  min-height: auto;
+}
+
+.pantry-sidebar .pantry-header {
+  margin-bottom: 20px;
+}
+
+.pantry-sidebar .pantry-sections {
+  grid-template-columns: 1fr;
+  gap: 15px;
+}
+
 /* Resize handle - hidden for integrated layout */
 .meal-planner-resize-handle {
   display: none;

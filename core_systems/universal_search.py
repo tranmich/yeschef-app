@@ -169,7 +169,7 @@ class UniversalSearchEngine:
             if not database_url:
                 # Railway-proven public URL for production
                 database_url = "postgresql://postgres:udQLpljdqTYmESmntwzmwDcOlBVbqlJG@shuttle.proxy.rlwy.net:31331/railway"
-            
+
             # PostgreSQL connection
             conn = psycopg2.connect(database_url)
             conn.cursor_factory = psycopg2.extras.RealDictCursor
@@ -856,16 +856,16 @@ class UniversalSearchEngine:
             if session_memory:
                 # Use existing analyze_user_request for preference extraction
                 analyzed = self.analyze_user_request(query)
-                
+
                 # Convert ingredients list to dictionary format for consistency
                 if isinstance(analyzed.get('ingredients'), list):
                     ingredients_dict = {}
                     for ingredient in analyzed['ingredients']:
                         ingredients_dict[ingredient] = [ingredient]
                     analyzed['ingredients'] = ingredients_dict
-                
+
                 preferences.update(analyzed)
-                
+
                 # Add session memory context to preferences if available
                 if 'preferences' in session_memory:
                     for key, value in session_memory['preferences'].items():
@@ -880,12 +880,12 @@ class UniversalSearchEngine:
                 for word in query_words:
                     if word in ['chicken', 'beef', 'pork', 'fish', 'vegetarian', 'vegan']:
                         preferences['ingredients'][word] = [word]
-            
+
             # Step 3: Search with intelligence filters using PROGRESSIVE BATCHING
             # Calculate smart limit based on exclusions to avoid artificial ceilings
             base_multiplier = 3
             exclusion_count = len(exclude_ids or [])
-            
+
             # Progressive batch sizing: as more recipes are excluded, fetch larger batches
             if exclusion_count == 0:
                 search_limit = limit * base_multiplier  # Initial: 5 * 3 = 15
@@ -895,23 +895,23 @@ class UniversalSearchEngine:
                 search_limit = limit * (base_multiplier + 5)  # 5 * 8 = 40
             else:
                 search_limit = limit * (base_multiplier + 10)  # 5 * 13 = 65
-            
+
             # Cap at reasonable maximum to prevent performance issues
             search_limit = min(search_limit, 100)
-            
+
             print(f"🎯 Progressive batching: {exclusion_count} exclusions → searching {search_limit} recipes (returning {limit})")
-            
+
             recipes = self.search_recipes_with_intelligence(
                 preferences=preferences,
                 exclude_ids=exclude_ids or [],
                 filters=intelligence_filters,
                 limit=search_limit  # Progressive limit instead of fixed limit * 3
             )
-            
+
             # Step 3.5: SMART FALLBACK - If no results with intelligence filters + exclusions, try without filters
             if not recipes and intelligence_filters and exclude_ids:
                 print(f"🔄 No results with intelligence filters + exclusions. Trying fallback for: '{query}'")
-                
+
                 # Try without intelligence filters but keep exclusions
                 fallback_recipes = self.search_recipes_with_intelligence(
                     preferences=preferences,
@@ -919,7 +919,7 @@ class UniversalSearchEngine:
                     filters={},  # Remove intelligence filters
                     limit=search_limit  # Use same progressive limit
                 )
-                
+
                 if fallback_recipes:
                     recipes = fallback_recipes
                     print(f"✅ Fallback successful: Found {len(recipes)} recipes without intelligence filters")
@@ -949,23 +949,23 @@ class UniversalSearchEngine:
                         recipes = final_fallback
                         print(f"✅ Final fallback successful: Found {len(recipes)} recipes without exclusions")
                         intelligence_filters['exclusions_removed'] = True
-            
+
             # Step 4: Add pantry matching (if user_pantry provided)
             if user_pantry:
                 for recipe in recipes:
                     pantry_match = self.calculate_pantry_match(recipe['ingredients'], user_pantry)
                     recipe['pantry_match'] = pantry_match
-                
+
                 # Sort by pantry match percentage
                 recipes.sort(key=lambda r: r.get('pantry_match', {}).get('match_percentage', 0), reverse=True)
-            
+
             # Step 5: Limit results
             recipes = recipes[:limit]
-            
+
             # Step 6: Add smart explanations
             if include_explanations and recipes:
                 recipes = self.add_smart_explanations(recipes, preferences, intelligence_filters)
-            
+
             # Step 7: Return structured response
             return {
                 'success': True,
@@ -980,7 +980,7 @@ class UniversalSearchEngine:
                     'explanation_mode': include_explanations
                 }
             }
-            
+
         except Exception as e:
             print(f"Unified search error: {e}")
             return {
@@ -991,24 +991,24 @@ class UniversalSearchEngine:
                 'filters_applied': {},
                 'search_metadata': {'query': query, 'error': True}
             }
-    
+
     # === COMPATIBILITY WRAPPERS ===
     # These maintain API compatibility with existing scattered functions
-    
+
     def search_recipes_by_query(self, query, limit=10):
         """Wrapper for hungie_server.py compatibility"""
         result = self.unified_intelligent_search(query=query, limit=limit)
         return result['recipes']
-    
+
     def intelligent_session_search(self, query, session_memory, limit=10):
         """Wrapper for session-aware search"""
         result = self.unified_intelligent_search(
-            query=query, 
-            session_memory=session_memory, 
+            query=query,
+            session_memory=session_memory,
             limit=limit
         )
         return result['recipes']
-    
+
     def search_with_pantry(self, query, user_pantry, limit=10):
         """Wrapper for pantry-aware search"""
         result = self.unified_intelligent_search(
@@ -1017,9 +1017,9 @@ class UniversalSearchEngine:
             limit=limit
         )
         return result['recipes']
-    
+
     # === END UNIFIED SEARCH SYSTEM ===
-    
+
     def generate_contextual_response(self, preferences, suggestions, user_query):
         """Generate contextual and engaging response based on preferences and context"""
         response_templates = {
@@ -1112,11 +1112,11 @@ class UniversalSearchEngine:
                 ]
             }
         }
-        
+
         # Determine the primary context for response
         main_context = None
         context_value = None
-        
+
         # Priority order: occasion > meal_type > ingredients > cooking_style
         if preferences.get('occasion'):
             main_context = 'occasion'
@@ -1133,7 +1133,7 @@ class UniversalSearchEngine:
         elif preferences.get('time_constraint'):
             main_context = 'time_constraint'
             context_value = preferences['time_constraint']
-        
+
         # Generate contextual opening
         if main_context and context_value and main_context in response_templates:
             if context_value in response_templates[main_context]:
@@ -1142,7 +1142,7 @@ class UniversalSearchEngine:
                 opening = "Perfect! I've found some fantastic recipes for you."
         else:
             opening = "Great choice! I've found some delicious options for you."
-        
+
         # Add contextual details based on what was detected
         details = []
         if preferences.get('ingredients'):
@@ -1150,10 +1150,10 @@ class UniversalSearchEngine:
             if len(preferences['ingredients']) > 2:
                 ing_text += f" and more"
             details.append(f"featuring {ing_text}")
-        
+
         if preferences.get('cuisine'):
             details.append(f"with {preferences['cuisine']} flair")
-        
+
         if preferences.get('cooking_method'):
             method_map = {
                 'grilled': 'grilled to perfection',
@@ -1163,36 +1163,36 @@ class UniversalSearchEngine:
                 'slow_cooked': 'slow-cooked perfection'
             }
             details.append(method_map.get(preferences['cooking_method'], f"{preferences['cooking_method']} style"))
-        
+
         if preferences.get('time_constraint') == 'quick':
             details.append("ready in no time")
-        
+
         # Combine opening with details
         if details:
             detail_text = " " + " and ".join(details[:2])  # Limit details for readability
             response = f"{opening} Here are some delicious recipes {detail_text}."
         else:
             response = f"{opening} Here are some more amazing recipes I picked just for you."
-        
+
         return response
-    
+
     def get_database_stats(self):
         """Get database statistics for debugging - PostgreSQL compatible"""
         conn = self.get_database_connection()
         if not conn:
             return {}
-        
+
         cursor = conn.cursor()
         placeholder = self.get_placeholder()
-        
+
         stats = {}
-        
+
         try:
             # Total recipes
             cursor.execute("SELECT COUNT(*) as count FROM recipes")
             result = cursor.fetchone()
             stats['total_recipes'] = result['count']
-            
+
             # Try to get recipes by book if books table exists
             try:
                 cursor.execute(f"""
@@ -1209,7 +1209,7 @@ class UniversalSearchEngine:
                 # Fallback: group by book_id only
                 cursor.execute("SELECT book_id, COUNT(*) as count FROM recipes GROUP BY book_id ORDER BY book_id")
                 stats['by_book'] = {f"Book {row['book_id'] if row['book_id'] else 'Unknown'}": row['count'] for row in cursor.fetchall()}
-            
+
             # Sample chicken recipes with proper search
             cursor.execute(f"""
                 SELECT COUNT(*) as count FROM recipes 
@@ -1217,7 +1217,7 @@ class UniversalSearchEngine:
             """, ['%chicken%', '%chicken%'])
             result = cursor.fetchone()
             stats['chicken_recipes'] = result['count']
-            
+
             # Sample sweet potato recipes (to verify our fix)
             cursor.execute(f"""
                 SELECT COUNT(*) as count FROM recipes 
@@ -1225,7 +1225,7 @@ class UniversalSearchEngine:
             """, ['%sweet potato%', '%sweet potato%'])
             result = cursor.fetchone()
             stats['sweet_potato_recipes'] = result['count']
-            
+
             # Total recipes with valid content
             cursor.execute("""
                 SELECT COUNT(*) as count FROM recipes 
@@ -1237,28 +1237,28 @@ class UniversalSearchEngine:
             """)
             result = cursor.fetchone()
             stats['valid_recipes'] = result['count']
-            
+
         except Exception as e:
             print(f"Error getting database stats: {e}")
             stats['error'] = str(e)
         finally:
             conn.close()
-        
+
         return stats
 
 # Integration function for the main server
 def get_smart_suggestions(user_query, session_id="default", limit=200):
     """Main function to get smart suggestions - for server integration"""
     print(f"[DEBUG] get_smart_suggestions called with query: '{user_query}', session: {session_id}, limit: {limit}")
-    
+
     engine = UniversalSearchEngine()
     print(f"[DEBUG] Engine created, calling get_recipe_suggestions...")
     suggestions, preferences = engine.get_recipe_suggestions(user_query, session_id, limit)
     print(f"[DEBUG] get_recipe_suggestions returned {len(suggestions)} suggestions")
-    
+
     # Generate contextual response instead of generic template
     contextual_response = engine.generate_contextual_response(preferences, suggestions, user_query)
-    
+
     return {
         'suggestions': suggestions,
         'preferences_detected': preferences,
@@ -1276,9 +1276,9 @@ if __name__ == "__main__":
     # Test the suggestion engine
     print("🧠 TESTING UNIVERSAL SEARCH ENGINE")
     print("=" * 60)
-    
+
     engine = UniversalSearchEngine()
-    
+
     # Get database stats
     stats = engine.get_database_stats()
     print(f"📊 Database Stats:")
@@ -1286,7 +1286,7 @@ if __name__ == "__main__":
     print(f"   Chicken recipes: {stats.get('chicken_recipes', 'Unknown')}")
     for book, count in stats.get('by_book', {}).items():
         print(f"   {book}: {count} recipes")
-    
+
     # Test suggestions
     test_queries = [
         "I want to eat chicken tonight",
@@ -1294,20 +1294,20 @@ if __name__ == "__main__":
         "More chicken recipes",
         "Different chicken dishes"
     ]
-    
+
     session_id = "test_session"
-    
+
     for i, query in enumerate(test_queries, 1):
         print(f"\n🔍 Test {i}: '{query}'")
         suggestions, preferences = engine.get_recipe_suggestions(query, session_id, limit=3)
-        
+
         print(f"   Preferences detected: {preferences}")
         print(f"   Found {len(suggestions)} suggestions:")
-        
+
         for j, recipe in enumerate(suggestions, 1):
             print(f"     {j}. {recipe['title']} (ID: {recipe['id']}) - {recipe['source']}")
-        
+
         if not suggestions:
             print("     ⚠️ No suggestions found!")
-    
+
     print(f"\n📝 Session suggested count: {len(engine.user_sessions[session_id]['suggested_recipes'])}")
