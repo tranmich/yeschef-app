@@ -666,12 +666,14 @@ class UniversalSearchEngine:
             SELECT DISTINCT r.id, r.title, r.description, r.servings, r.total_time,
                    r.ingredients, r.instructions, r.source, r.category,
                    r.meal_role, r.time_min, r.is_easy, r.is_one_pot, 
-                   r.leftover_friendly, r.kid_friendly
+                   r.leftover_friendly, r.kid_friendly,
+                   CASE WHEN r.is_easy = true THEN 1 ELSE 2 END as easy_priority,
+                   CASE WHEN r.meal_role IS NOT NULL THEN 1 ELSE 2 END as role_priority
             FROM recipes r
             WHERE {where_clause}
             ORDER BY 
-                CASE WHEN r.is_easy = true THEN 1 ELSE 2 END,
-                CASE WHEN r.meal_role IS NOT NULL THEN 1 ELSE 2 END,
+                easy_priority,
+                role_priority,
                 r.id
             LIMIT %s
             """
