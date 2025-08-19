@@ -30,7 +30,7 @@ const Dashboard = () => {
 
       <div className="dashboard-content">
         <div className="dashboard-cards">
-          
+
           <div className="dashboard-card primary" onClick={navigateToMealPlanning}>
             <div className="card-icon">🍽️</div>
             <h3>Meal Planning</h3>

@@ -13,7 +13,7 @@ console.log('=== React Environment Debug ===\n');
 
 const envFiles = [
   '.env.local',
-  '.env.development', 
+  '.env.development',
   '.env.production',
   '.env'
 ];
@@ -24,13 +24,13 @@ envFiles.forEach((file, index) => {
   if (fs.existsSync(filePath)) {
     const content = fs.readFileSync(filePath, 'utf8');
     console.log(`${index + 1}. ✅ ${file} (${content.split('\n').length} lines)`);
-    
+
     // Extract REACT_APP variables
     const reactAppVars = content
       .split('\n')
       .filter(line => line.startsWith('REACT_APP_') && !line.startsWith('#'))
       .map(line => '    ' + line);
-    
+
     if (reactAppVars.length > 0) {
       console.log('   React App Variables:');
       reactAppVars.forEach(v => console.log(v));

@@ -29,25 +29,24 @@ const RecipeDropdown = ({ recipe, index }) => {
   };
 
   return (
-    <div className="recipe-dropdown">
+    <div 
+      className="recipe-dropdown"
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+    >
       <div className="recipe-dropdown-header">
         <button 
           className="dropdown-toggle" 
-          onClick={() => setOpen(o => !o)}
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent drag when clicking dropdown
+            setOpen(o => !o);
+          }}
         >
           <span>{open ? '▼' : '▶'} </span>
           <strong>{recipe.name || recipe.title}</strong>
         </button>
-        <div 
-          ref={setNodeRef}
-          style={style}
-          {...listeners}
-          {...attributes}
-          className="drag-handle" 
-          title="Drag to meal planner"
-        >
-          🍴
-        </div>
       </div>
       {open && (
         <div className="dropdown-content">

@@ -19,7 +19,7 @@ const Chat = () => {
   const [suggestedRecipes, setSuggestedRecipes] = useState([]);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
-  
+
   // Add pantry hook
   const { pantryItems, getPantryForAPI, hasItems: hasPantryItems } = usePantry();
 
@@ -51,21 +51,21 @@ const Chat = () => {
 
     try {
       // Get conversation context (last few messages)
-      const context = messages.slice(-4).map(msg => 
+      const context = messages.slice(-4).map(msg =>
         `${msg.type}: ${msg.content}`
       ).join('\n');
 
       // Get current pantry data for recipe recommendations
       const userPantry = getPantryForAPI();
       const pantryFirst = hasPantryItems; // Prioritize pantry-based recipes if user has items
-      
+
       console.log('🥫 Chat Debug - Pantry Integration:', {
         pantryItems: userPantry.map(item => item.name),
         pantryFirst,
         userMessage,
         fullPantryData: userPantry
       });
-      
+
       console.log('🚀 Sending API request with pantry data:', {
         message: userMessage,
         context,
@@ -102,7 +102,7 @@ const Chat = () => {
 
     } catch (error) {
       console.error('🔴 DEBUG: Error in sendMessage:', error);
-      
+
       // Fallback response
       const fallbackMessage = {
         type: 'hungie',
@@ -142,7 +142,7 @@ const Chat = () => {
 
   return (
     <div className="chat-container">
-      <div style={{color: 'red', fontWeight: 'bold', fontSize: '18px', margin: '10px 0'}}>DEBUG: Chat.js is rendering!</div>
+      <div style={{ color: 'red', fontWeight: 'bold', fontSize: '18px', margin: '10px 0' }}>DEBUG: Chat.js is rendering!</div>
       <div className="chat-header">
         <h2>🍴 Chat with Hungie</h2>
         <p>Your personal chef assistant is here to help!</p>
@@ -167,7 +167,7 @@ const Chat = () => {
                   </div>
                 </div>
               )}
-              
+
               {message.substitutions && (
                 <div className="message-substitutions">
                   <h4>🔄 Ingredient Substitutions:</h4>
@@ -189,14 +189,14 @@ const Chat = () => {
                   ))}
                 </div>
               )}
-              
+
               <div className="message-time">
                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
           </div>
         ))}
-        
+
         {isLoading && (
           <div className="message hungie">
             <div className="message-avatar">👨‍🍳</div>
@@ -209,7 +209,7 @@ const Chat = () => {
             </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -235,7 +235,7 @@ const Chat = () => {
         {hasPantryItems && (
           <div className="pantry-status-indicator">
             🥫 Using your pantry ({pantryItems.length} items) to suggest recipes
-            <button 
+            <button
               className="pantry-link"
               onClick={() => navigate('/pantry')}
               title="Manage your pantry"
@@ -244,7 +244,7 @@ const Chat = () => {
             </button>
           </div>
         )}
-        
+
         <div className="input-container">
           <textarea
             value={inputMessage}
@@ -254,8 +254,8 @@ const Chat = () => {
             rows={2}
             disabled={isLoading}
           />
-          <button 
-            onClick={sendMessage} 
+          <button
+            onClick={sendMessage}
             disabled={!inputMessage.trim() || isLoading}
             className="send-button"
           >

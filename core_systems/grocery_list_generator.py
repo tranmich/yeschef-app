@@ -32,20 +32,6 @@ class GroceryListGenerator:
         self.db_connection = None
         self.logger = logging.getLogger(__name__)
         
-    def _get_db_connection(self):
-        """Get PostgreSQL database connection"""
-        if not self.db_connection:
-            try:
-                db_url = os.getenv('DATABASE_URL')
-                if not db_url:
-                    raise Exception("DATABASE_URL environment variable required")
-                
-                self.db_connection = psycopg2.connect(db_url)
-            except Exception as e:
-                print(f"❌ Database connection failed: {e}")
-                raise
-        return self.db_connection
-        
         # Common unit conversions for ingredient aggregation
         self.unit_conversions = {
             # Volume conversions to cups
@@ -108,6 +94,20 @@ class GroceryListGenerator:
                 'bread', 'rolls', 'bagels', 'muffins', 'croissants', 'tortillas'
             ]
         }
+        
+    def _get_db_connection(self):
+        """Get PostgreSQL database connection"""
+        if not self.db_connection:
+            try:
+                db_url = os.getenv('DATABASE_URL')
+                if not db_url:
+                    raise Exception("DATABASE_URL environment variable required")
+                
+                self.db_connection = psycopg2.connect(db_url)
+            except Exception as e:
+                print(f"❌ Database connection failed: {e}")
+                raise
+        return self.db_connection
     
     def generate_grocery_list_from_meal_plan(self, meal_plan_id: int) -> Dict[str, Any]:
         """

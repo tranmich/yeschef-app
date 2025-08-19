@@ -1,10 +1,29 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './SidebarNavigation.css';
 
-const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlanner, showPantry, onTogglePantry }) => {
+const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlanner, showPantry, onTogglePantry, onShowGroceryList }) => {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeFeature, setActiveFeature] = useState('chat');
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // Header functionality
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+    setShowUserMenu(false);
+  };
+
+  const toggleUserMenu = () => {
+    setShowUserMenu(!showUserMenu);
+  };
+
+  const getUserInitials = (name) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
 
   const features = [
     {
@@ -56,10 +75,10 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
       icon: '🛒',
       label: 'Grocery Lists',
       description: 'Smart shopping lists',
-      available: false,
+      available: true,
       onClick: () => {
         setActiveFeature('grocery-lists');
-        onFeatureSelect?.('grocery-lists');
+        onShowGroceryList?.();
       }
     },
     {
@@ -77,6 +96,50 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
 
   return (
     <nav className="sidebar-navigation">
+      {/* Navigation Header with Hungie logo and user account */}
+      <div className="navigation-header">
+        <div className="header-left">
+          <div className="app-logo">
+            <span className="logo-icon">🍽️</span>
+            <span className="logo-text">Yes Chef!</span>
+          </div>
+        </div>
+
+        <div className="header-right">
+          <div className="user-menu-container">
+            <button 
+              className="user-avatar" 
+              onClick={toggleUserMenu}
+              title={`${user?.name} - Click for account menu`}
+            >
+              <span className="avatar-initials">{getUserInitials(user?.name)}</span>
+            </button>
+            
+            {showUserMenu && (
+              <div className="user-dropdown">
+                <div className="user-info">
+                  <div className="user-name">{user?.name}</div>
+                  <div className="user-email">{user?.email}</div>
+                </div>
+                <div className="dropdown-divider"></div>
+                <div className="dropdown-actions">
+                  <button className="dropdown-item" disabled>
+                    ⚙️ Account Settings
+                  </button>
+                  <button className="dropdown-item" disabled>
+                    🎨 Preferences
+                  </button>
+                  <div className="dropdown-divider"></div>
+                  <button className="dropdown-item logout" onClick={handleLogout}>
+                    🚪 Sign Out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="sidebar-content">
         <div className="nav-section">
           <div className="nav-section-title">Features</div>

@@ -7,8 +7,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 
-// Main App - now the primary interface (RecipeDetail with new layout)
-import MainApp from './pages/RecipeDetail';
+// Main App - now the primary interface (MainApp with new layout)
+import MainApp from './pages/MainApp';
 
 import './components/Header.css';
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MealCalendar from './MealCalendar';
 import GroceryListGenerator from './GroceryListGenerator';
-import FavoritesPanel from './FavoritesPanel';
+import RecipeContainer from './RecipeContainer';
 import DraggableRecipeCard from './DraggableRecipeCard';
 import { getApiUrl } from '../utils/api';
 import './MealPlannerView.css';
@@ -12,7 +12,11 @@ const MealPlannerView = ({
     isCompactMode = false,
     chatRecipes = [],
     mealPlan,
-    setMealPlan
+    setMealPlan,
+    containerRecipes,
+    setContainerRecipes,
+    showGroceryListFromNav,
+    setShowGroceryListFromNav
 }) => {
     // Use meal plan state from parent if provided, otherwise create local state
     const [localMealPlan, setLocalMealPlan] = useState({
@@ -32,14 +36,21 @@ const MealPlannerView = ({
     const [savedMealPlans, setSavedMealPlans] = useState([]);
     const [currentPlanName, setCurrentPlanName] = useState('');
     const [showGroceryList, setShowGroceryList] = useState(false);
-    const [favorites, setFavorites] = useState([]);
+    const [showSavedPlansModal, setShowSavedPlansModal] = useState(false);
     const [loading, setLoading] = useState(false);
 
     // Load saved meal plans on component mount
     useEffect(() => {
         loadSavedMealPlans();
-        loadFavorites();
     }, []);
+
+    // Handle grocery list activation from navigation
+    useEffect(() => {
+        if (showGroceryListFromNav) {
+            setShowGroceryList(true);
+            setShowGroceryListFromNav?.(false); // Reset the flag
+        }
+    }, [showGroceryListFromNav, setShowGroceryListFromNav]);
 
     const loadSavedMealPlans = async () => {
         try {
@@ -56,24 +67,6 @@ const MealPlannerView = ({
         } catch (error) {
             console.error('Error loading meal plans:', error);
             setSavedMealPlans([]);
-        }
-    };
-
-    const loadFavorites = async () => {
-        try {
-            const response = await fetch(`${getApiUrl()}/api/favorites`);
-            const data = await response.json();
-
-            if (data.success) {
-                setFavorites(data.favorites);
-            } else {
-                // Gracefully handle disabled favorites system
-                console.log('Favorites system not available:', data.error);
-                setFavorites([]);
-            }
-        } catch (error) {
-            console.error('Error loading favorites:', error);
-            setFavorites([]);
         }
     };
 
@@ -159,28 +152,6 @@ const MealPlannerView = ({
         }
     };
 
-    const toggleFavorite = async (recipe) => {
-        try {
-            const response = await fetch(`${getApiUrl()}/api/favorites`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    recipe_id: recipe.id || recipe.recipe_id
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                loadFavorites(); // Reload favorites list
-            }
-        } catch (error) {
-            console.error('Error toggling favorite:', error);
-        }
-    };
-
     const getCurrentWeekStart = () => {
         const today = new Date();
         const firstDayOfWeek = today.getDate() - today.getDay() + 1; // Monday
@@ -204,10 +175,19 @@ const MealPlannerView = ({
 
     return (
         <div className="meal-planner-view">
+            {/* New Header with Controls */}
             <div className="meal-planner-header">
-                <h2>🍽️ Meal Planner</h2>
+                <div className="header-left">
+                    <h2>Weekly Meal Planner</h2>
+                    <button
+                        onClick={clearMealPlan}
+                        className="clear-plan-btn-small"
+                    >
+                        Clear
+                    </button>
+                </div>
 
-                <div className="meal-planner-controls">
+                <div className="header-right">
                     <input
                         type="text"
                         placeholder="Meal plan name..."
@@ -219,97 +199,47 @@ const MealPlannerView = ({
                     <button
                         onClick={saveMealPlan}
                         disabled={loading || !currentPlanName.trim()}
-                        className="save-plan-btn"
+                        className="save-plan-btn-icon"
+                        title="Save Plan"
                     >
-                        {loading ? '💾 Saving...' : '💾 Save Plan'}
+                        💾
+                    </button>
+
+                    <button
+                        onClick={() => setShowSavedPlansModal(true)}
+                        className="load-saved-plans-btn"
+                    >
+                        📋 Load
                     </button>
 
                     <button
                         onClick={() => setShowGroceryList(!showGroceryList)}
                         className="grocery-list-btn"
                     >
-                        🛒 {showGroceryList ? 'Hide' : 'Show'} Grocery List
-                    </button>
-
-                    <button
-                        onClick={clearMealPlan}
-                        className="clear-plan-btn"
-                    >
-                        🗑️ Clear Plan
+                        🛒 Grocery List
                     </button>
                 </div>
             </div>
 
             <div className="meal-planner-content">
-                <div className={`meal-planner-layout ${isCompactMode ? 'compact' : ''}`}>
-                    {/* Recipe Sources Panel - Hide in compact mode */}
-                    {!isCompactMode && (
-                        <div className="recipe-sources-panel">
-                            <div className="search-results-section">
-                                <h3>🔍 Search Results</h3>
-                                <div className="draggable-recipes scrollable">
-                                    {searchResults.map(recipe => (
-                                        <DraggableRecipeCard
-                                            key={`search-${recipe.id}`}
-                                            recipe={recipe}
-                                            id={recipe.id.toString()}
-                                            onToggleFavorite={() => toggleFavorite(recipe)}
-                                            compact={true}
-                                        />
-                                    ))}
-                                    {searchResults.length === 0 && (
-                                        <p className="no-results">
-                                            {isCompactMode ?
-                                                "Drag recipes from the chat to add to your meal plan" :
-                                                "Search for recipes or drag from chat to add to your meal plan"
-                                            }
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            <FavoritesPanel
-                                favorites={favorites}
-                                onToggleFavorite={toggleFavorite}
-                                onRefresh={loadFavorites}
-                            />
-                        </div>
-                    )}
-
-                    {/* Meal Calendar */}
-                    <div className="meal-calendar-section">
-                        <MealCalendar
-                            mealPlan={currentMealPlan}
-                            onRemoveRecipe={removeRecipeFromMealPlan}
-                        />
-                    </div>
-
-                    {/* Saved Plans Panel - Compact in sidebar mode */}
-                    <div className={`saved-plans-panel ${isCompactMode ? 'compact' : ''}`}>
-                        <h3>📋 Saved Plans</h3>
-                        <div className="saved-plans-list">
-                            {savedMealPlans.map(plan => (
-                                <div key={plan.id} className="saved-plan-item">
-                                    <div className="plan-info">
-                                        <strong>{plan.plan_name}</strong>
-                                        <small>{plan.week_start_date}</small>
-                                    </div>
-                                    <button
-                                        onClick={() => loadMealPlan(plan.id)}
-                                        className="load-plan-btn"
-                                    >
-                                        📂 Load
-                                    </button>
-                                </div>
-                            ))}
-                            {savedMealPlans.length === 0 && (
-                                <p className="no-saved-plans">
-                                    No saved meal plans yet
-                                </p>
-                            )}
-                        </div>
-                    </div>
+                {/* Meal Calendar - Main area */}
+                <div className="meal-calendar-section">
+                    <MealCalendar
+                        mealPlan={currentMealPlan}
+                        onRemoveRecipe={removeRecipeFromMealPlan}
+                    />
                 </div>
+
+                {/* Recipe Container - Bottom area */}
+                <RecipeContainer 
+                    searchResults={searchResults}
+                    droppedRecipes={containerRecipes}
+                    onAddRecipe={(recipe, newRecipes) => {
+                        if (newRecipes) {
+                            setContainerRecipes(newRecipes);
+                        }
+                    }}
+                />
             </div>
 
             {/* Grocery List */}
@@ -318,6 +248,49 @@ const MealPlannerView = ({
                     recipeIds={getAllRecipeIds()}
                     onClose={() => setShowGroceryList(false)}
                 />
+            )}
+
+            {/* Saved Plans Modal */}
+            {showSavedPlansModal && (
+                <div className="saved-plans-modal-overlay" onClick={() => setShowSavedPlansModal(false)}>
+                    <div className="saved-plans-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>📋 Saved Meal Plans</h3>
+                            <button 
+                                className="modal-close-btn"
+                                onClick={() => setShowSavedPlansModal(false)}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="modal-content">
+                            <div className="saved-plans-list">
+                                {savedMealPlans.map(plan => (
+                                    <div key={plan.id} className="saved-plan-item">
+                                        <div className="plan-info">
+                                            <strong>{plan.plan_name}</strong>
+                                            <small>{plan.week_start_date}</small>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                loadMealPlan(plan.id);
+                                                setShowSavedPlansModal(false);
+                                            }}
+                                            className="load-plan-btn"
+                                        >
+                                            📂 Load
+                                        </button>
+                                    </div>
+                                ))}
+                                {savedMealPlans.length === 0 && (
+                                    <p className="no-saved-plans">
+                                        No saved meal plans yet. Create and save a meal plan to see it here!
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

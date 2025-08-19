@@ -1,0 +1,442 @@
+/* Sidebar Container Styling */
+.sidebar-container {
+  display: contents; /* Use contents to avoid extra wrapper styling */
+}
+
+/* Sidebar Header Styles */
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 50px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  flex-shrink: 0;
+}
+
+.sidebar-header .header-left {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-header .app-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: normal;
+  color: #1f2937;
+}
+
+.sidebar-header .logo-icon {
+  font-size: 1.5rem;
+}
+
+.sidebar-header .logo-text {
+  font-size: 1.25rem;
+  font-weight: normal;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.sidebar-header .header-right {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-header .user-menu-container {
+  position: relative;
+}
+
+.sidebar-header .user-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: normal;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.sidebar-header .user-avatar:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.sidebar-header .user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  min-width: 220px;
+  z-index: 1001;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.sidebar-header .user-info {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.sidebar-header .user-name {
+  font-weight: normal;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-header .user-email {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.sidebar-header .dropdown-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0;
+}
+
+.sidebar-header .dropdown-actions {
+  padding: 0.5rem 0;
+}
+
+.sidebar-header .dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.sidebar-header .dropdown-item:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.sidebar-header .dropdown-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sidebar-header .dropdown-item.logout {
+  color: #dc2626;
+}
+
+.sidebar-header .dropdown-item.logout:hover {
+  background: #fef2f2;
+}
+
+/* Pantry Sidebar */
+.pantry-sidebar {
+  flex: 0 0 0%;
+  width: 0;
+  height: calc(100vh - 50px);
+  background: #ffffff;
+  border-left: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  order: 3;
+  /* Pantry comes after meal planner (rightmost) */
+}
+
+.pantry-sidebar.visible {
+  flex: 0 0 40% !important;
+  width: auto !important;
+  opacity: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+.pantry-sidebar.expanded {
+  position: absolute !important;
+  left: 240px !important; /* Start after navigation sidebar (240px wide) */
+  right: 0 !important;
+  width: calc(100vw - 240px) !important;
+  flex: none !important;
+  z-index: 100 !important;
+}
+
+.pantry-sidebar.visible::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.pantry-sidebar.visible::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+.pantry-sidebar.visible::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 6px;
+}
+
+.pantry-sidebar.visible::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.pantry-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: #f5f5f5;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #666;
+  z-index: 20;
+  transition: all 0.2s ease;
+}
+
+.pantry-expand {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  background: #f5f5f5;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #666;
+  z-index: 20;
+  transition: all 0.2s ease;
+}
+
+.pantry-close:hover, .pantry-expand:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+/* Meal Planner Sidebar */
+.meal-planner-sidebar {
+  flex: 0 0 0%;
+  width: 0;
+  height: calc(100vh - 50px);
+  background: #ffffff;
+  border-left: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  order: 2;
+  /* Meal planner comes after chat area (middle) */
+}
+
+.meal-planner-sidebar.visible {
+  flex: 0 0 45% !important;
+  width: auto !important;
+  opacity: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+.meal-planner-sidebar.expanded {
+  position: absolute !important;
+  left: 240px !important; /* Start after navigation sidebar (240px wide) */
+  right: 0 !important;
+  width: calc(100vw - 240px) !important;
+  flex: none !important;
+  z-index: 100 !important;
+}
+
+.meal-planner-sidebar.visible::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.meal-planner-sidebar.visible::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+.meal-planner-sidebar.visible::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 6px;
+}
+
+.meal-planner-sidebar.visible::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.meal-planner-resize-handle {
+  display: none; /* Not needed for integrated layout */
+}
+
+.meal-planner-resize-handle:hover {
+  background: #667eea;
+  opacity: 0.3;
+}
+
+.meal-planner-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #f1f3f4;
+  border: none;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  transition: all 0.2s ease;
+}
+
+.meal-planner-expand {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: #f1f3f4;
+  border: none;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: #666;
+}
+
+.meal-planner-close:hover, .meal-planner-expand:hover {
+  background: #e8eaed;
+}
+
+/* Expanded Controls Layout */
+.expanded-controls {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  z-index: 20;
+}
+
+.meal-planner-collapse {
+  background: #f1f3f4;
+  border: none;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: #666;
+}
+
+.meal-planner-collapse:hover {
+  background: #e8eaed;
+}
+
+/* Ensure pantry manager fits well in sidebar */
+.pantry-sidebar .pantry-manager {
+  padding: 60px 15px 15px 15px;
+  background: transparent;
+  min-height: auto;
+}
+
+.pantry-sidebar .pantry-header {
+  margin-bottom: 20px;
+}
+
+.pantry-sidebar .pantry-sections {
+  grid-template-columns: 1fr;
+  gap: 15px;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 1200px) {
+  .meal-planner-sidebar.visible {
+    flex: 0 0 50% !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+  }
+
+  .pantry-sidebar.visible {
+    flex: 0 0 45% !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .pantry-sidebar.visible {
+    flex: 0 0 55% !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+  }
+  
+  .meal-planner-sidebar.visible {
+    flex: 0 0 55% !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+  }
+  
+  .meal-planner-resize-handle {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .meal-planner-sidebar.visible {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+  }
+
+  .pantry-sidebar.visible {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+  }
+}

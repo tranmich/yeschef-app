@@ -4,13 +4,13 @@ import './PantryManager.css';
 
 const PantryManager = () => {
   // Use shared pantry hook
-  const { 
-    pantryItems, 
-    addPantryItem: addToPantry, 
-    removePantryItem, 
-    updatePantryAmount 
+  const {
+    pantryItems,
+    addPantryItem: addToPantry,
+    removePantryItem,
+    updatePantryAmount
   } = usePantry();
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pantryStatus, setPantryStatus] = useState(null);
@@ -72,12 +72,12 @@ const PantryManager = () => {
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setPantryEnabled(data.pantry_enabled);
         setPantryStatus(data.config.pantry.status);
-        
+
         // Reload pantry items if enabled
         if (data.pantry_enabled) {
           await loadPantryItems();
@@ -122,7 +122,7 @@ const PantryManager = () => {
       <div className="pantry-header">
         <div className="pantry-title-section">
           <h2>🥕 Pantry Management</h2>
-          <button 
+          <button
             onClick={togglePantrySystem}
             className={`pantry-toggle-btn ${pantryEnabled ? 'enabled' : 'disabled'}`}
             title={`${pantryEnabled ? 'Disable' : 'Enable'} Pantry System`}
@@ -141,7 +141,7 @@ const PantryManager = () => {
       )}
 
       <div className="pantry-sections">
-        
+
         {/* Current Pantry Items */}
         <div className="pantry-section">
           <h3>Your Pantry ({pantryItems.length} items)</h3>
@@ -158,8 +158,8 @@ const PantryManager = () => {
                     <span className="item-category">{item.category}</span>
                   </div>
                   <div className="item-controls">
-                    <select 
-                      value={item.amount} 
+                    <select
+                      value={item.amount}
                       onChange={(e) => updateAmount(item.id, e.target.value)}
                       className="amount-selector"
                       style={{ borderColor: getAmountColor(item.amount) }}
@@ -168,7 +168,7 @@ const PantryManager = () => {
                       <option value="some">Some</option>
                       <option value="low">Low</option>
                     </select>
-                    <button 
+                    <button
                       onClick={() => removePantryItem(item.id)}
                       className="remove-button"
                     >
@@ -202,7 +202,7 @@ const PantryManager = () => {
                   return !alreadyAdded && matchesSearch;
                 })
                 .slice(0, 20); // Limit to 20 results
-              
+
               // Debug logging for search filtering
               if (searchTerm) {
                 console.log('🔍 Search Debug:', {
@@ -213,7 +213,7 @@ const PantryManager = () => {
                   filteredCount: filteredIngredients.length
                 });
               }
-              
+
               return filteredIngredients.map((ingredient, index) => (
                 <button
                   key={`${ingredient.name}-${index}`}
@@ -227,11 +227,11 @@ const PantryManager = () => {
               ));
             })()}
           </div>
-          {searchTerm && availableIngredients.filter(ingredient => 
+          {searchTerm && availableIngredients.filter(ingredient =>
             ingredient.name.toLowerCase().includes(searchTerm.toLowerCase())
           ).length === 0 && (
-            <div className="no-results">No ingredients found matching "{searchTerm}"</div>
-          )}
+              <div className="no-results">No ingredients found matching "{searchTerm}"</div>
+            )}
         </div>
 
       </div>
@@ -251,7 +251,7 @@ const PantryManager = () => {
             <span className="stat-label">Categories</span>
           </div>
         </div>
-        
+
         <div className="feature-note">
           <p>💡 <strong>Next:</strong> Recipe matching will show which recipes you can make with your pantry items!</p>
         </div>

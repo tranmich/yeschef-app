@@ -1,8 +1,8 @@
 import React from 'react';
-import { useDroppable } from '@dnd-kit/core';
+import { useDroppable, useDraggable } from '@dnd-kit/core';
 import './MealCalendar.css';
 
-const MealCalendar = ({ mealPlan, onRemoveRecipe }) => {
+const MealCalendar = ({ mealPlan, onRemoveRecipe, onMoveRecipe }) => {
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const mealTypes = ['breakfast', 'lunch', 'dinner']; // Removed 'snacks' - desserts can go in any meal section
 
@@ -12,6 +12,70 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe }) => {
 
     const formatMealType = (mealType) => {
         return mealType.charAt(0).toUpperCase() + mealType.slice(1);
+    };
+
+    // Draggable planned recipe component
+    const PlannedRecipe = ({ recipe, index, day, mealType }) => {
+        const draggableId = `planned-${day}-${mealType}-${index}`;
+        
+        const {
+            attributes,
+            listeners,
+            setNodeRef,
+            transform,
+            isDragging,
+        } = useDraggable({
+            id: draggableId,
+            data: {
+                type: 'planned-recipe',
+                recipe: recipe,
+                sourceDay: day,
+                sourceMealType: mealType,
+                sourceIndex: index
+            },
+        });
+
+        const style = {
+            transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+            opacity: isDragging ? 0.5 : 1,
+            zIndex: isDragging ? 1000 : 1,
+        };
+
+        return (
+            <div
+                ref={setNodeRef}
+                style={style}
+                className={`planned-recipe ${isDragging ? 'dragging' : ''}`}
+                {...listeners}
+                {...attributes}
+            >
+                <div className="recipe-info">
+                    <span className="recipe-title" title={recipe.title}>
+                        {recipe.title}
+                    </span>
+                    {recipe.hands_on_time && (
+                        <span className="recipe-time">
+                            ⏱️ {recipe.hands_on_time}
+                        </span>
+                    )}
+                    {recipe.servings && (
+                        <span className="recipe-servings">
+                            👥 {recipe.servings}
+                        </span>
+                    )}
+                </div>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveRecipe(day, mealType, index);
+                    }}
+                    className="remove-recipe-btn"
+                    title="Remove recipe"
+                >
+                    ❌
+                </button>
+            </div>
+        );
     };
 
     const MealSlot = ({ day, mealType, recipes }) => {
@@ -45,30 +109,13 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe }) => {
                     ) : (
                         <div className="planned-recipes">
                             {recipes.map((recipe, index) => (
-                                <div key={index} className="planned-recipe">
-                                    <div className="recipe-info">
-                                        <span className="recipe-title" title={recipe.title}>
-                                            {recipe.title}
-                                        </span>
-                                        {recipe.hands_on_time && (
-                                            <span className="recipe-time">
-                                                ⏱️ {recipe.hands_on_time}
-                                            </span>
-                                        )}
-                                        {recipe.servings && (
-                                            <span className="recipe-servings">
-                                                👥 {recipe.servings}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <button
-                                        onClick={() => onRemoveRecipe(day, mealType, index)}
-                                        className="remove-recipe-btn"
-                                        title="Remove recipe"
-                                    >
-                                        ❌
-                                    </button>
-                                </div>
+                                <PlannedRecipe
+                                    key={`${day}-${mealType}-${index}`}
+                                    recipe={recipe}
+                                    index={index}
+                                    day={day}
+                                    mealType={mealType}
+                                />
                             ))}
                         </div>
                     )}

@@ -5,6 +5,7 @@
   background: #fafbfc;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   transition: all 0.2s ease;
+  cursor: grab;
 }
 
 .recipe-dropdown:hover {
@@ -12,17 +13,22 @@
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
+.recipe-dropdown:active {
+  cursor: grabbing;
+}
+
 .recipe-dropdown.dragging {
   box-shadow: 0 8px 25px rgba(0,0,0,0.15);
   transform: rotate(2deg);
   background: #fff;
   border-color: #007bff;
+  cursor: grabbing;
 }
 
 .recipe-dropdown-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  padding: 0;
 }
 
 .dropdown-toggle {
@@ -42,31 +48,6 @@
 
 .dropdown-toggle:hover {
   background: #f0f4f8;
-}
-
-.drag-handle {
-  padding: 0.75rem;
-  color: #666;
-  font-size: 1.2rem;
-  cursor: grab;
-  opacity: 0.6;
-  transition: all 0.2s;
-  border-radius: 4px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  min-width: 40px;
-  text-align: center;
-}
-
-.drag-handle:hover {
-  opacity: 1;
-  background: #e9ecef;
-  border-color: #007bff;
-  color: #007bff;
-}
-
-.drag-handle:active {
-  cursor: grabbing;
 }
 
 .dropdown-content {

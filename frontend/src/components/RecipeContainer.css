@@ -1,0 +1,170 @@
+/* Recipe Container Styles */
+.recipe-container {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.container-header {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.container-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.1rem;
+    font-weight: normal;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.recipe-count {
+    font-size: 0.875rem;
+    color: #666;
+    background: #e3f2fd;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    border: 1px solid #bbdefb;
+}
+
+.clear-container-btn {
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.clear-container-btn:hover {
+    background: #d32f2f;
+}
+
+.container-drop-zone {
+    min-height: 200px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.container-recipes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-content: flex-start;
+    flex: 1;
+}
+
+.container-recipe-item {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.container-recipe-item .remove-recipe-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.container-recipe-item:hover .remove-recipe-btn {
+    opacity: 1;
+}
+
+.container-recipe-item .remove-recipe-btn:hover {
+    background: #d32f2f;
+    transform: scale(1.1);
+}
+
+.empty-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 150px;
+}
+
+.drop-hint {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+    font-size: 0.9rem;
+    padding: 2rem;
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.container-drop-zone[style*="border: 2px dashed"] .drop-hint {
+    color: #4caf50;
+    border-color: #4caf50;
+    background: rgba(76, 175, 80, 0.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container-header {
+        padding: 0.75rem;
+    }
+    
+    .header-actions {
+        gap: 0.5rem;
+    }
+    
+    .container-drop-zone {
+        padding: 0.75rem;
+        min-height: 150px;
+    }
+    
+    .container-recipes {
+        gap: 0.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .container-header h3 {
+        font-size: 1rem;
+    }
+    
+    .recipe-count {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .clear-container-btn {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .drop-hint {
+        font-size: 0.8rem;
+        padding: 1.5rem;
+    }
+}

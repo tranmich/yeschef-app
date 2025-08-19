@@ -1424,15 +1424,20 @@ def create_meal_plan():
         week_start_date = data.get('week_start_date', datetime.now().strftime("%Y-%m-%d"))
         meal_data = data.get('meal_data', {})
 
-        meal_planner = MealPlanningSystem()
-        plan_id = meal_planner.create_meal_plan(plan_name, week_start_date, meal_data)
-
-        return jsonify({
-            'success': True,
-            'plan_id': plan_id,
-            'plan_name': plan_name,
-            'week_start_date': week_start_date
-        })
+        try:
+            meal_planner = MealPlanningSystem()
+            plan_id = meal_planner.create_meal_plan(plan_name, week_start_date, meal_data)
+            
+            return jsonify({
+                'success': True,
+                'plan_id': plan_id,
+                'plan_name': plan_name,
+                'week_start_date': week_start_date
+            })
+        finally:
+            # Ensure connection cleanup
+            if hasattr(meal_planner, 'db_connection') and meal_planner.db_connection:
+                meal_planner.db_connection.close()
 
     except Exception as e:
         logger.error(f"Create meal plan error: {e}")

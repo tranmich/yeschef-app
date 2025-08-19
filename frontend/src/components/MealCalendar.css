@@ -198,11 +198,23 @@
     justify-content: space-between;
     align-items: flex-start;
     transition: all 0.2s ease;
+    cursor: grab;
+    position: relative;
 }
 
 .planned-recipe:hover {
     background-color: #d1ecf1;
     border-color: #85cdea;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.planned-recipe:active,
+.planned-recipe.dragging {
+    cursor: grabbing;
+    opacity: 0.7;
+    transform: rotate(2deg);
+    z-index: 1000;
 }
 
 .recipe-info {

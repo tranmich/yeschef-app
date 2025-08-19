@@ -13,68 +13,76 @@
   min-height: 0;
   position: relative;
   transition: all 0.3s ease;
-  /* Smooth layout transitions */
-  /* Removed overflow: hidden to allow scrolling in meal planner */
+  flex-direction: row;
+  /* Ensure chat comes first, sidebars come after (to the right) */
 }
 
-/* Chat Area - Main Content with dynamic resizing */
+/* Chat Area - Main Content with clean white design */
 .chat-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #ffffff;
   min-height: 0;
   position: relative;
   transition: all 0.3s ease;
-  /* Smooth resize animation */
   min-width: 400px;
-  /* Force layout calculation on load - fixes DevTools alignment issue */
   transform: translateZ(0);
   will-change: transform;
-  /* Ensure consistent width calculation base */
   box-sizing: border-box;
+  order: 1;
+  /* Chat area comes first (left side) */
+}
+
+/* When pantry is open, chat area becomes smaller */
+.chat-area.with-pantry {
+  flex: 1;
+  /* Chat area adjusts naturally when pantry is open */
 }
 
 /* When meal planner is open, chat area becomes smaller to accommodate larger planner */
 .chat-area.with-meal-planner {
-  flex: 0 0 55%;
-  /* Reduced from 65% to 55% to accommodate 45% meal planner */
+  flex: 1;
+  /* Chat area adjusts naturally when meal planner is open */
+}
+
+/* When both are open, chat area still adjusts naturally */
+.chat-area.with-pantry.with-meal-planner {
+  flex: 1;
+  /* Chat area adjusts to remaining space */
+}
+
+/* Hide chat area when sidebar is expanded */
+.chat-area.sidebar-expanded {
+  display: none;
 }
 
 /* Meal Planner Sidebar - Truly hidden when not visible */
 .meal-planner-sidebar {
   flex: 0 0 0%;
-  /* No space when hidden */
   width: 0;
-  /* No width when hidden */
   height: calc(100vh - 50px);
   background: #ffffff;
   border-left: 1px solid #e0e0e0;
   transition: all 0.3s ease;
-  /* Smooth resize and slide */
   z-index: 10;
   display: flex;
   flex-direction: column;
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
   position: relative;
   overflow: hidden;
-  /* Hidden when not visible */
   opacity: 0;
-  /* Hidden by default */
+  order: 2;
+  /* Meal planner comes after chat area (middle) */
 }
 
 /* When meal planner is visible - takes more space and is scrollable */
 .meal-planner-sidebar.visible {
   flex: 0 0 45% !important;
-  /* Increased from 35% to 45% for better access */
   width: auto !important;
-  /* Allow natural width */
   opacity: 1 !important;
-  /* Fully visible */
   overflow-y: auto !important;
-  /* Enable vertical scrolling - override hidden */
   overflow-x: auto !important;
-  /* Enable horizontal scrolling for wide content */
 }
 
 /* Ensure scrollbars are visible in meal planner sidebar */
@@ -112,6 +120,8 @@
   position: relative;
   overflow: hidden;
   opacity: 0;
+  order: 3;
+  /* Pantry comes after meal planner (rightmost) */
 }
 
 .pantry-sidebar.visible {
@@ -237,6 +247,16 @@
   /* Smaller margins when space is constrained */
 }
 
+.chat-area.with-pantry .chat-container {
+  margin: 1rem;
+  /* Smaller margins when pantry is open */
+}
+
+.chat-area.with-meal-planner.with-pantry .chat-container {
+  margin: 0.75rem;
+  /* Even smaller margins when both sidebars are open */
+}
+
 /* Chat Input Container - Clean new layout */
 .chat-input-container {
   margin: 0 2rem 2rem 2rem;
@@ -256,10 +276,30 @@
   /* Match compact layout */
 }
 
+.chat-area.with-pantry .chat-input-container {
+  margin: 0 1rem 1rem 1rem;
+  /* Match compact layout when pantry is open */
+}
+
+.chat-area.with-meal-planner.with-pantry .chat-input-container {
+  margin: 0 0.75rem 0.75rem 0.75rem;
+  /* Even more compact when both sidebars are open */
+}
+
 /* Compact mode alignment fixes */
 .chat-area.with-meal-planner .chat-box {
   padding: 1rem 1rem 1rem 1rem;
   /* Reduced padding for compact mode */
+}
+
+.chat-area.with-pantry .chat-box {
+  padding: 1rem 1rem 1rem 1rem;
+  /* Reduced padding when pantry is open */
+}
+
+.chat-area.with-meal-planner.with-pantry .chat-box {
+  padding: 0.75rem 0.75rem 0.75rem 0.75rem;
+  /* Even more reduced padding when both sidebars are open */
 }
 
 .chat-area.with-meal-planner .chat-input {
@@ -267,6 +307,20 @@
   /* Match chat-box padding in compact mode */
   gap: 0.75rem;
   /* Slightly smaller gap in compact mode */
+}
+
+.chat-area.with-pantry .chat-input {
+  padding: 1rem 1rem 1rem 1rem;
+  /* Match chat-box padding when pantry is open */
+  gap: 0.75rem;
+  /* Slightly smaller gap */
+}
+
+.chat-area.with-meal-planner.with-pantry .chat-input {
+  padding: 0.75rem 0.75rem 0.75rem 0.75rem;
+  /* Match chat-box padding when both sidebars are open */
+  gap: 0.5rem;
+  /* Smaller gap when very constrained */
 }
 
 /* Empty State Styling - ChatGPT inspired */
@@ -378,7 +432,7 @@
 }
 
 /* Input container for actual input and button */
-.chat-input > div:last-child {
+.chat-input>div:last-child {
   display: flex;
   gap: 1rem;
   align-items: center;
@@ -946,15 +1000,14 @@
 @media (max-width: 1200px) {
   .meal-planner-sidebar.visible {
     flex: 0 0 50% !important;
-    /* Even larger on medium screens for better accessibility */
     overflow-y: auto !important;
     overflow-x: auto !important;
-    /* Enable horizontal scrolling */
   }
 
-  .chat-area.with-meal-planner {
-    flex: 0 0 50%;
-    /* Equal split on medium screens */
+  .pantry-sidebar.visible {
+    flex: 0 0 45% !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
   }
 }
 
@@ -965,32 +1018,35 @@
 
   .meal-planner-sidebar.visible {
     flex: 0 0 55% !important;
-    /* Slightly larger meal planner on tablets */
     overflow-y: auto !important;
     overflow-x: auto !important;
-    /* Enable horizontal scrolling */
   }
 
-  .chat-area.with-meal-planner {
-    flex: 0 0 45%;
-    /* Smaller chat area on tablets */
+  .pantry-sidebar.visible {
+    flex: 0 0 55% !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
   }
 }
 
 @media (max-width: 600px) {
-
-  /* On mobile, meal planner takes full width */
-  .chat-area.with-meal-planner {
+  /* On mobile, sidebars take full width when open */
+  .chat-area.with-meal-planner,
+  .chat-area.with-pantry {
     display: none;
-    /* Hide chat when meal planner is open on mobile */
+    /* Hide chat when any sidebar is open on mobile */
   }
 
   .meal-planner-sidebar.visible {
     flex: 1 !important;
-    /* Full width */
     overflow-y: auto !important;
     overflow-x: auto !important;
-    /* Enable horizontal scrolling */
+  }
+
+  .pantry-sidebar.visible {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
   }
 }
 

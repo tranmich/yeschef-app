@@ -1,4 +1,27 @@
 /* Meal Planner View Styles */
+.meal-planner-vie.save-plan-btn {
+    background-color: #4caf50;
+    color: white;
+}
+
+.save-plan-btn:hover {
+    background-color: #45a049;
+}
+
+.save-plan-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.load-saved-plans-btn {
+    background-color: #2196f3;
+    color: white;
+}
+
+.load-saved-plans-btn:hover {
+    background-color: #1976d2;
+}
+
 .meal-planner-view {
     width: 100%;
     height: 100%;
@@ -21,13 +44,82 @@
 .meal-planner-header h2 {
     margin: 0;
     color: #333;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
+    font-weight: normal;
 }
 
-.meal-planner-controls {
+.header-left {
     display: flex;
-    gap: 0.5rem;
     align-items: center;
+    gap: 1rem;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.clear-plan-btn-small {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clear-plan-btn-small:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+}
+
+.meal-plan-name-input {
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    width: 200px;
+}
+
+.save-plan-btn-icon {
+    background: #48bb78;
+    border: none;
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.save-plan-btn-icon:hover {
+    background: #38a169;
+}
+
+.save-plan-btn-icon:disabled {
+    background: #cbd5e0;
+    cursor: not-allowed;
+}
+
+.load-saved-plans-btn,
+.grocery-list-btn {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.load-saved-plans-btn:hover,
+.grocery-list-btn:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
 }
 
 .meal-plan-name-input {
@@ -38,7 +130,7 @@
     min-width: 200px;
 }
 
-.save-plan-btn, .grocery-list-btn, .clear-plan-btn {
+.save-plan-btn, .load-saved-plans-btn, .grocery-list-btn, .clear-plan-btn {
     padding: 0.5rem 1rem;
     border: none;
     border-radius: 4px;
@@ -81,45 +173,42 @@
 
 .meal-planner-content {
     flex: 1;
-    overflow: auto; /* Allow scrolling in both directions */
+    overflow: auto;
     min-height: 0;
-}
-
-.meal-planner-layout {
-    display: grid;
-    grid-template-columns: 300px 1fr 250px;
-    height: 100%;
-    gap: 1rem;
-    padding: 1rem;
-}
-
-/* Compact layout for sidebar mode */
-.meal-planner-layout.compact {
     display: flex;
     flex-direction: column;
-    grid-template-columns: none;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    height: 100%;
-    min-height: 0;
+    padding: 1rem;
+    gap: 1rem;
 }
 
-.meal-planner-layout.compact .meal-calendar-section {
+.meal-calendar-section {
     flex: 1;
-    min-height: 0;
+    min-height: 400px;
     overflow-y: auto;
 }
 
-.meal-planner-layout.compact .saved-plans-panel {
-    flex: 0 0 150px;
-    max-height: 150px;
+/* Recipe Container (formerly shopping cart) */
+.recipe-container {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    min-height: 250px; /* Expanded height */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Meal calendar takes most of the space */
+.meal-calendar-section {
+    flex: 1;
+    min-height: 400px;
     overflow-y: auto;
 }
 
-/* Recipe Sources Panel */
-.recipe-sources-panel {
+/* Search Results Panel */
+.search-results-panel {
     background: white;
     border-radius: 8px;
+    border: 1px solid #e0e0e0;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
@@ -288,7 +377,7 @@
     color: white;
     padding: 0.5rem 1rem;
     border-radius: 4px;
-    font-weight: bold;
+    font-weight: normal;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -329,4 +418,84 @@
         min-width: auto;
         flex: 1;
     }
+}
+
+/* Saved Plans Modal Styles */
+.saved-plans-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.saved-plans-modal {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    width: 90%;
+    max-height: 70vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    background: #f8f9fa;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.25rem;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.modal-close-btn:hover {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+.modal-content {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-content .saved-plans-list {
+    max-height: none; /* Override the max-height from the original panel */
+}
+
+.modal-content .saved-plan-item {
+    padding: 1rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s;
+}
+
+.modal-content .saved-plan-item:hover {
+    border-color: #2196f3;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
 }

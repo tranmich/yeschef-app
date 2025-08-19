@@ -43,7 +43,7 @@ export const usePantry = () => {
       amount: 'some',
       addedAt: new Date().toISOString()
     };
-    
+
     setPantryItems(prev => {
       const exists = prev.find(item => item.name.toLowerCase() === ingredient.name.toLowerCase());
       if (exists) {
