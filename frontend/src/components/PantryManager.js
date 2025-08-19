@@ -80,7 +80,7 @@ const PantryManager = () => {
 
         // Reload pantry items if enabled
         if (data.pantry_enabled) {
-          await loadPantryItems();
+          await loadAvailableIngredients();
         }
       } else {
         console.error('Failed to toggle pantry system');
