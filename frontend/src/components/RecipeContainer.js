@@ -5,14 +5,14 @@ import './RecipeContainer.css';
 
 const RecipeContainer = ({ searchResults = [], onAddRecipe, droppedRecipes = [] }) => {
     const [containerRecipes, setContainerRecipes] = useState([]);
-    
+
     // Update container when recipes are dropped from parent component
     useEffect(() => {
         if (droppedRecipes.length > 0) {
             setContainerRecipes(droppedRecipes);
         }
     }, [droppedRecipes]);
-    
+
     const { isOver, setNodeRef } = useDroppable({
         id: 'recipe-container',
     });
@@ -70,8 +70,8 @@ const RecipeContainer = ({ searchResults = [], onAddRecipe, droppedRecipes = [] 
                     )}
                 </div>
             </div>
-            
-            <div 
+
+            <div
                 ref={setNodeRef}
                 className="container-drop-zone"
                 style={style}
@@ -93,12 +93,12 @@ const RecipeContainer = ({ searchResults = [], onAddRecipe, droppedRecipes = [] 
                             </button>
                         </div>
                     ))}
-                    
+
                     {containerRecipes.length === 0 && (
                         <div className="empty-container">
                             <div className="drop-hint">
-                                {isOver ? 
-                                    "Drop recipe here!" : 
+                                {isOver ?
+                                    "Drop recipe here!" :
                                     "Drag recipes from chat to collect them here"
                                 }
                             </div>

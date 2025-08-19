@@ -3,13 +3,16 @@
   width: 240px;
   background: #f8fafc;
   border-right: 1px solid #e2e8f0;
-  height: 100vh; /* Full height */
-  display: flex !important; /* Force display to prevent hiding */
+  height: 100vh;
+  /* Full height */
+  display: flex !important;
+  /* Force display to prevent hiding */
   flex-direction: column;
   position: sticky;
   top: 0;
   overflow-y: auto;
-  flex-shrink: 0; /* Prevent shrinking */
+  flex-shrink: 0;
+  /* Prevent shrinking */
 }
 
 /* Navigation Header */
@@ -295,11 +298,11 @@
   .sidebar-navigation {
     width: 200px;
   }
-  
+
   .nav-item {
     padding: 0.625rem 0.75rem;
   }
-  
+
   .nav-item-label {
     font-size: 0.8125rem;
   }

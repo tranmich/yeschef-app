@@ -17,7 +17,7 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onMoveRecipe }) => {
     // Draggable planned recipe component
     const PlannedRecipe = ({ recipe, index, day, mealType }) => {
         const draggableId = `planned-${day}-${mealType}-${index}`;
-        
+
         const {
             attributes,
             listeners,
@@ -100,7 +100,7 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onMoveRecipe }) => {
                         <span className="recipe-count">({recipes.length})</span>
                     )}
                 </div>
-                
+
                 <div className="meal-slot-content">
                     {recipes.length === 0 ? (
                         <div className="empty-slot">
@@ -132,7 +132,7 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onMoveRecipe }) => {
                     {getCurrentWeekRange()}
                 </div>
             </div>
-            
+
             <div className="calendar-grid">
                 {/* Header row with meal types */}
                 <div className="calendar-row header-row">
@@ -151,7 +151,7 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onMoveRecipe }) => {
                             <span className="day-name">{formatDayName(day)}</span>
                             <span className="day-date">{getDayDate(day)}</span>
                         </div>
-                        
+
                         {mealTypes.map(mealType => (
                             <MealSlot
                                 key={`${day}-${mealType}`}
@@ -181,7 +181,7 @@ const getCurrentWeekRange = () => {
     const monday = new Date(today.setDate(firstDayOfWeek));
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    
+
     return `${monday.toLocaleDateString()} - ${sunday.toLocaleDateString()}`;
 };
 
@@ -190,7 +190,7 @@ const getDayDate = (dayName) => {
     const today = new Date();
     const firstDayOfWeek = today.getDate() - today.getDay() + 1; // Monday
     const targetDay = new Date(today.setDate(firstDayOfWeek + dayIndex));
-    
+
     return targetDay.getDate();
 };
 

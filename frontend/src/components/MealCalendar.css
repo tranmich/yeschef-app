@@ -3,8 +3,10 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Container manages its own overflow, children handle scrolling */
-    position: relative; /* Ensure proper stacking context */
+    overflow: hidden;
+    /* Container manages its own overflow, children handle scrolling */
+    position: relative;
+    /* Ensure proper stacking context */
 }
 
 .calendar-header {
@@ -31,12 +33,15 @@
 .calendar-grid {
     flex: 1;
     overflow-y: auto;
-    overflow-x: auto; /* Enable horizontal scrolling */
+    overflow-x: auto;
+    /* Enable horizontal scrolling */
     min-height: 0;
-    min-width: 0; /* Allow shrinking below content width */
+    min-width: 0;
+    /* Allow shrinking below content width */
     /* Ensure scrolling is smooth and responsive */
     scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch; /* For mobile devices */
+    -webkit-overflow-scrolling: touch;
+    /* For mobile devices */
 }
 
 /* Make sure scrollbars are visible */
@@ -70,11 +75,14 @@
 
 .calendar-row {
     display: grid;
-    grid-template-columns: 120px repeat(3, minmax(200px, 1fr)); /* Updated for 3 meal types: breakfast, lunch, dinner */
+    grid-template-columns: 120px repeat(3, minmax(200px, 1fr));
+    /* Updated for 3 meal types: breakfast, lunch, dinner */
     border-bottom: 1px solid #e0e0e0;
     min-height: 80px;
-    min-width: 720px; /* Minimum width: 120px + (3 * 200px) = 720px */
-    width: max-content; /* Force width to accommodate all content */
+    min-width: 720px;
+    /* Minimum width: 120px + (3 * 200px) = 720px */
+    width: max-content;
+    /* Force width to accommodate all content */
 }
 
 .calendar-row:last-child {
@@ -87,7 +95,8 @@
     min-height: 40px;
 }
 
-.day-header, .meal-header {
+.day-header,
+.meal-header {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -231,7 +240,8 @@
     line-height: 1.2;
 }
 
-.recipe-time, .recipe-servings {
+.recipe-time,
+.recipe-servings {
     font-size: 0.7rem;
     color: #1565c0;
     margin-right: 0.5rem;
@@ -278,18 +288,20 @@
 /* Responsive Design */
 @media (max-width: 1024px) {
     .calendar-row {
-        grid-template-columns: 100px repeat(3, minmax(180px, 1fr)); /* Adjust for 3 meal types */
-        min-width: 640px; /* 100px + (3 * 180px) = 640px */
+        grid-template-columns: 100px repeat(3, minmax(180px, 1fr));
+        /* Adjust for 3 meal types */
+        min-width: 640px;
+        /* 100px + (3 * 180px) = 640px */
     }
-    
+
     .day-label {
         padding: 0.25rem;
     }
-    
+
     .day-name {
         font-size: 0.8rem;
     }
-    
+
     .day-date {
         font-size: 0.7rem;
     }
@@ -297,15 +309,17 @@
 
 @media (max-width: 768px) {
     .calendar-row {
-        grid-template-columns: 80px repeat(3, minmax(150px, 1fr)); /* Keep all 3 meal types on tablets */
+        grid-template-columns: 80px repeat(3, minmax(150px, 1fr));
+        /* Keep all 3 meal types on tablets */
         min-height: 100px;
-        min-width: 530px; /* 80px + (3 * 150px) = 530px */
+        min-width: 530px;
+        /* 80px + (3 * 150px) = 530px */
     }
-    
+
     .meal-slot-header {
         font-size: 0.7rem;
     }
-    
+
     .recipe-title {
         font-size: 0.7rem;
     }
@@ -317,21 +331,24 @@
         gap: 0.5rem;
         text-align: center;
     }
-    
+
     .calendar-row {
-        grid-template-columns: 70px repeat(3, minmax(120px, 1fr)); /* Keep all 3 meal types even on mobile */
-        min-width: 430px; /* 70px + (3 * 120px) = 430px - will require horizontal scrolling */
+        grid-template-columns: 70px repeat(3, minmax(120px, 1fr));
+        /* Keep all 3 meal types even on mobile */
+        min-width: 430px;
+        /* 70px + (3 * 120px) = 430px - will require horizontal scrolling */
     }
-    
+
     .planned-recipe {
         padding: 0.25rem;
     }
-    
+
     .recipe-title {
         font-size: 0.6rem;
     }
-    
-    .recipe-time, .recipe-servings {
+
+    .recipe-time,
+    .recipe-servings {
         font-size: 0.6rem;
     }
 }

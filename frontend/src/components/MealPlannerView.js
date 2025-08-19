@@ -231,7 +231,7 @@ const MealPlannerView = ({
                 </div>
 
                 {/* Recipe Container - Bottom area */}
-                <RecipeContainer 
+                <RecipeContainer
                     searchResults={searchResults}
                     droppedRecipes={containerRecipes}
                     onAddRecipe={(recipe, newRecipes) => {
@@ -256,7 +256,7 @@ const MealPlannerView = ({
                     <div className="saved-plans-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>📋 Saved Meal Plans</h3>
-                            <button 
+                            <button
                                 className="modal-close-btn"
                                 onClick={() => setShowSavedPlansModal(false)}
                             >

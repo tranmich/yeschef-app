@@ -1030,6 +1030,7 @@
 }
 
 @media (max-width: 600px) {
+
   /* On mobile, sidebars take full width when open */
   .chat-area.with-meal-planner,
   .chat-area.with-pantry {

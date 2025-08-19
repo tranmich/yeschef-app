@@ -29,7 +29,7 @@ const RecipeDropdown = ({ recipe, index }) => {
   };
 
   return (
-    <div 
+    <div
       className="recipe-dropdown"
       ref={setNodeRef}
       style={style}
@@ -37,8 +37,8 @@ const RecipeDropdown = ({ recipe, index }) => {
       {...attributes}
     >
       <div className="recipe-dropdown-header">
-        <button 
-          className="dropdown-toggle" 
+        <button
+          className="dropdown-toggle"
           onClick={(e) => {
             e.stopPropagation(); // Prevent drag when clicking dropdown
             setOpen(o => !o);
@@ -54,17 +54,17 @@ const RecipeDropdown = ({ recipe, index }) => {
           <h5>Ingredients:</h5>
           <ul className="dropdown-ingredients">
             {recipe.ingredients && (
-              Array.isArray(recipe.ingredients) 
+              Array.isArray(recipe.ingredients)
                 ? recipe.ingredients.map((ing, idx) => (
-                    <li key={idx}>{ing.ingredient || ing}</li>
-                  ))
+                  <li key={idx}>{ing.ingredient || ing}</li>
+                ))
                 : <li>{recipe.ingredients}</li>
             )}
           </ul>
           <h5>Instructions:</h5>
           <div className="dropdown-instructions">
             {recipe.instructions && (
-              Array.isArray(recipe.instructions) 
+              Array.isArray(recipe.instructions)
                 ? (
                   <ol>
                     {recipe.instructions.map((step, idx) => (
@@ -82,7 +82,7 @@ const RecipeDropdown = ({ recipe, index }) => {
                       .filter(step => step.trim())
                       .map(step => step.replace(/^\d+\./, '').trim())
                       .filter(step => step.length > 0);
-                    
+
                     if (steps.length > 1) {
                       return (
                         <ol>

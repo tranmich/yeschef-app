@@ -3,14 +3,14 @@
   border: 1px solid #eee;
   border-radius: 8px;
   background: #fafbfc;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
   cursor: grab;
 }
 
 .recipe-dropdown:hover {
   border-color: #007bff;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .recipe-dropdown:active {
@@ -18,7 +18,7 @@
 }
 
 .recipe-dropdown.dragging {
-  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
   transform: rotate(2deg);
   background: #fff;
   border-color: #007bff;
@@ -56,7 +56,8 @@
   animation: fadeIn 0.2s;
 }
 
-.dropdown-ingredients, .dropdown-instructions ol {
+.dropdown-ingredients,
+.dropdown-instructions ol {
   margin: 0 0 0.5rem 1.2rem;
   padding: 0;
 }
@@ -78,6 +79,11 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }

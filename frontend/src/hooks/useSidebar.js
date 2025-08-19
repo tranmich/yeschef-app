@@ -4,141 +4,141 @@ import { useState } from 'react';
  * Custom hook for managing sidebar state and visibility
  */
 export const useSidebar = () => {
-  // Sidebar visibility states
-  const [isPantryVisible, setIsPantryVisible] = useState(false);
-  const [isMealPlannerVisible, setIsMealPlannerVisible] = useState(false);
-  
-  // Expand states for full-width mode
-  const [isPantryExpanded, setIsPantryExpanded] = useState(false);
-  const [isMealPlannerExpanded, setIsMealPlannerExpanded] = useState(false);
+    // Sidebar visibility states
+    const [isPantryVisible, setIsPantryVisible] = useState(false);
+    const [isMealPlannerVisible, setIsMealPlannerVisible] = useState(false);
 
-  // Toggle functions
-  const togglePantry = () => {
-    setIsPantryVisible(prev => {
-      const newState = !prev;
-      // Close meal planner when opening pantry
-      if (newState) {
+    // Expand states for full-width mode
+    const [isPantryExpanded, setIsPantryExpanded] = useState(false);
+    const [isMealPlannerExpanded, setIsMealPlannerExpanded] = useState(false);
+
+    // Toggle functions
+    const togglePantry = () => {
+        setIsPantryVisible(prev => {
+            const newState = !prev;
+            // Close meal planner when opening pantry
+            if (newState) {
+                setIsMealPlannerVisible(false);
+                setIsMealPlannerExpanded(false);
+            }
+            // Reset expanded state when closing
+            if (!newState) {
+                setIsPantryExpanded(false);
+            }
+            console.log('🥘 Pantry visibility:', newState);
+            return newState;
+        });
+    };
+
+    const toggleMealPlanner = () => {
+        setIsMealPlannerVisible(prev => {
+            const newState = !prev;
+            // Close pantry when opening meal planner
+            if (newState) {
+                setIsPantryVisible(false);
+                setIsPantryExpanded(false);
+            }
+            // Reset expanded state when closing
+            if (!newState) {
+                setIsMealPlannerExpanded(false);
+            }
+            console.log('📅 Meal Planner visibility:', newState);
+            return newState;
+        });
+    };
+
+    // Expand/collapse functions
+    const togglePantryExpand = () => {
+        setIsPantryExpanded(prev => !prev);
+    };
+
+    const toggleMealPlannerExpand = () => {
+        setIsMealPlannerExpanded(prev => !prev);
+    };
+
+    // Close all sidebars
+    const closeAllSidebars = () => {
+        setIsPantryVisible(false);
         setIsMealPlannerVisible(false);
-        setIsMealPlannerExpanded(false);
-      }
-      // Reset expanded state when closing
-      if (!newState) {
         setIsPantryExpanded(false);
-      }
-      console.log('🥘 Pantry visibility:', newState);
-      return newState;
-    });
-  };
+        setIsMealPlannerExpanded(false);
+        console.log('🔒 All sidebars closed');
+    };
 
-  const toggleMealPlanner = () => {
-    setIsMealPlannerVisible(prev => {
-      const newState = !prev;
-      // Close pantry when opening meal planner
-      if (newState) {
+    // Close specific sidebar
+    const closePantry = () => {
         setIsPantryVisible(false);
         setIsPantryExpanded(false);
-      }
-      // Reset expanded state when closing
-      if (!newState) {
+        console.log('🔒 Pantry closed');
+    };
+
+    const closeMealPlanner = () => {
+        setIsMealPlannerVisible(false);
         setIsMealPlannerExpanded(false);
-      }
-      console.log('📅 Meal Planner visibility:', newState);
-      return newState;
+        console.log('🔒 Meal Planner closed');
+    };
+
+    // Check if any sidebar is open
+    const isAnySidebarOpen = () => {
+        return isPantryVisible || isMealPlannerVisible;
+    };
+
+    // Check if specific sidebar is open
+    const getSidebarState = () => ({
+        isPantryVisible,
+        isMealPlannerVisible,
+        isAnySidebarOpen: isAnySidebarOpen()
     });
-  };
 
-  // Expand/collapse functions
-  const togglePantryExpand = () => {
-    setIsPantryExpanded(prev => !prev);
-  };
+    // Get active sidebar name
+    const getActiveSidebar = () => {
+        if (isPantryVisible) return 'pantry';
+        if (isMealPlannerVisible) return 'mealPlanner';
+        return null;
+    };
 
-  const toggleMealPlannerExpand = () => {
-    setIsMealPlannerExpanded(prev => !prev);
-  };
+    // Set specific sidebar state
+    const setPantryVisible = (visible) => {
+        setIsPantryVisible(visible);
+        if (visible) {
+            setIsMealPlannerVisible(false);
+        }
+        console.log('🥘 Pantry set to:', visible);
+    };
 
-  // Close all sidebars
-  const closeAllSidebars = () => {
-    setIsPantryVisible(false);
-    setIsMealPlannerVisible(false);
-    setIsPantryExpanded(false);
-    setIsMealPlannerExpanded(false);
-    console.log('🔒 All sidebars closed');
-  };
+    const setMealPlannerVisible = (visible) => {
+        setIsMealPlannerVisible(visible);
+        if (visible) {
+            setIsPantryVisible(false);
+        }
+        console.log('📅 Meal Planner set to:', visible);
+    };
 
-  // Close specific sidebar
-  const closePantry = () => {
-    setIsPantryVisible(false);
-    setIsPantryExpanded(false);
-    console.log('🔒 Pantry closed');
-  };
+    return {
+        // State
+        isPantryVisible,
+        isMealPlannerVisible,
+        isPantryExpanded,
+        isMealPlannerExpanded,
 
-  const closeMealPlanner = () => {
-    setIsMealPlannerVisible(false);
-    setIsMealPlannerExpanded(false);
-    console.log('🔒 Meal Planner closed');
-  };
+        // Toggle functions
+        togglePantry,
+        toggleMealPlanner,
+        togglePantryExpand,
+        toggleMealPlannerExpand,
 
-  // Check if any sidebar is open
-  const isAnySidebarOpen = () => {
-    return isPantryVisible || isMealPlannerVisible;
-  };
+        // Close functions
+        closeAllSidebars,
+        closePantry,
+        closeMealPlanner,
 
-  // Check if specific sidebar is open
-  const getSidebarState = () => ({
-    isPantryVisible,
-    isMealPlannerVisible,
-    isAnySidebarOpen: isAnySidebarOpen()
-  });
+        // Set functions
+        setPantryVisible,
+        setMealPlannerVisible,
 
-  // Get active sidebar name
-  const getActiveSidebar = () => {
-    if (isPantryVisible) return 'pantry';
-    if (isMealPlannerVisible) return 'mealPlanner';
-    return null;
-  };
-
-  // Set specific sidebar state
-  const setPantryVisible = (visible) => {
-    setIsPantryVisible(visible);
-    if (visible) {
-      setIsMealPlannerVisible(false);
-    }
-    console.log('🥘 Pantry set to:', visible);
-  };
-
-  const setMealPlannerVisible = (visible) => {
-    setIsMealPlannerVisible(visible);
-    if (visible) {
-      setIsPantryVisible(false);
-    }
-    console.log('📅 Meal Planner set to:', visible);
-  };
-
-  return {
-    // State
-    isPantryVisible,
-    isMealPlannerVisible,
-    isPantryExpanded,
-    isMealPlannerExpanded,
-    
-    // Toggle functions
-    togglePantry,
-    toggleMealPlanner,
-    togglePantryExpand,
-    toggleMealPlannerExpand,
-    
-    // Close functions
-    closeAllSidebars,
-    closePantry,
-    closeMealPlanner,
-    
-    // Set functions
-    setPantryVisible,
-    setMealPlannerVisible,
-    
-    // Utilities
-    isAnySidebarOpen,
-    getSidebarState,
-    getActiveSidebar
-  };
+        // Utilities
+        isAnySidebarOpen,
+        getSidebarState,
+        getActiveSidebar
+    };
 };

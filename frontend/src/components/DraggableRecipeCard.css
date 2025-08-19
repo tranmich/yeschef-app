@@ -99,7 +99,10 @@
     margin-bottom: 0.5rem;
 }
 
-.recipe-time, .recipe-total-time, .recipe-servings, .recipe-category {
+.recipe-time,
+.recipe-total-time,
+.recipe-servings,
+.recipe-category {
     font-size: 0.7rem;
     color: #666;
     background-color: #f8f9fa;
@@ -211,9 +214,9 @@
     margin-bottom: 0.3rem;
 }
 
-.draggable-recipe-card.compact .recipe-time, 
-.draggable-recipe-card.compact .recipe-total-time, 
-.draggable-recipe-card.compact .recipe-servings, 
+.draggable-recipe-card.compact .recipe-time,
+.draggable-recipe-card.compact .recipe-total-time,
+.draggable-recipe-card.compact .recipe-servings,
 .draggable-recipe-card.compact .recipe-category,
 .draggable-recipe-card.compact .ingredients-count {
     font-size: 0.6rem;
@@ -236,9 +239,17 @@
 
 /* Animation for adding to favorites */
 @keyframes favoriteAdded {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .favorite-btn.favorited {
@@ -250,16 +261,19 @@
     .draggable-recipe-card {
         padding: 0.5rem;
     }
-    
+
     .recipe-title {
         font-size: 0.4rem;
     }
-    
+
     .recipe-meta {
         gap: 0.25rem;
     }
-    
-    .recipe-time, .recipe-total-time, .recipe-servings, .recipe-category {
+
+    .recipe-time,
+    .recipe-total-time,
+    .recipe-servings,
+    .recipe-category {
         font-size: 0.6rem;
         padding: 0.15rem 0.3rem;
     }
@@ -270,17 +284,17 @@
         flex-direction: column;
         align-items: flex-start;
     }
-    
+
     .favorite-btn {
         align-self: flex-end;
         margin-top: -1.5rem;
     }
-    
+
     .recipe-meta {
         flex-direction: column;
         gap: 0.15rem;
     }
-    
+
     .recipe-card-footer {
         flex-direction: column;
         align-items: flex-start;

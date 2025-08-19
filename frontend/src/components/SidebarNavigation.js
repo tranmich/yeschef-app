@@ -107,14 +107,14 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
 
         <div className="header-right">
           <div className="user-menu-container">
-            <button 
-              className="user-avatar" 
+            <button
+              className="user-avatar"
               onClick={toggleUserMenu}
               title={`${user?.name} - Click for account menu`}
             >
               <span className="avatar-initials">{getUserInitials(user?.name)}</span>
             </button>
-            
+
             {showUserMenu && (
               <div className="user-dropdown">
                 <div className="user-info">

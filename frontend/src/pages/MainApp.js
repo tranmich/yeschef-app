@@ -19,13 +19,13 @@ const MainApp = () => {
   // --- Custom Hooks ---
   const mealPlannerHook = useMealPlanner();
   const sidebarHook = useSidebar();
-  
+
   // Recipe container state
   const [containerRecipes, setContainerRecipes] = useState([]);
-  
+
   // Grocery list navigation state
   const [showGroceryListFromNav, setShowGroceryListFromNav] = useState(false);
-  
+
   // Handle adding recipe to container
   const handleRecipeAddedToContainer = (recipe) => {
     setContainerRecipes(prev => {
@@ -36,7 +36,7 @@ const MainApp = () => {
       return prev;
     });
   };
-  
+
   // Handle grocery list activation from navigation
   const handleShowGroceryList = () => {
     // First ensure meal planner is visible
@@ -46,7 +46,7 @@ const MainApp = () => {
     // Signal to show grocery list
     setShowGroceryListFromNav(true);
   };
-  
+
   // Drag and drop with meal planner and container integration
   const dragAndDropHook = useDragAndDrop(
     (day, mealType, recipe) => {
@@ -105,6 +105,14 @@ const MainApp = () => {
               setShowPantry={sidebarHook.setPantryVisible}
               isCompact={sidebarHook.isMealPlannerVisible || sidebarHook.isPantryVisible}
               isExtraCompact={sidebarHook.isMealPlannerVisible && sidebarHook.isPantryVisible}
+              onAddToMealPlan={(day, mealType, recipe) => {
+                // Show meal planner if not visible
+                if (!sidebarHook.isMealPlannerVisible) {
+                  sidebarHook.toggleMealPlanner();
+                }
+                // Add recipe to meal plan
+                return mealPlannerHook.addRecipeToMeal(day, mealType, recipe);
+              }}
             />
           </div>
         </div>
