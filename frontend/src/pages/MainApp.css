@@ -1,10 +1,87 @@
-/* New Layout Styles - UPDATED v3.0 - SCROLLING FIXED */
+/* New Layout Styles - COOKBOOK-FIRST v4.0 */
 .app-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
   background: #ffffff;
 }
+
+/* Cookbook-First Layout */
+.app-container.cookbook-first {
+  flex-direction: row;
+}
+
+.app-container.cookbook-first .main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  position: relative;
+  transition: all 0.3s ease;
+  /* Adjust for smaller cookbook sidebar */
+  margin-left: 0;
+}
+
+/* Chat Panel Overlay */
+.chat-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.chat-panel {
+  width: 380px;
+  height: 100vh;
+  background: white;
+  border-left: 1px solid #e5e7eb;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fafafa;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.close-chat-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #6b7280;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.close-chat-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* Original Layout Styles for backward compatibility */
 
 /* Notion-Inspired Layout System with dynamic resizing */
 .main-content {
@@ -14,6 +91,7 @@
   position: relative;
   transition: all 0.3s ease;
   flex-direction: row;
+  overflow: visible;
   /* Ensure chat comes first, sidebars come after (to the right) */
 }
 
@@ -31,6 +109,7 @@
   will-change: transform;
   box-sizing: border-box;
   order: 1;
+  overflow: visible;
   /* Chat area comes first (left side) */
 }
 
@@ -236,7 +315,7 @@
   border-radius: 20px 20px 0 0;
   /* Rounded top only */
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
   min-height: 0;
   box-sizing: border-box;
@@ -377,7 +456,7 @@
 /* Chat Messages Area */
 .chat-box {
   flex: 1;
-  overflow-y: auto;
+  overflow: visible;
   padding: 1.5rem 1.5rem 1.5rem 1.5rem;
   /* Explicit padding for alignment */
   display: flex;
@@ -659,7 +738,7 @@
 .chat-box {
   flex: 1;
   padding: 1rem;
-  overflow-y: auto;
+  overflow: visible;
   background: #f8f9fa;
   min-height: 400px;
 }

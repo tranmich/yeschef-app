@@ -20,7 +20,9 @@ const SidebarContainer = ({
     isMealPlannerExpanded,
     onTogglePantryExpand,
     onToggleMealPlannerExpand,
-    onShowGroceryList
+    onShowGroceryList,
+    showChat,
+    onToggleChat
 }) => {
     return (
         <div className="sidebar-container">
@@ -30,8 +32,10 @@ const SidebarContainer = ({
                 onToggleMealPlanner={onToggleMealPlanner}
                 showPantry={showPantry}
                 onTogglePantry={onTogglePantry}
-                onFeatureSelect={onFeatureSelect}
                 onShowGroceryList={onShowGroceryList}
+                showChat={showChat}
+                onToggleChat={onToggleChat}
+                onFeatureSelect={onFeatureSelect}
             />
 
             {/* Pantry Sidebar */}

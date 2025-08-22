@@ -41,175 +41,25 @@ const MainApp = () => {
 
   // Load recipes on component mount
   useEffect(() => {
-    console.log('🔄 MainApp useEffect triggered - loading recipes');
-    // Load real data from API
     loadRecipes();
   }, []);
 
   // Calculate recipe counts when recipes change
   useEffect(() => {
-    console.log('📊 Recipes state changed. New count:', recipes.length);
-    console.log('📊 First few recipes in state:', recipes.slice(0, 2));
     calculateRecipeCounts();
   }, [recipes]);
 
   const loadRecipes = async () => {
     setLoading(true);
-    console.log('🔄 Starting recipe load process...');
-    
     try {
-      console.log('🍽️ Loading recipes from database using api.searchRecipes...');
-      
-      // Use the working search API that we see in the logs
-      const response = await api.searchRecipes('recipe');
-      console.log('📊 Raw API response type:', typeof response);
-      console.log('📊 Raw API response keys:', response ? Object.keys(response) : 'no response');
-      console.log('📊 Raw API response (full):', response);
-      
-      // The response structure might be response.recipes or just response
-      let recipes = [];
-      if (response && Array.isArray(response.recipes)) {
-        recipes = response.recipes;
-        console.log('✅ Found recipes in response.recipes:', recipes.length);
-      } else if (response && Array.isArray(response)) {
-        recipes = response;
-        console.log('✅ Response itself is array:', recipes.length);
-      } else if (response && response.data && Array.isArray(response.data.recipes)) {
-        recipes = response.data.recipes;
-        console.log('✅ Found recipes in response.data.recipes:', recipes.length);
-      } else if (response && response.data && Array.isArray(response.data)) {
-        recipes = response.data;
-        console.log('✅ Found recipes in response.data:', recipes.length);
-      } else {
-        console.log('❓ Unexpected response structure:', {
-          isObject: typeof response === 'object',
-          isArray: Array.isArray(response),
-          hasRecipes: response && 'recipes' in response,
-          hasData: response && 'data' in response,
-          structure: response ? Object.keys(response) : null
-        });
-      }
-      
-      if (recipes.length > 0) {
-        console.log(`✅ Setting ${recipes.length} recipes from database`);
-        console.log('📋 First recipe sample:', recipes[0]);
-        setRecipes(recipes);
-      } else {
-        console.log('⚠️ No recipes found in any expected format, using sample data as fallback');
-        setSampleRecipes();
-      }
+      // Use existing search endpoint to get all recipes
+      const response = await api.searchRecipes('', { limit: 1000 });
+      setRecipes(response.recipes || []);
     } catch (error) {
-      console.error('❌ Error loading recipes via api.searchRecipes:', error);
-      console.error('❌ Error details:', error.message, error.stack);
-      console.log('🔄 Using sample data as fallback due to error');
-      setSampleRecipes();
+      console.error('Error loading recipes:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const tryDirectAPICall = async () => {
-    try {
-      console.log('🔄 Trying direct API call...');
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/search?q=recipe&limit=1000`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Direct API call successful:', data);
-        if (data.recipes && Array.isArray(data.recipes)) {
-          console.log(`🎯 Setting ${data.recipes.length} recipes from direct call`);
-          setRecipes(data.recipes);
-          return;
-        }
-      } else {
-        console.log('❌ Direct API call failed:', response.status, response.statusText);
-      }
-    } catch (error) {
-      console.error('❌ Direct API call error:', error);
-    }
-    
-    // If all API calls fail, use sample data
-    console.log('🔄 All API calls failed, using sample data');
-    setSampleRecipes();
-  };
-
-  const setSampleRecipes = () => {
-    // Temporary sample data to see the interface
-    const sampleRecipes = [
-      {
-        id: 1,
-        title: "Classic Spaghetti Carbonara",
-        ingredients: "Spaghetti, eggs, pancetta, parmesan cheese, black pepper",
-        instructions: "Cook pasta, mix eggs with cheese, combine with hot pasta and pancetta",
-        time_min: 25,
-        servings: 4,
-        meal_role: "dinner",
-        is_easy: true,
-        is_one_pot: false,
-        rating: 4.8,
-        date_added: "2025-08-20"
-      },
-      {
-        id: 2,
-        title: "Fluffy Pancakes",
-        ingredients: "Flour, milk, eggs, sugar, baking powder, butter",
-        instructions: "Mix dry ingredients, combine wet ingredients, fold together, cook on griddle",
-        time_min: 15,
-        servings: 2,
-        meal_role: "breakfast",
-        is_easy: true,
-        is_one_pot: true,
-        rating: 4.6,
-        date_added: "2025-08-21"
-      },
-      {
-        id: 3,
-        title: "Mediterranean Quinoa Salad",
-        ingredients: "Quinoa, cucumber, tomatoes, feta cheese, olives, lemon, olive oil",
-        instructions: "Cook quinoa, chop vegetables, combine with cheese and dressing",
-        time_min: 20,
-        servings: 6,
-        meal_role: "lunch",
-        is_easy: true,
-        is_one_pot: false,
-        rating: 4.4,
-        date_added: "2025-08-19"
-      },
-      {
-        id: 4,
-        title: "Chocolate Chip Cookies",
-        ingredients: "Flour, butter, brown sugar, eggs, vanilla, chocolate chips",
-        instructions: "Cream butter and sugar, add eggs and vanilla, mix in flour and chips, bake",
-        time_min: 35,
-        servings: 24,
-        meal_role: "dessert",
-        is_easy: true,
-        is_one_pot: false,
-        rating: 4.9,
-        date_added: "2025-08-18"
-      },
-      {
-        id: 5,
-        title: "One-Pot Chicken and Rice",
-        ingredients: "Chicken thighs, rice, onion, garlic, chicken broth, peas",
-        instructions: "Brown chicken, sauté onion and garlic, add rice and broth, simmer until tender",
-        time_min: 40,
-        servings: 4,
-        meal_role: "dinner",
-        is_easy: true,
-        is_one_pot: true,
-        rating: 4.7,
-        date_added: "2025-08-17"
-      }
-    ];
-    setRecipes(sampleRecipes);
   };
 
   const calculateRecipeCounts = () => {
@@ -342,42 +192,13 @@ const MainApp = () => {
       onDragCancel={dragAndDropHook.handleDragCancel}
     >
       <div className="app-container cookbook-first">
-        {/* Navigation Sidebar - Left Side */}
-        <SidebarContainer
-          showMealPlanner={sidebarHook.isMealPlannerVisible}
-          onToggleMealPlanner={sidebarHook.toggleMealPlanner}
-          showPantry={sidebarHook.isPantryVisible}
-          onTogglePantry={sidebarHook.togglePantry}
-          isPantryExpanded={sidebarHook.isPantryExpanded}
-          isMealPlannerExpanded={sidebarHook.isMealPlannerExpanded}
-          onTogglePantryExpand={sidebarHook.togglePantryExpand}
-          onToggleMealPlannerExpand={sidebarHook.toggleMealPlannerExpand}
-          mealPlan={mealPlannerHook.mealPlan}
-          setMealPlan={mealPlannerHook.setMealPlan}
-          containerRecipes={containerRecipes}
-          setContainerRecipes={setContainerRecipes}
-          showGroceryListFromNav={showGroceryListFromNav}
-          setShowGroceryListFromNav={setShowGroceryListFromNav}
-          onShowGroceryList={handleShowGroceryList}
-          showChat={showChat}
-          onToggleChat={handleToggleChat}
-          onFeatureSelect={(feature) => {
-            console.log('Feature selected:', feature);
-            if (feature === 'cookbook') {
-              setShowChat(false);
-              sidebarHook.closeAllSidebars();
-            }
-          }}
-        />
-
-        {/* Cookbook Sidebar - Compact */}
+        {/* Cookbook Sidebar */}
         <CookbookSidebar
           categories={customCategories}
           selectedCategory={selectedCategory}
           onCategorySelect={handleCategorySelect}
           recipeCounts={recipeCounts}
           onAddCategory={handleAddCategory}
-          onRefreshRecipes={loadRecipes}
         />
 
         {/* Main Content Area */}
@@ -389,6 +210,34 @@ const MainApp = () => {
             onRecipeClick={handleRecipeClick}
             onRecipeEdit={handleRecipeEdit}
             loading={loading}
+          />
+
+          {/* Sidebar Container - Meal Planner, Pantry, etc. */}
+          <SidebarContainer
+            showMealPlanner={sidebarHook.isMealPlannerVisible}
+            onToggleMealPlanner={sidebarHook.toggleMealPlanner}
+            showPantry={sidebarHook.isPantryVisible}
+            onTogglePantry={sidebarHook.togglePantry}
+            isPantryExpanded={sidebarHook.isPantryExpanded}
+            isMealPlannerExpanded={sidebarHook.isMealPlannerExpanded}
+            onTogglePantryExpand={sidebarHook.togglePantryExpand}
+            onToggleMealPlannerExpand={sidebarHook.toggleMealPlannerExpand}
+            mealPlan={mealPlannerHook.mealPlan}
+            setMealPlan={mealPlannerHook.setMealPlan}
+            containerRecipes={containerRecipes}
+            setContainerRecipes={setContainerRecipes}
+            showGroceryListFromNav={showGroceryListFromNav}
+            setShowGroceryListFromNav={setShowGroceryListFromNav}
+            onShowGroceryList={handleShowGroceryList}
+            showChat={showChat}
+            onToggleChat={handleToggleChat}
+            onFeatureSelect={(feature) => {
+              console.log('Feature selected:', feature);
+              if (feature === 'cookbook') {
+                setShowChat(false);
+                sidebarHook.closeAllSidebars();
+              }
+            }}
           />
 
           {/* Chat Panel - Toggle Overlay */}

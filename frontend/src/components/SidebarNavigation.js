@@ -3,10 +3,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './SidebarNavigation.css';
 
-const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlanner, showPantry, onTogglePantry, onShowGroceryList }) => {
+const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlanner, showPantry, onTogglePantry, onShowGroceryList, showChat, onToggleChat }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeFeature, setActiveFeature] = useState('chat');
+  const [activeFeature, setActiveFeature] = useState('cookbook');
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Header functionality
@@ -27,36 +27,36 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
 
   const features = [
     {
-      id: 'chat',
-      icon: '💬',
-      label: 'AI Chef Chat',
-      description: 'Chat with Hungie AI',
+      id: 'cookbook',
+      icon: '�',
+      label: 'My Cookbook',
+      description: 'Browse and organize recipes',
       available: true,
       onClick: () => {
+        setActiveFeature('cookbook');
+        onFeatureSelect?.('cookbook');
+      }
+    },
+    {
+      id: 'chat',
+      icon: '�',
+      label: 'AI Chat',
+      description: 'Chat with cooking assistant',
+      available: true,
+      onClick: () => {
+        onToggleChat?.();
         setActiveFeature('chat');
-        onFeatureSelect?.('chat');
       }
     },
     {
       id: 'meal-planner',
-      icon: '📅',
+      icon: '�',
       label: 'Meal Planner',
       description: 'Plan your weekly meals',
       available: true,
       onClick: () => {
         onToggleMealPlanner?.();
         setActiveFeature('meal-planner');
-      }
-    },
-    {
-      id: 'saved-recipes',
-      icon: '💾',
-      label: 'Saved Recipes',
-      description: 'Your recipe collection',
-      available: false,
-      onClick: () => {
-        setActiveFeature('saved-recipes');
-        onFeatureSelect?.('saved-recipes');
       }
     },
     {
@@ -82,14 +82,14 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
       }
     },
     {
-      id: 'analytics',
-      icon: '📊',
-      label: 'Analytics',
-      description: 'Cooking insights',
+      id: 'import',
+      icon: '�',
+      label: 'Import Recipe',
+      description: 'Add recipes from anywhere',
       available: false,
       onClick: () => {
-        setActiveFeature('analytics');
-        onFeatureSelect?.('analytics');
+        setActiveFeature('import');
+        onFeatureSelect?.('import');
       }
     }
   ];
@@ -147,7 +147,7 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
             {features.map((feature) => (
               <button
                 key={feature.id}
-                className={`nav-item ${activeFeature === feature.id ? 'active' : ''} ${!feature.available ? 'disabled' : ''} ${feature.id === 'meal-planner' && showMealPlanner ? 'active' : ''} ${feature.id === 'pantry' && showPantry ? 'active' : ''}`}
+                className={`nav-item ${activeFeature === feature.id ? 'active' : ''} ${!feature.available ? 'disabled' : ''} ${feature.id === 'meal-planner' && showMealPlanner ? 'active' : ''} ${feature.id === 'pantry' && showPantry ? 'active' : ''} ${feature.id === 'chat' && showChat ? 'active' : ''}`}
                 onClick={feature.onClick}
                 disabled={!feature.available}
                 title={feature.available ? feature.description : `${feature.description} (Coming Soon)`}

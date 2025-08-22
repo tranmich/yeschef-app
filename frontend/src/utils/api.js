@@ -144,3 +144,14 @@ api.isIntelligentSearchAvailable = async () => {
     return false;
   }
 };
+
+// Add function to update recipe
+export const updateRecipe = async (recipeId, updatedRecipe) => {
+  try {
+    const response = await api.put(`/api/recipes/${recipeId}`, updatedRecipe);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating recipe:', error);
+    throw error;
+  }
+};

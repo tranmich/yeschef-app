@@ -12,8 +12,8 @@
     transform: translateZ(0);
     will-change: transform;
     box-sizing: border-box;
-    overflow-x: hidden;
-    /* Prevent horizontal scrolling at interface level */
+    overflow: visible;
+    /* Allow dropdowns to extend beyond interface */
 }
 
 /* Chat Header Styles */
@@ -176,13 +176,11 @@
     border-radius: 12px;
     border: 1px solid #e0e0e0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-    overflow-x: hidden;
-    /* Prevent horizontal scrolling */
+    overflow: visible;
+    /* Allow dropdowns to extend beyond container */
     position: relative;
     min-height: 0;
-    max-height: calc(100vh - 160px);
-    /* Prevent container from growing too large */
+    /* Removed max-height to allow dropdowns to extend */
     box-sizing: border-box;
 }
 
@@ -251,9 +249,8 @@
 /* Chat Box - Rich styling */
 .chat-box {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    /* Prevent horizontal scrolling */
+    overflow: visible;
+    /* Allow dropdowns to extend beyond chat box */
     padding: 1.5rem 1.5rem 1.5rem 1.5rem;
     display: flex;
     flex-direction: column;
@@ -261,8 +258,7 @@
     box-sizing: border-box;
     background: #f8f9fa;
     min-height: 400px;
-    max-height: calc(100vh - 200px);
-    /* Prevent vertical expansion pushing content down */
+    /* Removed max-height to allow dropdowns to extend */
 }
 
 /* Compact mode adjustments */
