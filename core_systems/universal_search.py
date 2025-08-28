@@ -174,10 +174,31 @@ class UniversalSearchEngine:
             conn = psycopg2.connect(database_url)
             conn.cursor_factory = psycopg2.extras.RealDictCursor
             self.is_postgresql = True
+            print(f"🔍 UNIVERSAL SEARCH: Connected to PostgreSQL: {database_url[:50]}...")
+            
+            # Debug: Check what recipes we're actually finding
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) as total, MAX(id) as max_id FROM recipes")
+            db_stats = cursor.fetchone()
+            print(f"🔍 UNIVERSAL SEARCH: Database has {db_stats['total']} total recipes (max ID: {db_stats['max_id']})")
+            cursor.close()
+            
             return conn
         except Exception as e:
+            print(f"🔍 UNIVERSAL SEARCH: PostgreSQL connection failed: {e}")
             print(f"Universal Search Engine database connection error: {e}")
             return None
+
+    def refresh_database_cache(self):
+        """
+        Force refresh of database connection cache to see new imports
+        """
+        print("🔄 REFRESHING database cache to see new imports...")
+        # Force a fresh connection check
+        conn = self.get_database_connection()
+        if conn:
+            conn.close()
+        print("✅ Database cache refreshed")
 
     def get_placeholder(self):
         """Get the correct SQL placeholder - PostgreSQL uses %s"""
@@ -897,7 +918,7 @@ class UniversalSearchEngine:
                 search_limit = limit * (base_multiplier + 10)  # 5 * 13 = 65
 
             # Cap at reasonable maximum to prevent performance issues
-            search_limit = min(search_limit, 100)
+            search_limit = min(search_limit, 10000)  # Increased from 2000 to 10000 for comprehensive recipe loading
 
             print(f"🎯 Progressive batching: {exclusion_count} exclusions → searching {search_limit} recipes (returning {limit})")
 

@@ -84,6 +84,16 @@ export { getApiUrl };
 // Additional API functions for compatibility
 export const searchRecipes = (query) => apiCall(`/api/search?q=${encodeURIComponent(query)}`);
 export const getRecipe = (id) => apiCall(`/api/recipes/${id}`);
+
+// Template Recipe System Functions
+export const getUserRecipes = () => apiCall('/api/user/recipes');
+export const editRecipe = (recipeId, updatedRecipe) => 
+  apiCall(`/api/recipes/${recipeId}/edit`, {
+    method: 'POST',
+    body: JSON.stringify(updatedRecipe)
+  });
+export const getTemplateStats = () => apiCall('/api/admin/template-stats');
+
 export const smartSearch = (message, context = '', options = {}) => apiCall('/api/smart-search', {
   method: 'POST',
   body: JSON.stringify({
@@ -98,6 +108,9 @@ export const smartSearch = (message, context = '', options = {}) => apiCall('/ap
 // Export the full API object with all functions
 api.searchRecipes = searchRecipes;
 api.getRecipe = getRecipe;
+api.getUserRecipes = getUserRecipes;
+api.editRecipe = editRecipe;
+api.getTemplateStats = getTemplateStats;
 api.smartSearch = smartSearch;
 
 // Add intelligent session-aware search function

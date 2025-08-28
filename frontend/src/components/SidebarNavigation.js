@@ -83,10 +83,10 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
     },
     {
       id: 'import',
-      icon: '�',
+      icon: '📥',
       label: 'Import Recipe',
       description: 'Add recipes from anywhere',
-      available: false,
+      available: true,
       onClick: () => {
         setActiveFeature('import');
         onFeatureSelect?.('import');

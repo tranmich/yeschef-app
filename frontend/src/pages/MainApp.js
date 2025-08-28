@@ -5,6 +5,10 @@ import ChatInterface from '../components/ChatInterface';
 import CookbookSidebar from '../components/CookbookSidebar';
 import RecipeListView from '../components/RecipeListView';
 import RecipeEditModal from '../components/RecipeEditModal';
+import ImportRecipeModal from '../components/ImportRecipeModal';
+import RecipeDetailModal from '../components/RecipeDetailModal';
+import AdminDashboard from '../components/AdminDashboard';
+import AdminRecipeOverlay from '../components/AdminRecipeOverlay';
 import './MainApp.css';
 import SessionMemoryManager from '../utils/SessionMemoryManager';
 import { usePantry } from '../hooks/usePantry';
@@ -32,6 +36,14 @@ const MainApp = () => {
   const [recipeCounts, setRecipeCounts] = useState({});
   const [showChat, setShowChat] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [viewingRecipe, setViewingRecipe] = useState(null);
+  const [showRecipeDetail, setShowRecipeDetail] = useState(false);
+
+  // --- Admin State ---
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
 
   // Recipe container state
   const [containerRecipes, setContainerRecipes] = useState([]);
@@ -58,36 +70,45 @@ const MainApp = () => {
     console.log('🔄 Starting recipe load process...');
     
     try {
-      console.log('🍽️ Loading recipes from database using api.searchRecipes...');
+      console.log('🍽️ Loading user recipes from personal collection...');
       
-      // Use the working search API that we see in the logs
-      const response = await api.searchRecipes('recipe');
-      console.log('📊 Raw API response type:', typeof response);
-      console.log('📊 Raw API response keys:', response ? Object.keys(response) : 'no response');
-      console.log('📊 Raw API response (full):', response);
+      // Use the new user-specific API that returns only user's recipes
+      const response = await api.getUserRecipes();
+      console.log('📊 User recipes response:', response);
       
-      // The response structure might be response.recipes or just response
+      // Check for admin access
+      if (response && response.admin_access) {
+        console.log('🔧 Admin access granted');
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
+      }
+      
+      // Handle the response structure
       let recipes = [];
-      if (response && Array.isArray(response.recipes)) {
-        recipes = response.recipes;
-        console.log('✅ Found recipes in response.recipes:', recipes.length);
+      if (response && response.success && Array.isArray(response.data)) {
+        recipes = response.data;
+        console.log('✅ Found user recipes:', recipes.length);
+        console.log('📝 Recipe types:', recipes.map(r => r.recipe_type || 'unknown'));
+        
+        // Admin gets different message
+        if (response.admin_access) {
+          console.log('🔧 Admin loaded ALL database recipes for curation');
+        }
       } else if (response && Array.isArray(response)) {
         recipes = response;
         console.log('✅ Response itself is array:', recipes.length);
-      } else if (response && response.data && Array.isArray(response.data.recipes)) {
-        recipes = response.data.recipes;
-        console.log('✅ Found recipes in response.data.recipes:', recipes.length);
-      } else if (response && response.data && Array.isArray(response.data)) {
-        recipes = response.data;
-        console.log('✅ Found recipes in response.data:', recipes.length);
       } else {
-        console.log('❓ Unexpected response structure:', {
-          isObject: typeof response === 'object',
-          isArray: Array.isArray(response),
-          hasRecipes: response && 'recipes' in response,
-          hasData: response && 'data' in response,
-          structure: response ? Object.keys(response) : null
-        });
+        console.log('⚠️ Unexpected response structure, falling back to search');
+        // Fallback to old method if user recipes fails
+        const fallback = await api.searchRecipes('recipe');
+        if (fallback && Array.isArray(fallback.recipes)) {
+          recipes = fallback.recipes;
+          console.log('🔄 Fallback found recipes:', recipes.length);
+        } else if (fallback && Array.isArray(fallback.data)) {
+          recipes = fallback.data;
+          console.log('🔄 Fallback found recipes in data:', recipes.length);
+        }
       }
       
       if (recipes.length > 0) {
@@ -276,8 +297,14 @@ const MainApp = () => {
   };
 
   const handleRecipeClick = (recipe) => {
-    // For now, just log - could open a detail view
     console.log('Recipe clicked:', recipe.title);
+    setViewingRecipe(recipe);
+    setShowRecipeDetail(true);
+  };
+
+  const handleCloseRecipeDetail = () => {
+    setShowRecipeDetail(false);
+    setViewingRecipe(null);
   };
 
   const handleRecipeEdit = (recipe) => {
@@ -320,6 +347,91 @@ const MainApp = () => {
     }
     // Signal to show grocery list
     setShowGroceryListFromNav(true);
+  };
+
+  // Handle recipe import functionality
+  const handleImportRecipe = (importResult) => {
+    console.log('Recipe imported successfully:', importResult);
+    console.log('🔍 Raw recipe data:', importResult.recipe_data);
+    
+    // Instead of reloading all recipes, add the new recipe to the existing list
+    if (importResult.success && importResult.recipe_data) {
+      // Normalize ingredients to be searchable
+      let normalizedIngredients = importResult.recipe_data.ingredients || [];
+      console.log('🔍 Raw ingredients:', normalizedIngredients);
+      
+      // Convert array of ingredients to a searchable string format
+      // This ensures compatibility with existing search logic
+      const ingredientsString = Array.isArray(normalizedIngredients) 
+        ? normalizedIngredients.map(ing => {
+            if (typeof ing === 'string') return ing;
+            if (typeof ing === 'object') return ing.name || ing.ingredient || ing.text || String(ing);
+            return String(ing);
+          }).join(', ')
+        : String(normalizedIngredients);
+      
+      console.log('🔍 Normalized ingredients string:', ingredientsString);
+      
+      // Parse time to get time_min for compatibility
+      const parseTimeToMinutes = (timeStr) => {
+        if (!timeStr) return null;
+        const match = timeStr.match(/(\d+)/);
+        return match ? parseInt(match[1]) : null;
+      };
+      
+      // Map imported category to proper meal_role
+      const mapCategoryToMealRole = (category) => {
+        if (!category) return 'dinner';
+        const cat = category.toLowerCase();
+        if (cat.includes('breakfast') || cat.includes('brunch')) return 'breakfast';
+        if (cat.includes('lunch') || cat.includes('salad')) return 'lunch';
+        if (cat.includes('dessert') || cat.includes('sweet') || cat.includes('cake') || cat.includes('cookie')) return 'dessert';
+        if (cat.includes('snack') || cat.includes('appetizer')) return 'snack';
+        if (cat.includes('side')) return 'side';
+        // Default main dishes to dinner
+        return 'dinner';
+      };
+      
+      const prepTimeMin = parseTimeToMinutes(importResult.recipe_data.prep_time);
+      const cookTimeMin = parseTimeToMinutes(importResult.recipe_data.cook_time);
+      const totalTimeMin = (prepTimeMin || 0) + (cookTimeMin || 0) || null;
+      
+      const newRecipe = {
+        id: importResult.recipe_id,
+        title: importResult.recipe_data.title || 'Imported Recipe',
+        description: importResult.recipe_data.description || '',
+        ingredients: ingredientsString, // Store as string for search compatibility
+        instructions: importResult.recipe_data.instructions || [],
+        prep_time: importResult.recipe_data.prep_time || '',
+        cook_time: importResult.recipe_data.cook_time || '',
+        time_min: totalTimeMin, // Add time_min field that UI expects
+        servings: importResult.recipe_data.servings || '',
+        category: importResult.recipe_data.category || 'Imported',
+        meal_role: mapCategoryToMealRole(importResult.recipe_data.category), // Proper meal role mapping
+        source_url: importResult.recipe_data.source_url || '',
+        confidence: importResult.confidence || 0.0,
+        is_easy: totalTimeMin && totalTimeMin <= 30, // Mark as easy if quick
+        pantryOverlap: 0, // Default pantry overlap
+        // Add current timestamp for sorting
+        imported_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        date_added: new Date().toISOString()
+      };
+      
+      console.log('🔍 Final normalized recipe:', newRecipe);
+      
+      // Add the new recipe to the top of the list
+      setRecipes(prevRecipes => [newRecipe, ...prevRecipes]);
+      console.log('✅ Added imported recipe to list:', newRecipe.title);
+    } else {
+      // Fallback: refresh recipe list only if we couldn't get the recipe data
+      console.log('⚠️ Import result missing recipe data, refreshing full list');
+      loadRecipes();
+    }
+  };
+
+  const handleCloseImportModal = () => {
+    setShowImportModal(false);
   };
 
   // Drag and drop with meal planner and container integration
@@ -366,6 +478,8 @@ const MainApp = () => {
             if (feature === 'cookbook') {
               setShowChat(false);
               sidebarHook.closeAllSidebars();
+            } else if (feature === 'import') {
+              setShowImportModal(true);
             }
           }}
         />
@@ -382,6 +496,51 @@ const MainApp = () => {
 
         {/* Main Content Area */}
         <div className="main-content">
+          {/* Admin Controls - Only show for admin users */}
+          {isAdmin && (
+            <div className="admin-controls" style={{
+              position: 'absolute',
+              top: '10px',
+              right: '20px',
+              zIndex: 1000,
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'center'
+            }}>
+              <button
+                className={`admin-mode-toggle ${adminMode ? 'active' : ''}`}
+                onClick={() => setAdminMode(!adminMode)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: adminMode ? '#e74c3c' : '#3498db',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 'bold'
+                }}
+              >
+                {adminMode ? '🔧 Admin ON' : '⚙️ Admin Mode'}
+              </button>
+              <button
+                className="admin-dashboard-btn"
+                onClick={() => setShowAdminDashboard(true)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#9b59b6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                📊 Admin Dashboard
+              </button>
+            </div>
+          )}
+
           {/* Recipe List View */}
           <RecipeListView
             recipes={getFilteredRecipes()}
@@ -389,6 +548,8 @@ const MainApp = () => {
             onRecipeClick={handleRecipeClick}
             onRecipeEdit={handleRecipeEdit}
             loading={loading}
+            adminMode={adminMode && isAdmin}
+            isAdmin={isAdmin}
           />
 
           {/* Chat Panel - Toggle Overlay */}
@@ -433,6 +594,67 @@ const MainApp = () => {
           onClose={() => setEditingRecipe(null)}
           onSave={handleSaveRecipe}
         />
+
+        {/* Recipe Import Modal */}
+        <ImportRecipeModal
+          isOpen={showImportModal}
+          onClose={handleCloseImportModal}
+          onImport={handleImportRecipe}
+        />
+
+        {/* Recipe Detail Modal */}
+        <RecipeDetailModal
+          recipe={viewingRecipe}
+          isOpen={showRecipeDetail}
+          onClose={handleCloseRecipeDetail}
+          onEdit={handleRecipeEdit}
+        />
+
+        {/* Admin Dashboard Modal */}
+        {isAdmin && showAdminDashboard && (
+          <div className="modal-overlay" style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '10px',
+              width: '90%',
+              height: '90%',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <button
+                onClick={() => setShowAdminDashboard(false)}
+                style={{
+                  position: 'absolute',
+                  top: '10px',
+                  right: '10px',
+                  background: '#e74c3c',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '30px',
+                  height: '30px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  zIndex: 10000
+                }}
+              >
+                ×
+              </button>
+              <AdminDashboard />
+            </div>
+          </div>
+        )}
       </div>
     </DndContext>
   );

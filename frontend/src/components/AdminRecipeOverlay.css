@@ -1,0 +1,198 @@
+/* Admin Recipe Overlay Styles */
+.admin-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(220, 53, 69, 0.95);
+  color: white;
+  padding: 15px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 1000;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.3s ease;
+}
+
+.admin-overlay:hover,
+.admin-overlay.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.admin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-btn {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.admin-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.admin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.admin-btn.promote {
+  background: #28a745;
+  color: white;
+}
+
+.admin-btn.promote:hover {
+  background: #218838;
+}
+
+.admin-btn.remove-template {
+  background: #ffc107;
+  color: #212529;
+}
+
+.admin-btn.remove-template:hover {
+  background: #e0a800;
+}
+
+.admin-btn.delete {
+  background: #dc3545;
+  color: white;
+}
+
+.admin-btn.delete:hover {
+  background: #c82333;
+}
+
+.admin-btn.edit-raw {
+  background: #6c757d;
+  color: white;
+}
+
+.admin-btn.edit-raw:hover {
+  background: #5a6268;
+}
+
+.admin-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.template-status {
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.template-status.is-template {
+  background: #28a745;
+  color: white;
+}
+
+.template-status:not(.is-template) {
+  background: #6c757d;
+  color: white;
+}
+
+.recipe-id,
+.usage-count,
+.owner-info {
+  opacity: 0.9;
+  font-family: monospace;
+}
+
+.admin-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.admin-spinner {
+  font-size: 2rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .admin-overlay {
+    padding: 10px;
+  }
+  
+  .admin-btn {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+  
+  .admin-info {
+    font-size: 0.7rem;
+    padding: 8px;
+  }
+}
+
+/* Recipe card integration */
+.recipe-card {
+  position: relative;
+}
+
+.recipe-card:hover .admin-overlay {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Admin mode indicator */
+.admin-mode-active .recipe-card::before {
+  content: "🔧";
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #dc3545;
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  z-index: 999;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}

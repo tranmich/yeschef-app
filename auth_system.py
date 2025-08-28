@@ -324,6 +324,18 @@ class AuthenticationSystem:
             conn.commit()
             conn.close()
 
+            # Copy template recipes for new user
+            try:
+                # Import here to avoid circular imports
+                from template_recipe_system import TemplateRecipeSystem
+                template_system = TemplateRecipeSystem(self.get_db_connection)
+                copied_count = template_system.copy_templates_for_new_user(user_id)
+                logger.info(f"✅ Copied {copied_count} default recipes for new user {user_id}")
+            except ImportError:
+                logger.warning("⚠️ Template system not available for new user setup")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to copy templates for new user: {e}")
+
             # Generate JWT token
             access_token = create_access_token(identity=user_id)
 

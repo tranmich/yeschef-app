@@ -73,12 +73,55 @@ def create_auth_routes(auth_system):
             return jsonify({'success': False, 'message': 'Login failed'}), 500
 
     @auth_bp.route('/me', methods=['GET'])
-    @jwt_required()
     def get_current_user():
         """Get current user information"""
         try:
-            user_id = get_jwt_identity()
-            logger.info(f"[AUTH] Getting user info for ID: {user_id}")
+            # Manual JWT validation to handle integer subjects
+            from flask import request
+            import jwt
+            import json
+            import base64
+            import os
+            import hashlib
+            
+            # Get Authorization header
+            auth_header = request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer '):
+                return jsonify({'success': False, 'message': 'Missing or invalid Authorization header'}), 401
+            
+            token = auth_header.split(' ')[1]
+            
+            # Use same JWT secret generation as AuthenticationSystem
+            jwt_secret = os.getenv('JWT_SECRET_KEY')
+            if not jwt_secret:
+                database_url = os.getenv('DATABASE_URL', '')
+                if database_url:
+                    jwt_secret = hashlib.sha256(database_url.encode()).hexdigest()
+                else:
+                    jwt_secret = 'dev-secret-key-for-local-testing-only'
+            
+            try:
+                # Manual decode without strict subject validation
+                payload_part = token.split('.')[1]
+                padding_needed = len(payload_part) % 4
+                if padding_needed:
+                    payload_part += '=' * (4 - padding_needed)
+                    
+                payload_bytes = base64.urlsafe_b64decode(payload_part)
+                payload = json.loads(payload_bytes)
+                
+                user_id = payload.get('sub')
+                if isinstance(user_id, str) and user_id.isdigit():
+                    user_id = int(user_id)
+                
+                # Verify signature
+                jwt.decode(token, jwt_secret, algorithms=['HS256'], options={"verify_sub": False})
+                
+                logger.info(f"[AUTH] Getting user info for ID: {user_id}")
+                
+            except Exception as e:
+                logger.error(f"[AUTH] JWT validation failed: {e}")
+                return jsonify({'success': False, 'message': 'Invalid token'}), 401
 
             user = auth_system.get_user_by_id(user_id)
 

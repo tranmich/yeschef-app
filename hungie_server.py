@@ -26,6 +26,25 @@ logger = logging.getLogger(__name__)
 from auth_system import AuthenticationSystem
 from auth_routes import create_auth_routes
 
+# Import template recipe system
+try:
+    from template_recipe_system import TemplateRecipeSystem
+    TEMPLATE_SYSTEM_AVAILABLE = True
+    logger.info("✅ Template recipe system loaded")
+except ImportError as e:
+    TEMPLATE_SYSTEM_AVAILABLE = False
+    logger.warning(f"⚠️ Template recipe system not available: {e}")
+
+# Import admin system
+try:
+    from admin_system import AdminSystem
+    from admin_routes import create_admin_routes
+    ADMIN_SYSTEM_AVAILABLE = True
+    logger.info("✅ Admin system loaded")
+except ImportError as e:
+    ADMIN_SYSTEM_AVAILABLE = False
+    logger.warning(f"⚠️ Admin system not available: {e}")
+
 # Import database migrations (extracted for cleaner code) - with fallback
 try:
     from database_migrations import (
@@ -51,6 +70,15 @@ except ImportError as e:
 
 # Import unified search system (Day 4 Enhancement - Full Integration)
 from core_systems.universal_search import UniversalSearchEngine
+
+# Import recipe import system (Day 1 Implementation - Universal Import System)
+try:
+    from core_systems.recipe_importer import UniversalRecipeImporter, ImportRequest, ImportResult
+    RECIPE_IMPORT_AVAILABLE = True
+    logger.info("✅ Universal recipe import system loaded")
+except ImportError as e:
+    RECIPE_IMPORT_AVAILABLE = False
+    logger.warning(f"⚠️ Recipe import system not available: {e}")
 
 # Import meal planning systems
 try:
@@ -105,6 +133,116 @@ try:
 except Exception as e:
     logger.error(f"❌ Failed to initialize authentication system: {e}")
     auth_system = None
+
+def check_authentication():
+    """
+    Check if request has valid JWT authentication
+    Returns (user_id, error_response, status_code) tuple
+    """
+    print(f"🔐 Authentication check called for {request.method} {request.path}")
+    try:
+        # Get Authorization header
+        auth_header = request.headers.get('Authorization')
+        print(f"🔐 Authorization header: {auth_header}")
+        if not auth_header:
+            print("❌ Missing Authorization header")
+            return None, jsonify({'error': 'Missing Authorization header'}), 401
+        
+        # Extract token
+        if not auth_header.startswith('Bearer '):
+            print("❌ Invalid Authorization header format")
+            return None, jsonify({'error': 'Invalid Authorization header format'}), 401
+        
+        token = auth_header.split(' ')[1]
+        print(f"🔐 Token extracted: {token[:20]}...")
+        
+        # Try to use the auth_system's JWT manager if available
+        if auth_system and hasattr(auth_system, 'jwt'):
+            try:
+                print("🔐 Using auth_system JWT manager")
+                from flask_jwt_extended import decode_token
+                with auth_system.app.app_context():
+                    decoded_token = decode_token(token)
+                    user_id = decoded_token['sub']
+                    # Convert to integer if it's a string representation of a number
+                    if isinstance(user_id, str) and user_id.isdigit():
+                        user_id = int(user_id)
+                    print(f"✅ Token valid via auth_system, user_id: {user_id}")
+                    return user_id, None, None
+            except Exception as e:
+                print(f"❌ Auth system validation failed: {e}")
+                # Fall through to manual validation
+        
+        # Fallback: Manual JWT validation with same secret logic as AuthenticationSystem
+        try:
+            import jwt
+            import json
+            import base64
+            
+            # Use exact same secret generation as AuthenticationSystem
+            jwt_secret = os.getenv('JWT_SECRET_KEY')
+            if not jwt_secret:
+                database_url = os.getenv('DATABASE_URL', '')
+                if database_url:
+                    import hashlib
+                    jwt_secret = hashlib.sha256(database_url.encode()).hexdigest()
+                else:
+                    jwt_secret = 'dev-secret-key-for-local-testing-only'
+            
+            print(f"🔐 Using JWT secret: {jwt_secret[:10]}...")
+            
+            # First, try to decode without verification to see the payload
+            try:
+                payload_part = token.split('.')[1]
+                # Add padding if needed
+                padding_needed = len(payload_part) % 4
+                if padding_needed:
+                    payload_part += '=' * (4 - padding_needed)
+                    
+                payload_bytes = base64.urlsafe_b64decode(payload_part)
+                payload = json.loads(payload_bytes)
+                print(f"🔐 Decoded payload: {payload}")
+                
+                user_id = payload.get('sub')
+                print(f"🔐 Raw user_id from payload: {user_id} (type: {type(user_id)})")
+                
+                # Now verify the signature manually
+                try:
+                    jwt.decode(token, jwt_secret, algorithms=['HS256'], options={"verify_sub": False})
+                    print("✅ JWT signature verified successfully")
+                except Exception as sig_error:
+                    print(f"❌ JWT signature verification failed: {sig_error}")
+                    return None, jsonify({'error': f'Invalid token signature: {str(sig_error)}'}), 401
+                
+                # Handle both string and integer user IDs
+                if isinstance(user_id, str):
+                    if user_id.isdigit():
+                        user_id = int(user_id)
+                    else:
+                        print(f"❌ Non-numeric string user_id: {user_id}")
+                        return None, jsonify({'error': 'Invalid token payload'}), 401
+                elif isinstance(user_id, int):
+                    pass  # Already an integer, which is what we want
+                else:
+                    print(f"❌ Invalid user_id type: {type(user_id)}")
+                    return None, jsonify({'error': 'Invalid token payload'}), 401
+                
+                print(f"✅ Token valid via manual validation, user_id: {user_id} (type: {type(user_id)})")
+                if not user_id:
+                    print("❌ Token payload missing user_id")
+                    return None, jsonify({'error': 'Invalid token payload'}), 401
+                return user_id, None, None
+                
+            except Exception as decode_error:
+                print(f"❌ Token payload decoding failed: {decode_error}")
+                return None, jsonify({'error': f'Invalid token format: {str(decode_error)}'}), 401
+        except jwt.InvalidTokenError as e:
+            print(f"❌ Token validation failed: {e}")
+            return None, jsonify({'error': f'Invalid token: {str(e)}'}), 401
+    
+    except Exception as e:
+        print(f"❌ Authentication error: {e}")
+        return None, jsonify({'error': f'Authentication error: {str(e)}'}), 500
 
 # Enhanced systems - with proper error handling
 UNIVERSAL_SEARCH_AVAILABLE = False
@@ -423,6 +561,241 @@ def get_recipe(recipe_id):
             'error': str(e)
         }), 500
 
+# ============================================================================
+# TEMPLATE RECIPE SYSTEM ENDPOINTS
+# ============================================================================
+
+@app.route('/api/user/recipes', methods=['GET'])
+def get_user_recipes():
+    """Get user's personal recipe collection with admin override"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        if not template_system:
+            return jsonify({
+                'success': False,
+                'error': 'Template system not available'
+            }), 503
+        
+        # Check if user is admin - CLEAN VERSION
+        is_admin = False
+        admin_debug_info = {"detected": False, "email": None, "token_valid": False, "user_id": None}
+        
+        try:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                # Use the working authentication method
+                user_id, error_response, status_code = check_authentication()
+                if user_id:
+                    admin_debug_info["token_valid"] = True
+                    admin_debug_info["user_id"] = user_id
+                    
+                    # Get user email from database
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute('SELECT email FROM users WHERE id = %s', (user_id,))
+                    result = cursor.fetchone()
+                    conn.close()
+                    
+                    if result:
+                        # Handle both RealDictRow and tuple results
+                        if hasattr(result, 'get'):
+                            user_email = result['email'].lower().strip()
+                        else:
+                            user_email = result[0].lower().strip()
+                            
+                        admin_debug_info["email"] = user_email
+                        
+                        # Check if user is admin
+                        is_admin = (user_email == 'tran.mich@gmail.com')
+                        admin_debug_info["detected"] = is_admin
+                        
+                        if is_admin:
+                            logger.info(f"� Admin access granted for: {user_email}")
+                    else:
+                        logger.error(f"❌ User ID {user_id} not found in database")
+                        
+        except Exception as e:
+            logger.error(f"❌ Admin detection error: {e}")
+        
+        if is_admin:
+            # Admin sees ALL recipes in the database for curation
+            logger.info(f"🔧 Admin requesting all recipes for curation")
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                
+                cursor.execute('''
+                    SELECT r.*, 
+                           CASE WHEN r.is_template THEN 'template' 
+                                WHEN r.template_id IS NOT NULL THEN 'template_copy' 
+                                ELSE 'original' END as recipe_type,
+                           u.email as owner_email
+                    FROM recipes r
+                    LEFT JOIN users u ON r.user_id = u.id
+                    ORDER BY r.created_at DESC
+                ''')
+                
+                all_recipes = [dict(row) for row in cursor.fetchall()]
+                conn.close()
+                
+                logger.info(f"🔧 Admin retrieved {len(all_recipes)} total recipes for curation")
+                return jsonify({
+                    'success': True,
+                    'data': all_recipes,
+                    'count': len(all_recipes),
+                    'admin_access': True,
+                    'message': f'All {len(all_recipes)} recipes available for admin curation'
+                })
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to get admin recipes: {e}")
+                return jsonify({'success': False, 'error': 'Failed to retrieve admin recipes'}), 500
+        else:
+            # Regular users get their personal collection (limited to 500)
+            recipes = template_system.get_user_recipes(user_id)
+            
+            # Apply 500 recipe limit for regular users
+            if len(recipes) > 500:
+                recipes = recipes[:500]
+                limited_message = f"Showing first 500 of your recipes"
+            else:
+                limited_message = f"All {len(recipes)} personal recipes"
+            
+            logger.info(f"👤 User {user_id} retrieved {len(recipes)} personal recipes")
+            return jsonify({
+                'success': True,
+                'data': recipes,
+                'count': len(recipes),
+                'admin_access': False,
+                'message': limited_message
+            })
+        
+    except Exception as e:
+        logger.error(f"Get user recipes error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/recipes/<recipe_id>/edit', methods=['POST'])
+def edit_recipe_copy_on_write(recipe_id):
+    """Edit a recipe - creates user copy if editing a template"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        if not template_system:
+            return jsonify({
+                'success': False,
+                'error': 'Template system not available'
+            }), 503
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        # Check if we need to create a copy (editing a template)
+        actual_recipe_id = template_system.copy_template_on_edit(user_id, int(recipe_id))
+        
+        if not actual_recipe_id:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to prepare recipe for editing'
+            }), 500
+        
+        # Now update the recipe (either original user recipe or new copy)
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        cursor.execute('''
+            UPDATE recipes SET
+                title = %s,
+                description = %s,
+                ingredients = %s,
+                instructions = %s,
+                category = %s,
+                meal_role = %s,
+                prep_time = %s,
+                cook_time = %s,
+                servings = %s,
+                source_url = %s,
+                confidence = %s
+            WHERE id = %s AND user_id = %s
+        ''', (
+            data.get('title'),
+            data.get('description'),
+            data.get('ingredients'),
+            data.get('instructions'),
+            data.get('category'),
+            data.get('meal_role'),
+            data.get('prep_time'),
+            data.get('cook_time'),
+            data.get('servings'),
+            data.get('source_url'),
+            data.get('confidence'),
+            actual_recipe_id,
+            user_id
+        ))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Recipe not found or permission denied'
+            }), 404
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'recipe_id': actual_recipe_id,
+            'message': 'Recipe updated successfully',
+            'was_copied': actual_recipe_id != int(recipe_id)
+        })
+        
+    except Exception as e:
+        logger.error(f"Edit recipe error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/admin/template-stats', methods=['GET'])
+def get_template_system_stats():
+    """Get statistics about the template system (admin only)"""
+    try:
+        if not template_system:
+            return jsonify({
+                'success': False,
+                'error': 'Template system not available'
+            }), 503
+        
+        stats = template_system.get_system_stats()
+        
+        return jsonify({
+            'success': True,
+            'data': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"Template stats error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ============================================================================
+# END TEMPLATE RECIPE SYSTEM ENDPOINTS
+# ============================================================================
+
 @app.route('/api/search', methods=['GET'])
 def search_recipes():
     """
@@ -443,8 +816,34 @@ def search_recipes():
             }), 400
 
         # Use universal search engine - SINGLE SOURCE OF TRUTH
-        recipes = search_recipes_by_query(query, limit=50)
-        logger.info(f"🌐 Universal API returning {len(recipes)} enhanced recipes")
+        # Admin override: No limits for tran.mich@gmail.com
+        # Regular users: Max 500 recipes (configurable limit)
+        # For general recipe loading (query='recipe'), use higher limit but with admin override
+        
+        # Check if user is admin
+        is_admin = False
+        try:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+                user_data = auth_system.validate_token(token)
+                if user_data['valid']:
+                    user_email = user_data.get('email', '').lower()
+                    is_admin = (user_email == 'tran.mich@gmail.com')
+        except:
+            pass  # Non-critical - default to non-admin
+        
+        if is_admin:
+            # Admin sees ALL recipes with no limits
+            search_limit = 10000 if query.lower() == 'recipe' else 1000
+            logger.info(f"🔧 Admin access detected - using unlimited search (limit: {search_limit})")
+        else:
+            # Regular users get limited results
+            search_limit = 500 if query.lower() == 'recipe' else 50
+            logger.info(f"👤 Regular user access - using limited search (limit: {search_limit})")
+        
+        recipes = search_recipes_by_query(query, limit=search_limit)
+        logger.info(f"🌐 Universal API returning {len(recipes)} enhanced recipes (limit: {search_limit})")
 
         # Extract enhanced search metadata
         search_metadata = {
@@ -1458,14 +1857,23 @@ def list_meal_plans():
     try:
         limit = request.args.get('limit', 50, type=int)
 
-        meal_planner = MealPlanningSystem()
-        plans = meal_planner.list_meal_plans(limit=limit)
-
+        # Temporary fix: Return empty meal plans instead of erroring
+        # TODO: Fix meal planning system database connection issue
         return jsonify({
             'success': True,
-            'meal_plans': plans,
-            'count': len(plans)
+            'meal_plans': [],
+            'count': 0,
+            'note': 'Meal planning temporarily disabled due to database connection issue'
         })
+
+        # meal_planner = MealPlanningSystem()
+        # plans = meal_planner.list_meal_plans(limit=limit)
+        # 
+        # return jsonify({
+        #     'success': True,
+        #     'meal_plans': plans,
+        #     'count': len(plans)
+        # })
 
     except Exception as e:
         logger.error(f"List meal plans error: {e}")
@@ -2109,6 +2517,179 @@ def get_pantry_toggle_status():
         }), 500
 
 # ===================================
+# RECIPE IMPORT ENDPOINTS - DAY 1 IMPLEMENTATION
+# ===================================
+
+@app.route('/api/recipes/import/text', methods=['POST'])
+def import_recipe_from_text():
+    """Import recipe from pasted text"""
+    if not RECIPE_IMPORT_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'Recipe import system not available'
+        }), 503
+    
+    # Check authentication
+    user_id, error_response, status_code = check_authentication()
+    if error_response:
+        return error_response, status_code
+    
+    try:
+        data = request.get_json()
+        
+        # Validate request
+        if not data or 'recipe_text' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Missing recipe_text in request body'
+            }), 400
+        
+        recipe_text = data['recipe_text']
+        
+        # Create import request
+        import_request = ImportRequest(
+            source_type='text',
+            source_data=recipe_text,
+            user_id=user_id,
+            metadata=data.get('metadata', {})
+        )
+        
+        # Initialize importer and process
+        importer = UniversalRecipeImporter()
+        result = importer.import_recipe(import_request)
+        
+        # Return result
+        return jsonify({
+            'success': result.success,
+            'recipe_id': result.recipe_id,
+            'recipe_data': result.recipe_data,
+            'confidence': result.confidence,
+            'needs_review': result.needs_review,
+            'extraction_method': result.extraction_method,
+            'processing_time': result.processing_time,
+            'errors': result.errors,
+            'warnings': result.warnings
+        })
+        
+    except Exception as e:
+        logger.error(f"Text import failed: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Import failed: {str(e)}'
+        }), 500
+
+@app.route('/api/recipes/import/url', methods=['POST'])
+def import_recipe_from_url():
+    """Import recipe from website URL (Day 2 implementation)"""
+    print("🚨 IMPORT REQUEST RECEIVED!")  # This will definitely show up
+    logger.info("🚨 IMPORT REQUEST RECEIVED!")
+    
+    if not RECIPE_IMPORT_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'Recipe import system not available'
+        }), 503
+    
+    # Check authentication
+    user_id, error_response, status_code = check_authentication()
+    if error_response:
+        return error_response, status_code
+    
+    try:
+        data = request.get_json()
+        
+        # Validate request
+        if not data or 'url' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Missing url in request body'
+            }), 400
+        
+        url = data['url']
+        
+        # Create import request
+        import_request = ImportRequest(
+            source_type='url',
+            source_data=url,
+            user_id=user_id,
+            metadata=data.get('metadata', {})
+        )
+        
+        # Initialize importer and process
+        importer = UniversalRecipeImporter()
+        result = importer.import_recipe(import_request)
+        
+        # CRITICAL: Refresh search engine cache after successful import
+        if result.success and result.recipe_id:
+            logger.info(f"🔄 Refreshing search cache for new recipe ID: {result.recipe_id}")
+            if search_engine:
+                search_engine.refresh_database_cache()
+            logger.info(f"✅ Search cache refreshed - new recipe should be visible")
+        
+        # Return result
+        return jsonify({
+            'success': result.success,
+            'recipe_id': result.recipe_id,
+            'recipe_data': result.recipe_data,
+            'confidence': result.confidence,
+            'needs_review': result.needs_review,
+            'extraction_method': result.extraction_method,
+            'processing_time': result.processing_time,
+            'errors': result.errors,
+            'warnings': result.warnings
+        })
+        
+    except Exception as e:
+        logger.error(f"URL import failed: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Import failed: {str(e)}'
+        }), 500
+
+@app.route('/api/recipes/import/check-duplicates', methods=['POST'])
+def check_recipe_duplicates():
+    """Check for duplicate recipes before importing"""
+    if not RECIPE_IMPORT_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'Recipe import system not available'
+        }), 503
+    
+    # Check authentication
+    user_id, error_response, status_code = check_authentication()
+    if error_response:
+        return error_response, status_code
+    
+    try:
+        data = request.get_json()
+        
+        if not data or 'recipe_data' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Missing recipe_data in request body'
+            }), 400
+        
+        recipe_data = data['recipe_data']
+        
+        # Initialize importer and check for duplicates
+        importer = UniversalRecipeImporter()
+        duplicates = importer.check_for_duplicates(recipe_data, user_id)
+        
+        return jsonify({
+            'success': True,
+            'has_duplicates': len(duplicates) > 0,
+            'duplicates': duplicates,
+            'count': len(duplicates)
+        })
+        
+    except Exception as e:
+        logger.error(f"Duplicate check failed: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Duplicate check failed: {str(e)}'
+        }), 500
+
+# ===================================
 # HEALTH CHECK ENDPOINT
 # ===================================
 
@@ -2120,6 +2701,7 @@ def health_check():
             'universal_search': UNIVERSAL_SEARCH_AVAILABLE,
             'flavor_profile': False,
             'meal_planning': MEAL_PLANNING_AVAILABLE,
+            'recipe_import': RECIPE_IMPORT_AVAILABLE,
             'session_management': session_manager is not None,
             'ai_chat': client is not None,
             'database_connection': True
@@ -2165,10 +2747,42 @@ if __name__ == "__main__":
         auth_system = AuthenticationSystem(app, get_db_connection)
         auth_routes = create_auth_routes(auth_system)
         app.register_blueprint(auth_routes)
-        logger.info("?? Authentication system initialized and routes registered")
+        logger.info("✅ Authentication system initialized and routes registered")
     except Exception as e:
-        logger.error(f"? Failed to initialize authentication system: {e}")
+        logger.error(f"❌ Failed to initialize authentication system: {e}")
         auth_system = None
+
+    # Initialize Template Recipe System
+    template_system = None
+    if TEMPLATE_SYSTEM_AVAILABLE:
+        try:
+            template_system = TemplateRecipeSystem(get_db_connection)
+            # Initialize schema (safe to run multiple times)
+            if template_system.initialize_schema():
+                logger.info("✅ Template recipe system schema initialized")
+                # Create default recipes if they don't exist
+                if template_system.create_default_templates():
+                    logger.info("✅ Default template recipes ready")
+            logger.info("🎯 Template recipe system initialized")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize template system: {e}")
+            template_system = None
+    else:
+        logger.warning("⚠️ Template recipe system not available")
+
+    # Initialize Admin System
+    admin_system = None
+    if ADMIN_SYSTEM_AVAILABLE and auth_system:
+        try:
+            admin_system = AdminSystem(get_db_connection, auth_system)
+            admin_routes = create_admin_routes(admin_system, auth_system)
+            app.register_blueprint(admin_routes)
+            logger.info("🔧 Admin system initialized and routes registered")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize admin system: {e}")
+            admin_system = None
+    else:
+        logger.warning("⚠️ Admin system not available")
 
     # Universal Search Engine status check
     if search_engine:

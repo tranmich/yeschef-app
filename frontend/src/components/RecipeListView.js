@@ -20,10 +20,47 @@ const RecipeListView = ({
 
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(recipe =>
-        recipe.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        recipe.ingredients?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      console.log('🔍 Searching with term:', searchTerm);
+      console.log('🔍 Total recipes before filter:', filtered.length);
+      
+      filtered = filtered.filter(recipe => {
+        const titleMatch = recipe.title?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        // Handle ingredients as both string and array
+        let ingredientsMatch = false;
+        if (recipe.ingredients) {
+          if (typeof recipe.ingredients === 'string') {
+            // Handle ingredients as string
+            ingredientsMatch = recipe.ingredients.toLowerCase().includes(searchTerm.toLowerCase());
+          } else if (Array.isArray(recipe.ingredients)) {
+            // Handle ingredients as array - search through all ingredients
+            ingredientsMatch = recipe.ingredients.some(ingredient => {
+              const ingredientText = typeof ingredient === 'string' 
+                ? ingredient 
+                : ingredient.name || ingredient.ingredient || String(ingredient);
+              return ingredientText.toLowerCase().includes(searchTerm.toLowerCase());
+            });
+          }
+        }
+        
+        const matches = titleMatch || ingredientsMatch;
+        
+        // Debug logging for imported recipes
+        if (recipe.confidence !== undefined || recipe.imported_at) {
+          console.log('🔍 Checking imported recipe:', {
+            title: recipe.title,
+            ingredients: recipe.ingredients,
+            titleMatch,
+            ingredientsMatch,
+            matches,
+            searchTerm
+          });
+        }
+        
+        return matches;
+      });
+      
+      console.log('🔍 Total recipes after filter:', filtered.length);
     }
 
     // Sort recipes
@@ -51,6 +88,18 @@ const RecipeListView = ({
           return 0;
       }
 
+      // Debug sorting for imported recipes
+      if (a.confidence !== undefined || b.confidence !== undefined) {
+        console.log('🔍 Sorting imported recipe:', {
+          sortBy,
+          sortOrder,
+          recipeA: a.title,
+          recipeB: b.title,
+          aValue,
+          bValue
+        });
+      }
+
       if (sortBy === 'date') {
         return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
       }
@@ -63,6 +112,14 @@ const RecipeListView = ({
 
       return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
+
+    // Debug final sorted results
+    if (searchTerm) {
+      console.log('🔍 Final sorted results:', sorted.length, 'recipes');
+      const importedInResults = sorted.filter(r => r.confidence !== undefined);
+      console.log('🔍 Imported recipes in final results:', importedInResults.map(r => r.title));
+      console.log('🔍 First 5 results:', sorted.slice(0, 5).map(r => r.title));
+    }
 
     return sorted;
   }, [recipes, searchTerm, sortBy, sortOrder]);
@@ -106,21 +163,21 @@ const RecipeListView = ({
   };
 
   return (
-    <div className="recipe-list-view">
-      <div className="recipe-list-header">
+    <div className="recipe-list-view hungie-bg-paper hungie-readable-text">
+      <div className="recipe-list-header hungie-bg-paper-dark hungie-border hungie-rounded-md hungie-p-4 hungie-mb-4">
         <div className="category-title">
-          <h2>{getCategoryDisplayName(selectedCategory)}</h2>
-          <span className="recipe-count">({filteredAndSortedRecipes.length})</span>
+          <h2 className="hungie-text-charcoal hungie-font-semibold">{getCategoryDisplayName(selectedCategory)}</h2>
+          <span className="recipe-count hungie-text-sage">({filteredAndSortedRecipes.length})</span>
         </div>
 
         <div className="view-controls">
           <div className="search-bar">
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search recipes..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
+              className="search-input hungie-form-input"
             />
           </div>
           
@@ -128,7 +185,7 @@ const RecipeListView = ({
             <select 
               value={sortBy} 
               onChange={(e) => setSortBy(e.target.value)}
-              className="sort-select"
+              className="sort-select hungie-form-input"
             >
               <option value="alphabetical">Name</option>
               <option value="prep_time">Time</option>
@@ -178,15 +235,27 @@ const RecipeListView = ({
                           <span className="category-count">({categoryRecipes.length})</span>
                         </div>
                         <div className="recipe-list">
-                          {categoryRecipes.map(recipe => (
-                            <RecipeCard
-                              key={recipe.id}
-                              recipe={recipe}
-                              onRecipeClick={onRecipeClick}
-                              onRecipeEdit={onRecipeEdit}
-                              isChild={true}
-                            />
-                          ))}
+                          {categoryRecipes.map(recipe => {
+                            try {
+                              // Debug log for imported recipes
+                              if (recipe.confidence !== undefined) {
+                                console.log('🔍 Rendering imported recipe:', recipe.title, recipe);
+                              }
+                              
+                              return (
+                                <RecipeCard
+                                  key={recipe.id}
+                                  recipe={recipe}
+                                  onRecipeClick={onRecipeClick}
+                                  onRecipeEdit={onRecipeEdit}
+                                  isChild={true}
+                                />
+                              );
+                            } catch (error) {
+                              console.error('🔍 Error rendering recipe:', recipe.title, error);
+                              return null;
+                            }
+                          })}
                         </div>
                       </div>
                     );
@@ -195,15 +264,27 @@ const RecipeListView = ({
               ) : (
                 // Show flat list for specific category
                 <div className="recipe-list">
-                  {filteredAndSortedRecipes.map(recipe => (
-                    <RecipeCard
-                      key={recipe.id}
-                      recipe={recipe}
-                      onRecipeClick={onRecipeClick}
-                      onRecipeEdit={onRecipeEdit}
-                      isChild={false}
-                    />
-                  ))}
+                  {filteredAndSortedRecipes.map(recipe => {
+                    try {
+                      // Debug log for imported recipes
+                      if (recipe.confidence !== undefined) {
+                        console.log('🔍 Rendering imported recipe in flat view:', recipe.title, recipe);
+                      }
+                      
+                      return (
+                        <RecipeCard
+                          key={recipe.id}
+                          recipe={recipe}
+                          onRecipeClick={onRecipeClick}
+                          onRecipeEdit={onRecipeEdit}
+                          isChild={false}
+                        />
+                      );
+                    } catch (error) {
+                      console.error('🔍 Error rendering recipe in flat view:', recipe.title, error);
+                      return null;
+                    }
+                  })}
                 </div>
               )}
             </div>
@@ -277,13 +358,28 @@ const RecipeCard = ({
     }
   };
 
+  // Helper function to get theme color based on recipe category or random assignment
+  const getRecipeTheme = (recipe) => {
+    if (recipe.category) {
+      const category = recipe.category.toLowerCase();
+      if (category.includes('breakfast') || category.includes('brunch')) return 'yellow';
+      if (category.includes('dessert') || category.includes('sweet')) return 'red';
+      if (category.includes('salad') || category.includes('vegetable')) return 'sage';
+      if (category.includes('main') || category.includes('dinner')) return 'blue';
+    }
+    // Default theme rotation based on recipe ID for consistent colors
+    const themes = ['sage', 'yellow', 'blue', 'red'];
+    return themes[recipe.id % 4] || 'sage';
+  };
+
   const complexity = getComplexity(recipe);
+  const recipeTheme = getRecipeTheme(recipe);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`recipe-card ${isDragging ? 'dragging' : ''} ${isHovered ? 'hovered' : ''} ${isChild ? 'child-item' : ''}`}
+      className={`recipe-card hungie-recipe-card ${recipeTheme}-theme ${isDragging ? 'dragging' : ''} ${isHovered ? 'hovered' : ''} ${isChild ? 'child-item' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => {
         setIsHovered(false);
@@ -296,11 +392,11 @@ const RecipeCard = ({
       <div className="recipe-card-header">
         <div className="recipe-title-container">
           {isChild && <span className="tree-indent">    </span>}
-          <span className="recipe-title">{recipe.title}</span>
+          <span className="recipe-title hungie-recipe-title">{recipe.title}</span>
         </div>
         <div className="recipe-actions">
           <button 
-            className="action-btn edit-btn"
+            className="action-btn edit-btn hungie-btn hungie-btn-secondary"
             onClick={(e) => handleMenuAction('edit', e)}
             title="Edit"
           >
@@ -308,7 +404,7 @@ const RecipeCard = ({
           </button>
           <div className="menu-container">
             <button 
-              className="action-btn menu-btn"
+              className="action-btn menu-btn hungie-btn hungie-btn-secondary"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowMenu(!showMenu);
@@ -336,32 +432,28 @@ const RecipeCard = ({
 
       {/* Recipe info expansion below the card */}
       {isHovered && (
-        <div 
+        <div className="hungie-bg-paper-dark hungie-border hungie-rounded-md hungie-p-4 hungie-text-charcoal"
           style={{
             marginTop: '4px',
-            background: '#f8f9fa',
-            border: '1px solid #e9ecef',
-            borderRadius: '4px',
-            padding: '8px 10px',
-            fontSize: '9px',
-            lineHeight: '1.3',
-            color: '#495057'
+            fontSize: '12px',
+            lineHeight: '1.4',
+            animation: 'fadeIn 200ms ease-out'
           }}
         >
-          <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px'}}>
-            <span style={{fontWeight: '500', color: '#374151', minWidth: '35px'}}>Time:</span>
-            <span style={{color: '#6b7280'}}>{formatPrepTime(recipe.time_min) || 'Not set'}</span>
+          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
+            <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>⏱️ Time:</span>
+            <span className="hungie-text-charcoal-light">{formatPrepTime(recipe.time_min) || 'Not set'}</span>
           </div>
           
-          <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px'}}>
-            <span style={{fontWeight: '500', color: '#374151', minWidth: '35px'}}>Rating:</span>
-            <span style={{color: '#6b7280'}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
+            <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>⭐ Rating:</span>
+            <span className="hungie-text-charcoal-light">
               {recipe.rating ? `★ ${recipe.rating}/5` : 'No rating'}
             </span>
           </div>
           
-          <div style={{display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px'}}>
-            <span style={{fontWeight: '500', color: '#374151', minWidth: '35px'}}>Level:</span>
+          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
+            <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>📊 Level:</span>
             <span style={{ color: complexity.color, fontWeight: '500' }}>
               {complexity.text}
             </span>

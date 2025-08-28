@@ -1,0 +1,559 @@
+/* ImportRecipeModal.css - Styling for recipe import modal */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.import-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: #f8f9fa;
+  color: #495057;
+}
+
+.modal-content {
+  padding: 24px;
+}
+
+/* Import Type Selector */
+.import-type-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.type-button {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e9ecef;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  color: #6c757d;
+}
+
+.type-button:hover {
+  border-color: #007bff;
+  color: #007bff;
+  background: #f8f9ff;
+}
+
+.type-button.active {
+  border-color: #007bff;
+  background: #007bff;
+  color: white;
+}
+
+/* Input Section */
+.input-section {
+  margin-bottom: 20px;
+}
+
+.input-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.recipe-text-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 200px;
+}
+
+.recipe-text-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.recipe-url-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.recipe-url-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.sample-button {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #6c757d;
+  transition: all 0.2s ease;
+}
+
+.sample-button:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.url-help {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #007bff;
+}
+
+.url-help p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #6c757d;
+}
+
+/* Error Message */
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  border: 1px solid #f5c6cb;
+}
+
+/* Modal Actions */
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.cancel-button {
+  padding: 10px 20px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.cancel-button:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.import-button {
+  padding: 10px 20px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.import-button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.import-button:disabled,
+.cancel-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Import Result Styles */
+.import-result {
+  text-align: left;
+}
+
+.result-header {
+  margin-bottom: 20px;
+}
+
+.result-header h3 {
+  color: #28a745;
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+
+.confidence-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.confidence-bar {
+  flex: 1;
+  height: 6px;
+  background: #e9ecef;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.confidence-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
+  transition: width 0.3s ease;
+}
+
+.result-details {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.recipe-preview h4 {
+  margin: 0 0 12px;
+  color: #495057;
+  font-size: 16px;
+}
+
+.preview-field {
+  margin-bottom: 12px;
+}
+
+.preview-field strong {
+  color: #495057;
+  margin-right: 8px;
+}
+
+.ingredients-preview {
+  margin-top: 4px;
+  margin-left: 16px;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.import-stats {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #dee2e6;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.stat-label {
+  color: #6c757d;
+}
+
+.stat-value {
+  color: #495057;
+  font-weight: 500;
+}
+
+.review-notice {
+  background: #fff3cd;
+  color: #856404;
+  padding: 10px;
+  border-radius: 6px;
+  margin: 12px 0;
+  border: 1px solid #ffeaa7;
+  font-size: 14px;
+}
+
+.warnings {
+  background: #fff3cd;
+  padding: 12px;
+  border-radius: 6px;
+  margin: 12px 0;
+  border: 1px solid #ffeaa7;
+}
+
+.warnings h5 {
+  margin: 0 0 8px;
+  color: #856404;
+  font-size: 14px;
+}
+
+.warnings div {
+  font-size: 13px;
+  color: #856404;
+  margin: 2px 0;
+}
+
+.result-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.secondary-button {
+  padding: 10px 20px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.secondary-button:hover {
+  background: #5a6268;
+}
+
+.primary-button {
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.primary-button:hover {
+  background: #218838;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .import-modal {
+    width: 95vw;
+    margin: 10px;
+  }
+  
+  .modal-content {
+    padding: 16px;
+  }
+  
+  .import-type-selector {
+    flex-direction: column;
+  }
+  
+  .type-button {
+    flex: none;
+  }
+  
+  .confidence-indicator {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .modal-actions,
+  .result-actions {
+    flex-direction: column;
+  }
+  
+  .cancel-button,
+  .import-button,
+  .secondary-button,
+  .primary-button {
+    width: 100%;
+  }
+}
+
+/* Recipe Preview & Edit Interface */
+.recipe-preview-edit {
+  padding: 20px 24px;
+}
+
+.preview-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.preview-header h3 {
+  margin: 0 0 12px;
+  color: #2c3e50;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.preview-help {
+  margin: 12px 0 0;
+  color: #6c757d;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.editable-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.edit-field label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.edit-input,
+.edit-textarea {
+  padding: 10px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.edit-input:focus,
+.edit-textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.edit-textarea {
+  resize: vertical;
+  min-height: 100px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  line-height: 1.5;
+}
+
+.edit-textarea.short {
+  min-height: 60px;
+}
+
+.edit-input.readonly {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.edit-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.cancel-button,
+.confirm-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+
+.cancel-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.cancel-button:hover {
+  background-color: #5a6268;
+}
+
+.confirm-button {
+  background-color: #28a745;
+  color: white;
+}
+
+.confirm-button:hover {
+  background-color: #218838;
+}
+
+/* Mobile responsive for preview */
+@media (max-width: 768px) {
+  .edit-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .preview-actions {
+    flex-direction: column;
+  }
+  
+  .cancel-button,
+  .confirm-button {
+    width: 100%;
+  }
+}

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Authentication</title>
+</head>
+<body>
+    <h1>🔐 Debug Authentication Status</h1>
+    <div id="results"></div>
+    
+    <script>
+        function debugAuth() {
+            const results = document.getElementById('results');
+            
+            // Check localStorage for auth token
+            const token = localStorage.getItem('authToken');
+            const user = localStorage.getItem('user');
+            
+            results.innerHTML += `<h3>📱 Frontend Storage:</h3>`;
+            results.innerHTML += `<p>🔑 Token: ${token ? token.substring(0, 20) + '...' : 'NOT FOUND'}</p>`;
+            results.innerHTML += `<p>👤 User: ${user || 'NOT FOUND'}</p>`;
+            
+            if (token) {
+                // Test API call with token
+                results.innerHTML += `<h3>🧪 Testing API Call:</h3>`;
+                
+                fetch('http://localhost:5000/api/recipes/import/text', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        recipe_text: 'Test recipe: 1 cup flour, 2 eggs, mix and bake for 30 minutes at 350F. Makes 4 servings.'
+                    })
+                })
+                .then(response => {
+                    results.innerHTML += `<p>📊 Response Status: ${response.status}</p>`;
+                    return response.json();
+                })
+                .then(data => {
+                    results.innerHTML += `<p>📄 Response Data: ${JSON.stringify(data, null, 2)}</p>`;
+                })
+                .catch(error => {
+                    results.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+                });
+            } else {
+                results.innerHTML += `<p>⚠️ No token found - you need to log in first!</p>`;
+            }
+        }
+        
+        // Run debug on page load
+        debugAuth();
+    </script>
+</body>
+</html>
