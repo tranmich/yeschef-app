@@ -109,6 +109,17 @@ CHEF_PERSONALITY = """You are Hungie, an enthusiastic and knowledgeable personal
 # Initialize Flask app
 app = Flask(__name__)
 
+# Add a simple direct test endpoint (not through blueprints) - for debugging
+@app.route('/api/direct-test', methods=['GET'])
+def direct_test():
+    from datetime import datetime
+    return jsonify({
+        'success': True,
+        'message': 'Direct route is working!',
+        'timestamp': datetime.now().isoformat(),
+        'method': 'direct_app_route'
+    })
+
 # Configure CORS properly - use only one method
 CORS(app, resources={
     r"/api/*": {
@@ -2760,9 +2771,8 @@ if __name__ == "__main__":
             # Initialize schema (safe to run multiple times)
             if template_system.initialize_schema():
                 logger.info("✅ Template recipe system schema initialized")
-                # Create default recipes if they don't exist
-                if template_system.create_default_templates():
-                    logger.info("✅ Default template recipes ready")
+                # Skip default template creation during manual curation phase
+                logger.info("📋 Default template creation disabled - manual curation mode")
             logger.info("🎯 Template recipe system initialized")
         except Exception as e:
             logger.error(f"❌ Failed to initialize template system: {e}")
@@ -2774,10 +2784,116 @@ if __name__ == "__main__":
     admin_system = None
     if ADMIN_SYSTEM_AVAILABLE and auth_system:
         try:
+            logger.info("🔧 Starting admin system initialization...")
             admin_system = AdminSystem(get_db_connection, auth_system)
-            admin_routes = create_admin_routes(admin_system, auth_system)
+            logger.info("🔧 AdminSystem created successfully")
+            
+            admin_routes = create_admin_routes(admin_system, auth_system, check_authentication)
+            logger.info("🔧 Admin routes created successfully")
+            
             app.register_blueprint(admin_routes)
+            logger.info("🔧 Admin routes blueprint registered successfully")
+            
+            # Test if the routes are actually available
+            with app.test_request_context():
+                all_routes = []
+                for rule in app.url_map.iter_rules():
+                    if '/admin/' in rule.rule:
+                        all_routes.append(rule.rule)
+                logger.info(f"🔧 Registered admin routes: {all_routes}")
+            
             logger.info("🔧 Admin system initialized and routes registered")
+            
+            # Add a simple test endpoint to verify admin routes are working
+            @app.route('/api/admin/test', methods=['GET'])
+            def admin_test():
+                from datetime import datetime
+                return jsonify({
+                    'success': True,
+                    'message': 'Admin routes are working!',
+                    'timestamp': datetime.now().isoformat()
+                })
+            
+            # Add a test endpoint WITHOUT authentication to verify blueprint is working
+            @app.route('/api/admin/test-no-auth', methods=['GET'])
+            def admin_test_no_auth():
+                from datetime import datetime
+                return jsonify({
+                    'success': True,
+                    'message': 'Admin blueprint is working! (no auth required)',
+                    'timestamp': datetime.now().isoformat(),
+                    'routes_registered': True
+                })
+            
+            # Add a test endpoint that goes through admin authentication
+            @app.route('/api/admin/auth-test', methods=['GET'])
+            def admin_auth_test():
+                try:
+                    # Check JWT authentication first
+                    auth_header = request.headers.get('Authorization')
+                    logger.info(f"🔧 Auth test - Header: {auth_header}")
+                    
+                    if not auth_header or not auth_header.startswith('Bearer '):
+                        return jsonify({'error': 'No valid authentication token', 'step': 'header_check'}), 401
+                    
+                    token = auth_header.split(' ')[1]
+                    logger.info(f"🔑 Auth test - Token: {token[:20]}...")
+                    
+                    # Try to validate token
+                    user_data = auth_system.validate_token(token)
+                    logger.info(f"🔑 Auth test - Token validation: {user_data}")
+                    
+                    if not user_data['valid']:
+                        return jsonify({'error': 'Invalid authentication token', 'step': 'token_validation'}), 401
+                    
+                    # Check if user is admin
+                    user_email = user_data.get('email')
+                    logger.info(f"👤 Auth test - User email: {user_email}")
+                    
+                    is_admin = admin_system.is_admin_user(user_email)
+                    logger.info(f"🔧 Auth test - Is admin: {is_admin}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'user_email': user_email,
+                        'is_admin': is_admin,
+                        'token_valid': user_data['valid'],
+                        'message': 'Authentication test complete'
+                    })
+                    
+                except Exception as e:
+                    logger.error(f"❌ Auth test error: {e}")
+                    return jsonify({'error': str(e), 'step': 'exception'}), 500
+            
+            # Add a test endpoint that uses the admin_required decorator
+            @app.route('/api/admin/test-with-auth', methods=['GET'])
+            def admin_test_with_auth():
+                try:
+                    # This will simulate the admin_required decorator manually
+                    auth_header = request.headers.get('Authorization')
+                    if not auth_header or not auth_header.startswith('Bearer '):
+                        return jsonify({'error': 'No valid authentication token'}), 401
+                    
+                    token = auth_header.split(' ')[1]
+                    user_data = auth_system.validate_token(token)
+                    
+                    if not user_data['valid']:
+                        return jsonify({'error': 'Invalid authentication token'}), 401
+                    
+                    user_email = user_data.get('email')
+                    if not admin_system.is_admin_user(user_email):
+                        return jsonify({'error': 'Admin access required'}), 403
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': 'Admin test with authentication successful!',
+                        'admin_email': user_email
+                    })
+                    
+                except Exception as e:
+                    logger.error(f"❌ Admin test with auth error: {e}")
+                    return jsonify({'error': str(e)}), 500
+                
         except Exception as e:
             logger.error(f"❌ Failed to initialize admin system: {e}")
             admin_system = None

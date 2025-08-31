@@ -88,18 +88,6 @@ const RecipeListView = ({
           return 0;
       }
 
-      // Debug sorting for imported recipes
-      if (a.confidence !== undefined || b.confidence !== undefined) {
-        console.log('🔍 Sorting imported recipe:', {
-          sortBy,
-          sortOrder,
-          recipeA: a.title,
-          recipeB: b.title,
-          aValue,
-          bValue
-        });
-      }
-
       if (sortBy === 'date') {
         return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
       }
@@ -237,11 +225,6 @@ const RecipeListView = ({
                         <div className="recipe-list">
                           {categoryRecipes.map(recipe => {
                             try {
-                              // Debug log for imported recipes
-                              if (recipe.confidence !== undefined) {
-                                console.log('🔍 Rendering imported recipe:', recipe.title, recipe);
-                              }
-                              
                               return (
                                 <RecipeCard
                                   key={recipe.id}
@@ -266,11 +249,6 @@ const RecipeListView = ({
                 <div className="recipe-list">
                   {filteredAndSortedRecipes.map(recipe => {
                     try {
-                      // Debug log for imported recipes
-                      if (recipe.confidence !== undefined) {
-                        console.log('🔍 Rendering imported recipe in flat view:', recipe.title, recipe);
-                      }
-                      
                       return (
                         <RecipeCard
                           key={recipe.id}

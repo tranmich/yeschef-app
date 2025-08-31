@@ -10,7 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def create_admin_routes(admin_system, auth_system):
+def create_admin_routes(admin_system, auth_system, check_authentication_func=None):
     """Create admin routes blueprint"""
     admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
     
@@ -19,31 +19,85 @@ def create_admin_routes(admin_system, auth_system):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             try:
-                # Check JWT authentication first
-                auth_header = request.headers.get('Authorization')
-                if not auth_header or not auth_header.startswith('Bearer '):
-                    return jsonify({'error': 'No valid authentication token'}), 401
+                logger.info(f"🔧 Admin endpoint accessed: {request.endpoint}")
                 
-                token = auth_header.split(' ')[1]
-                user_data = auth_system.validate_token(token)
+                # Use the passed check_authentication function
+                if check_authentication_func:
+                    user_id, error_response, status_code = check_authentication_func()
+                else:
+                    # Fallback: manual token validation
+                    auth_header = request.headers.get('Authorization')
+                    if not auth_header or not auth_header.startswith('Bearer '):
+                        logger.warning("❌ No valid authentication token")
+                        return jsonify({'error': 'No valid authentication token', 'debug': 'header_missing'}), 401
+                    
+                    # Import check_authentication from global scope
+                    import sys
+                    if 'hungie_server' in sys.modules:
+                        check_auth = getattr(sys.modules['hungie_server'], 'check_authentication', None)
+                        if check_auth:
+                            user_id, error_response, status_code = check_auth()
+                        else:
+                            logger.error("❌ check_authentication function not found")
+                            return jsonify({'error': 'Authentication system error', 'debug': 'check_auth_not_found'}), 500
+                    else:
+                        logger.error("❌ hungie_server module not found")
+                        return jsonify({'error': 'Authentication system error', 'debug': 'module_not_found'}), 500
                 
-                if not user_data['valid']:
-                    return jsonify({'error': 'Invalid authentication token'}), 401
+                if error_response:
+                    logger.warning(f"❌ Authentication failed: {error_response}")
+                    return error_response, status_code
+                
+                if not user_id:
+                    logger.warning("❌ No user ID from authentication")
+                    return jsonify({'error': 'Authentication failed', 'debug': 'no_user_id'}), 401
+                
+                logger.info(f"✅ User authenticated: {user_id}")
+                
+                # Get user email from database
+                try:
+                    conn = admin_system.get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute('SELECT email FROM users WHERE id = %s', (user_id,))
+                    result = cursor.fetchone()
+                    conn.close()
+                    
+                    if not result:
+                        logger.warning(f"❌ User ID {user_id} not found in database")
+                        return jsonify({'error': 'User not found', 'debug': 'user_not_found'}), 401
+                    
+                    # Handle both RealDictRow and tuple results
+                    if hasattr(result, 'get'):
+                        user_email = result['email']
+                    else:
+                        user_email = result[0]
+                        
+                    logger.info(f"👤 User email: {user_email}")
+                    
+                except Exception as db_error:
+                    logger.error(f"❌ Database error: {db_error}")
+                    return jsonify({'error': 'Database error', 'debug': 'db_error'}), 500
                 
                 # Check if user is admin
-                user_email = user_data.get('email')
-                if not admin_system.is_admin_user(user_email):
-                    return jsonify({'error': 'Admin access required'}), 403
+                is_admin = admin_system.is_admin_user(user_email)
+                logger.info(f"🔧 Is admin check: {is_admin}")
+                
+                if not is_admin:
+                    logger.warning(f"❌ Admin access denied for: {user_email}")
+                    return jsonify({'error': 'Admin access required', 'debug': 'not_admin', 'user_email': user_email}), 403
                 
                 # Add admin info to request context
                 request.admin_email = user_email
-                request.admin_user_id = user_data.get('user_id')
+                request.admin_user_id = user_id
                 
+                logger.info(f"✅ Admin access granted to: {user_email}")
                 return f(*args, **kwargs)
                 
             except Exception as e:
-                logger.error(f"Admin auth error: {e}")
-                return jsonify({'error': 'Authentication failed'}), 401
+                logger.error(f"❌ Admin auth error: {e}")
+                import traceback
+                logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+                return jsonify({'error': 'Authentication failed', 'debug': 'exception', 'exception': str(e)}), 401
         
         return decorated_function
     
@@ -111,6 +165,188 @@ def create_admin_routes(admin_system, auth_system):
         except Exception as e:
             logger.error(f"Admin template analytics error: {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
+
+    @admin_bp.route('/all-recipes', methods=['GET'])
+    @admin_required
+    def get_all_recipes():
+        """Get all recipes for browsing and management with search and filters"""
+        try:
+            limit = request.args.get('limit', 200, type=int)  # Increased default from 50 to 200
+            offset = request.args.get('offset', 0, type=int)
+            search = request.args.get('search', '').strip()
+            filter_type = request.args.get('filter', 'all')
+            
+            if limit > 500:  # Increased max from 100 to 500
+                limit = 500  # Higher limit for admin operations
+            
+            logger.info(f"🔧 Getting recipes: limit={limit}, offset={offset}, search='{search}', filter='{filter_type}'")
+            
+            conn = admin_system.get_db_connection()
+            cursor = conn.cursor()
+            
+            # Build WHERE conditions
+            where_conditions = []
+            params = []
+            
+            # Search condition
+            if search:
+                where_conditions.append("""
+                    (LOWER(title) LIKE LOWER(%s) 
+                     OR LOWER(COALESCE(ingredients, '')) LIKE LOWER(%s)
+                     OR LOWER(COALESCE(original_author, '')) LIKE LOWER(%s)
+                     OR id::text LIKE %s)
+                """)
+                search_param = f'%{search}%'
+                params.extend([search_param, search_param, search_param, f'%{search}%'])
+            
+            # Filter conditions
+            if filter_type == 'templates':
+                where_conditions.append("is_template = true")
+            elif filter_type == 'copies':
+                where_conditions.append("template_id IS NOT NULL")
+            elif filter_type == 'standalone':
+                where_conditions.append("is_template = false AND template_id IS NULL")
+            
+            # Combine WHERE conditions
+            where_clause = ""
+            if where_conditions:
+                where_clause = "WHERE " + " AND ".join(where_conditions)
+            
+            # First, let's check what columns actually exist
+            try:
+                cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'recipes'")
+                available_columns = [row[0] for row in cursor.fetchall()]
+                logger.info(f"🔧 Available columns in recipes table: {available_columns}")
+            except Exception as schema_error:
+                logger.warning(f"Could not check schema: {schema_error}")
+                available_columns = ['id', 'title']  # Fallback to basic columns
+            
+            # Build query based on available columns
+            base_columns = ['id', 'title']
+            optional_columns = {
+                'is_template': 'COALESCE(is_template, false) as is_template',
+                'template_id': 'template_id',
+                'user_id': 'user_id',
+                'meal_role': 'COALESCE(meal_role, \'\') as meal_role',
+                'original_author': 'COALESCE(original_author, \'\') as original_author',
+                'prep_time': 'COALESCE(prep_time, \'\') as prep_time',
+                'cook_time': 'COALESCE(cook_time, \'\') as cook_time',
+                'servings': 'COALESCE(servings, \'\') as servings'
+            }
+            
+            # Only select columns that actually exist
+            select_columns = base_columns.copy()
+            for col_name, col_query in optional_columns.items():
+                if col_name in available_columns:
+                    select_columns.append(col_query)
+                else:
+                    logger.info(f"🔧 Column {col_name} not found, skipping")
+            
+            # Build the main query
+            query = f'''
+                SELECT {', '.join(select_columns)}
+                FROM recipes 
+                {where_clause}
+                ORDER BY id DESC 
+                LIMIT %s OFFSET %s
+            '''
+            
+            # Add limit and offset to params
+            params.extend([limit, offset])
+            
+            logger.info(f"🔧 Executing query: {query}")
+            logger.info(f"🔧 Query params: {params}")
+            cursor.execute(query, params)
+            
+            recipes = cursor.fetchall()
+            logger.info(f"🔧 Retrieved {len(recipes)} recipes from database")
+            
+            # Convert to list of dicts for JSON serialization
+            recipe_list = []
+            for i, recipe in enumerate(recipes):
+                try:
+                    if hasattr(recipe, '_asdict'):
+                        recipe_dict = recipe._asdict()
+                    elif hasattr(recipe, 'keys'):
+                        # Handle RealDictRow
+                        recipe_dict = dict(recipe)
+                    else:
+                        # Handle tuple format - build dict based on available columns
+                        recipe_dict = {
+                            'id': recipe[0],
+                            'title': recipe[1] if len(recipe) > 1 else 'Untitled Recipe'
+                        }
+                        
+                        # Add optional fields if they were selected
+                        col_index = 2
+                        for col_name in ['is_template', 'template_id', 'user_id', 'meal_role', 'original_author', 'prep_time', 'cook_time', 'servings']:
+                            if col_name in available_columns and col_index < len(recipe):
+                                recipe_dict[col_name] = recipe[col_index]
+                                col_index += 1
+                            else:
+                                # Set default values for missing columns
+                                if col_name == 'is_template':
+                                    recipe_dict[col_name] = False
+                                elif col_name in ['template_id', 'user_id']:
+                                    recipe_dict[col_name] = None
+                                else:
+                                    recipe_dict[col_name] = ''
+                    
+                    recipe_list.append(recipe_dict)
+                    
+                except Exception as recipe_error:
+                    logger.error(f"Error processing recipe {i}: {recipe_error}")
+                    logger.error(f"Recipe data: {recipe}")
+                    # Add a minimal recipe entry
+                    recipe_list.append({
+                        'id': recipe[0] if len(recipe) > 0 else i,
+                        'title': 'Error loading recipe',
+                        'is_template': False,
+                        'template_id': None,
+                        'user_id': None,
+                        'meal_role': '',
+                        'original_author': '',
+                        'prep_time': '',
+                        'cook_time': '',
+                        'servings': ''
+                    })
+            
+            # Get total count with same filters
+            count_query = f'SELECT COUNT(*) FROM recipes {where_clause}'
+            count_params = params[:-2]  # Remove limit and offset
+            try:
+                cursor.execute(count_query, count_params)
+                total_result = cursor.fetchone()
+                total_count = total_result[0] if total_result else 0
+            except Exception as count_error:
+                logger.error(f"Error getting total count: {count_error}")
+                total_count = len(recipe_list)
+            
+            conn.close()
+            
+            logger.info(f"🔧 Successfully processed {len(recipe_list)} recipes, total: {total_count}")
+            
+            admin_system.log_admin_action(
+                request.admin_email, 'browse_all_recipes', 'management',
+                ip_address=request.remote_addr
+            )
+            
+            return jsonify({
+                'success': True, 
+                'data': recipe_list,
+                'total_count': total_count,
+                'limit': limit,
+                'offset': offset,
+                'search': search,
+                'filter': filter_type,
+                'available_columns': available_columns  # Debug info
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Admin all recipes error: {e}")
+            import traceback
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+            return jsonify({'success': False, 'error': str(e), 'error_type': type(e).__name__}), 500
     
     @admin_bp.route('/recipes/<int:recipe_id>/details', methods=['GET'])
     @admin_required
@@ -228,19 +464,28 @@ def create_admin_routes(admin_system, auth_system):
         """Execute bulk delete with safety checks"""
         try:
             data = request.get_json()
+            logger.info(f"🔧 Bulk delete request data: {data}")
+            
             if not data or 'recipe_ids' not in data:
                 return jsonify({'success': False, 'error': 'recipe_ids required'}), 400
             
             recipe_ids = data['recipe_ids']
+            logger.info(f"🔧 Recipe IDs type: {type(recipe_ids)}, value: {recipe_ids}")
+            
+            # Ensure recipe_ids is a list
+            if isinstance(recipe_ids, (int, str)):
+                recipe_ids = [recipe_ids]
+            elif not isinstance(recipe_ids, list):
+                return jsonify({'success': False, 'error': 'recipe_ids must be a list'}), 400
+            
             force_delete_templates = data.get('force_delete_templates', False)
             confirmation_text = data.get('confirmation_text', '')
             
-            # Require explicit confirmation for bulk delete
-            expected_confirmation = f"DELETE {len(recipe_ids)} RECIPES FROM LIVE DATABASE"
-            if confirmation_text != expected_confirmation:
+            # Require explicit confirmation for bulk delete - simplified to just "DELETE"
+            if confirmation_text.strip().upper() != "DELETE":
                 return jsonify({
                     'success': False, 
-                    'error': f'Confirmation required. Type: "{expected_confirmation}"'
+                    'error': 'Confirmation required. Type: "DELETE"'
                 }), 400
             
             # Limit bulk operations

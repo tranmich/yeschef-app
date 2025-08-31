@@ -75,10 +75,19 @@ class TemplateRecipeSystem:
             return False
     
     def create_default_templates(self):
-        """Create a curated collection of default recipes for new users"""
+        """Create a curated collection of default recipes for new users - DUPLICATION PREVENTION"""
         try:
             conn = self.get_db_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            
+            # First check if templates already exist
+            cursor.execute('SELECT COUNT(*) FROM recipes WHERE is_template = TRUE')
+            existing_templates = cursor.fetchone()['count']
+            
+            if existing_templates > 0:
+                logger.info(f"⚠️ Found {existing_templates} existing templates - skipping creation")
+                conn.close()
+                return True
             
             logger.info("🍽️ Creating default template recipes...")
             
@@ -181,12 +190,27 @@ class TemplateRecipeSystem:
             return False
     
     def copy_templates_for_new_user(self, user_id):
-        """Copy all template recipes for a new user (Admin Curation Mode)"""
+        """Copy all template recipes for a new user - TEMPORARILY DISABLED FOR MANUAL CURATION"""
         try:
-            conn = self.get_db_connection()
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            logger.info(f"📋 Template copying disabled for user {user_id} - manual curation mode")
+            # Return early - no automatic template copying during cleanup phase
+            return {
+                'success': True,
+                'copied_count': 0,
+                'message': 'Template copying disabled during manual curation phase'
+            }
             
-            logger.info(f"📋 Copying template recipes for user {user_id}...")
+            # First check if user already has template copies
+            cursor.execute('''
+                SELECT COUNT(*) FROM recipes 
+                WHERE user_id = %s AND template_id IS NOT NULL
+            ''', (user_id,))
+            
+            existing_copies = cursor.fetchone()['count']
+            if existing_copies > 0:
+                logger.info(f"⚠️ User {user_id} already has {existing_copies} template copies - skipping")
+                conn.close()
+                return existing_copies
             
             # Get all template recipes (will be empty during admin curation phase)
             cursor.execute('''
@@ -202,26 +226,36 @@ class TemplateRecipeSystem:
             
             copied_count = 0
             for template in templates:
-                # Create user copy of template
+                # Double-check this specific template hasn't been copied for this user
                 cursor.execute('''
-                    INSERT INTO recipes (
-                        title, description, ingredients, instructions, category,
-                        meal_role, prep_time, cook_time, servings, original_author,
-                        why_this_works, source, flavor_profile, image_url,
-                        is_template, template_id, user_id, created_at
-                    ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                    )
-                ''', (
-                    template['title'], template['description'], template['ingredients'],
-                    template['instructions'], template['category'], template['meal_role'],
-                    template['prep_time'], template['cook_time'], template['servings'],
-                    template['original_author'], template['why_this_works'],
-                    template.get('source'), template.get('flavor_profile'), 
-                    template.get('image_url'),
-                    False, template['id'], user_id, datetime.now()  # User copy
-                ))
-                copied_count += 1
+                    SELECT COUNT(*) FROM recipes 
+                    WHERE user_id = %s AND template_id = %s
+                ''', (user_id, template['id']))
+                
+                if cursor.fetchone()['count'] == 0:  # No existing copy
+                    # Create user copy of template
+                    cursor.execute('''
+                        INSERT INTO recipes (
+                            title, description, ingredients, instructions, category,
+                            meal_role, prep_time, cook_time, servings, original_author,
+                            why_this_works, source, flavor_profile, image_url,
+                            is_template, template_id, user_id, created_at
+                        ) VALUES (
+                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                        )
+                    ''', (
+                        template['title'], template['description'], template['ingredients'],
+                        template['instructions'], template['category'], template['meal_role'],
+                        template['prep_time'], template['cook_time'], template['servings'],
+                        template['original_author'], template['why_this_works'],
+                        template.get('source'), template.get('flavor_profile'), 
+                        template.get('image_url'),
+                        False, template['id'], user_id, datetime.now()  # User copy
+                    ))
+                    copied_count += 1
+                    logger.info(f"✅ Copied template '{template['title']}' for user {user_id}")
+                else:
+                    logger.info(f"⚠️ Template '{template['title']}' already copied for user {user_id}")
             
             conn.commit()
             conn.close()
@@ -229,11 +263,43 @@ class TemplateRecipeSystem:
             return copied_count
             
         except Exception as e:
-            logger.error(f"❌ Failed to copy templates for user {user_id}: {e}")
-            if conn:
-                conn.rollback()
-                conn.close()
-            return 0
+            logger.error(f"❌ Error in copy_templates_for_new_user: {e}")
+            return {
+                'success': False,
+                'copied_count': 0,
+                'error': str(e)
+            }
+    
+    def clean_existing_template_copies(self, user_id):
+        """Remove existing template copies for a user during manual curation phase"""
+        try:
+            conn = self.get_db_connection()
+            cursor = conn.cursor()
+            
+            # Delete all recipes that are copies of templates
+            cursor.execute('''
+                DELETE FROM recipes 
+                WHERE user_id = %s AND template_id IS NOT NULL
+            ''', (user_id,))
+            
+            deleted_count = cursor.rowcount
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"🧹 Cleaned {deleted_count} template copies for user {user_id}")
+            return {
+                'success': True,
+                'deleted_count': deleted_count,
+                'message': f'Removed {deleted_count} existing template copies'
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error cleaning template copies for user {user_id}: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
     
     def get_user_recipes(self, user_id, include_templates=True):
         """Get all recipes for a user (their personal copies + any they created)"""

@@ -332,8 +332,9 @@ class AdminSystem:
             return None
     
     def promote_recipe_to_template(self, recipe_id, admin_email, original_author="Me Hungie Team"):
-        """Promote a recipe to template status"""
+        """Promote a recipe to template status and copy to all existing users"""
         try:
+            # Step 1: Promote to template first
             conn = self.get_db_connection()
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
@@ -341,6 +342,9 @@ class AdminSystem:
             old_data = self.get_recipe_with_metadata(recipe_id)
             if not old_data:
                 return {'success': False, 'error': 'Recipe not found'}
+            
+            # Debug: Log the recipe data structure
+            logger.info(f"🔧 Recipe data for {recipe_id}: {old_data}")
             
             # Update recipe to template status
             cursor.execute('''
@@ -355,23 +359,112 @@ class AdminSystem:
                 conn.close()
                 return {'success': False, 'error': 'Recipe not found or already a template'}
             
+            # Commit the template promotion first
             conn.commit()
             conn.close()
             
-            # Log the action
-            new_data = {'is_template': True, 'original_author': original_author}
-            self.log_admin_action(admin_email, 'promote_to_template', 'recipe', 
-                                recipe_id, old_data, new_data)
+            # Step 2: Copy to users in separate transactions
+            copied_to_users = 0
+            failed_users = []
             
-            logger.info(f"✅ Recipe {recipe_id} promoted to template by {admin_email}")
-            return {'success': True, 'message': 'Recipe promoted to template'}
+            # Get all users
+            conn = self.get_db_connection()
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute('SELECT id FROM users WHERE is_active = TRUE')
+            users = cursor.fetchall()
+            conn.close()
+            
+            # Copy to each user in individual transactions
+            for user in users:
+                user_id = user['id']
+                
+                try:
+                    conn = self.get_db_connection()
+                    cursor = conn.cursor()
+                    
+                    # Check if user already has a copy of this template
+                    cursor.execute('''
+                        SELECT COUNT(*) as count FROM recipes 
+                        WHERE user_id = %s AND template_id = %s
+                    ''', (user_id, recipe_id))
+                    
+                    result = cursor.fetchone()
+                    if result[0] == 0:  # No existing copy
+                        # Create user copy
+                        cursor.execute('''
+                            INSERT INTO recipes (
+                                title, description, ingredients, instructions,
+                                cooking_time, difficulty, cuisine_type, dietary_tags,
+                                meal_type, servings, user_id, template_id, is_template,
+                                created_at
+                            ) VALUES (
+                                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
+                            )
+                        ''', (
+                            old_data.get('title', 'Untitled Recipe'),
+                            old_data.get('description', ''), 
+                            old_data.get('ingredients', ''),
+                            old_data.get('instructions', ''),
+                            old_data.get('cooking_time', 30),
+                            old_data.get('difficulty', 'Medium'),
+                            old_data.get('cuisine_type', 'International'),
+                            old_data.get('dietary_tags', ''),
+                            old_data.get('meal_type', 'Main'),
+                            old_data.get('servings', 4),
+                            user_id,
+                            recipe_id,
+                            False
+                        ))
+                        copied_to_users += 1
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                except Exception as copy_error:
+                    logger.error(f"❌ Failed to copy recipe {recipe_id} to user {user_id}: {copy_error}")
+                    failed_users.append(user_id)
+                    if conn:
+                        conn.rollback()
+                        conn.close()
+                    continue
+            
+            # Log the action
+            logger.info(f"✅ Promoted recipe {recipe_id} to template and copied to {copied_to_users} users")
+            if failed_users:
+                logger.warning(f"⚠️ Failed to copy to {len(failed_users)} users: {failed_users}")
+            
+            self.log_admin_action(admin_email, 'promote_recipe_to_template', 'recipe',
+                                recipe_id, old_data, 
+                                {'is_template': True, 'original_author': original_author, 'copied_to_users': copied_to_users})
+            
+            message = f'Recipe promoted to template and copied to {copied_to_users} users'
+            if failed_users:
+                message += f' ({len(failed_users)} failed)'
+            
+            return {
+                'success': True, 
+                'message': message
+            }
+            
+            logger.info(f"✅ Promoted recipe {recipe_id} to template and copied to {copied_to_users} users")
+            
+            # Log the action
+            self.log_admin_action(admin_email, 'promote_recipe_to_template', 'recipe',
+                                recipe_id, old_data, 
+                                {'is_template': True, 'original_author': original_author, 'copied_to_users': copied_to_users})
+            
+            conn.close()
+            return {
+                'success': True, 
+                'message': f'Recipe promoted to template and copied to {copied_to_users} users'
+            }
             
         except Exception as e:
             logger.error(f"❌ Failed to promote recipe: {e}")
             return {'success': False, 'error': str(e)}
     
     def demote_template_to_recipe(self, recipe_id, admin_email):
-        """Remove template status from a recipe"""
+        """Remove template status from a recipe and remove copies from all users"""
         try:
             conn = self.get_db_connection()
             cursor = conn.cursor()
@@ -384,6 +477,14 @@ class AdminSystem:
             # Check if it's actually a template
             if not old_data.get('is_template'):
                 return {'success': False, 'error': 'Recipe is not a template'}
+            
+            # 🚀 NEW: Remove all user copies of this template first
+            cursor.execute('''
+                DELETE FROM recipes 
+                WHERE template_id = %s AND is_template = FALSE
+            ''', (recipe_id,))
+            
+            removed_copies = cursor.rowcount
             
             # Remove template status
             cursor.execute('''
@@ -399,10 +500,17 @@ class AdminSystem:
             conn.commit()
             conn.close()
             
+            logger.info(f"✅ Demoted recipe {recipe_id} from template and removed {removed_copies} user copies")
+            
             # Log the action
-            new_data = {'is_template': False}
             self.log_admin_action(admin_email, 'demote_from_template', 'recipe',
-                                recipe_id, old_data, new_data)
+                                recipe_id, old_data, 
+                                {'is_template': False, 'removed_copies': removed_copies})
+            
+            return {
+                'success': True, 
+                'message': f'Recipe removed from template and {removed_copies} user copies deleted'
+            }
             
             logger.info(f"✅ Recipe {recipe_id} demoted from template by {admin_email}")
             return {'success': True, 'message': 'Template status removed'}
@@ -488,7 +596,9 @@ class AdminSystem:
             return {
                 'total_selected': len(recipe_ids),
                 'found_recipes': len(recipes_to_delete),
-                'safe_to_delete': len(safe_to_delete),
+                'safe_to_delete': [r['id'] for r in safe_to_delete],  # Return IDs, not count
+                'templates_with_copies': [r['id'] for r in templates_with_copies],  # Return IDs, not count
+                'orphaned_copies': [],  # Add this for consistency with frontend
                 'blocked_templates': len(templates_with_copies),
                 'recipes_to_delete': recipes_to_delete,
                 'safety_warnings': templates_with_copies,
@@ -502,19 +612,114 @@ class AdminSystem:
     def execute_bulk_delete(self, recipe_ids, admin_email, force_delete_templates=False):
         """Execute bulk delete with safety checks"""
         try:
-            # First, preview the operation
-            preview = self.preview_bulk_delete(recipe_ids)
+            logger.info(f"🔧 Bulk delete: {len(recipe_ids)} recipes, force_delete: {force_delete_templates}")
             
-            if 'error' in preview:
-                return {'success': False, 'error': preview['error']}
-            
-            # Check for safety warnings
-            if preview['blocked_templates'] and not force_delete_templates:
+            if force_delete_templates:
+                # Force delete mode: Break template relationships first, then delete all
+                logger.info("🔥 Force delete mode: Breaking template relationships")
+                
+                conn = self.get_db_connection()
+                cursor = conn.cursor()
+                
+                # Step 1: Break all template relationships that would prevent deletion
+                for recipe_id in recipe_ids:
+                    cursor.execute('UPDATE recipes SET template_id = NULL WHERE template_id = %s', (recipe_id,))
+                    if cursor.rowcount > 0:
+                        logger.info(f"🔧 Broke {cursor.rowcount} template relationships for recipe {recipe_id}")
+                
+                conn.commit()
+                
+                # Step 2: Delete all recipes without safety checks
+                deleted_count = 0
+                errors = []
+                
+                for recipe_id in recipe_ids:
+                    try:
+                        cursor.execute('DELETE FROM recipes WHERE id = %s', (recipe_id,))
+                        if cursor.rowcount > 0:
+                            deleted_count += 1
+                            logger.info(f"✅ Force deleted recipe {recipe_id}")
+                        else:
+                            errors.append(f"Recipe {recipe_id}: Not found")
+                    except Exception as e:
+                        errors.append(f"Recipe {recipe_id}: {str(e)}")
+                
+                conn.commit()
+                conn.close()
+                
+                # Log the force operation
+                self.log_admin_action(admin_email, 'force_bulk_delete', 'bulk',
+                                    None, {'recipe_ids': recipe_ids}, 
+                                    {'deleted_count': deleted_count, 'errors': errors})
+                
                 return {
-                    'success': False,
-                    'error': f'Cannot delete {preview["blocked_templates"]} templates with user copies',
-                    'blocked_templates': preview['safety_warnings']
+                    'success': True,
+                    'deleted_count': deleted_count,
+                    'total_requested': len(recipe_ids),
+                    'errors': errors
                 }
+            
+            else:
+                # Normal delete mode with safety checks
+                preview = self.preview_bulk_delete(recipe_ids)
+                
+                if 'error' in preview:
+                    return {'success': False, 'error': preview['error']}
+                
+                # Check for safety warnings
+                if preview['blocked_templates']:
+                    return {
+                        'success': False,
+                        'error': f'Cannot delete {preview["blocked_templates"]} templates with user copies',
+                        'blocked_templates': preview['safety_warnings']
+                    }
+                
+                # Execute deletion - only safe recipes
+                safe_to_delete_ids = preview.get('safe_to_delete', [])
+                
+                if not safe_to_delete_ids:
+                    return {
+                        'success': True,
+                        'deleted_count': 0,
+                        'message': 'No recipes were safe to delete'
+                    }
+                
+                # Execute normal deletion
+                conn = self.get_db_connection()
+                cursor = conn.cursor()
+                
+                deleted_count = 0
+                errors = []
+                
+                for recipe_id in safe_to_delete_ids:
+                    try:
+                        cursor.execute('DELETE FROM recipes WHERE id = %s', (recipe_id,))
+                        if cursor.rowcount > 0:
+                            deleted_count += 1
+                            logger.info(f"✅ Successfully deleted recipe {recipe_id}")
+                        else:
+                            errors.append(f"Recipe {recipe_id}: Not found or already deleted")
+                    except Exception as e:
+                        errors.append(f"Recipe {recipe_id}: {str(e)}")
+                
+                conn.commit()
+                conn.close()
+                
+                # Log the operation
+                self.log_admin_action(admin_email, 'bulk_delete_operation', 'bulk',
+                                    None, {'recipe_ids': safe_to_delete_ids}, 
+                                    {'deleted_count': deleted_count, 'errors': errors})
+                
+                return {
+                    'success': True,
+                    'deleted_count': deleted_count,
+                    'total_requested': len(recipe_ids),
+                    'errors': errors
+                }
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to execute bulk delete: {e}")
+            return {'success': False, 'error': str(e)}
             
             # Execute deletion
             conn = self.get_db_connection()

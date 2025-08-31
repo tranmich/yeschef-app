@@ -1,13 +1,11 @@
-import React, { useState, useContext } from 'react';
-import { AuthContext } from '../contexts/AuthContext';
+import React, { useState } from 'react';
 import './AdminRecipeOverlay.css';
 
-const AdminRecipeOverlay = ({ recipe, adminMode, onUpdate }) => {
-  const { user } = useContext(AuthContext);
+const AdminRecipeOverlay = ({ recipe, adminMode = false, onRefresh }) => {
   const [loading, setLoading] = useState(false);
 
-  // Only show to admin in admin mode
-  if (!adminMode || !user || user.email !== 'tran.mich@gmail.com') {
+  // Only show when admin mode is active (parent component handles admin detection)
+  if (!adminMode) {
     return null;
   }
 
@@ -31,10 +29,10 @@ const AdminRecipeOverlay = ({ recipe, adminMode, onUpdate }) => {
 
       const result = await response.json();
       if (result.success) {
-        alert('✅ Recipe promoted to template!');
-        if (onUpdate) onUpdate();
+        alert(`✅ Recipe "${recipe.title}" promoted to template!`);
+        if (onRefresh) onRefresh();
       } else {
-        alert(`❌ Error: ${result.error}`);
+        alert(`❌ Failed to promote recipe: ${result.error}`);
       }
     } catch (err) {
       alert(`❌ Network error: ${err.message}`);
@@ -59,10 +57,10 @@ const AdminRecipeOverlay = ({ recipe, adminMode, onUpdate }) => {
 
       const result = await response.json();
       if (result.success) {
-        alert('✅ Template status removed!');
-        if (onUpdate) onUpdate();
+        alert(`✅ Template status removed from "${recipe.title}"`);
+        if (onRefresh) onRefresh();
       } else {
-        alert(`❌ Error: ${result.error}`);
+        alert(`❌ Failed to demote recipe: ${result.error}`);
       }
     } catch (err) {
       alert(`❌ Network error: ${err.message}`);
@@ -92,7 +90,7 @@ const AdminRecipeOverlay = ({ recipe, adminMode, onUpdate }) => {
       const result = await response.json();
       if (result.success) {
         alert('✅ Recipe deleted successfully!');
-        if (onUpdate) onUpdate();
+        if (onRefresh) onRefresh();
       } else {
         alert(`❌ Error: ${result.error}`);
       }
