@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
+import { formatRecipeText } from '../utils/recipeFormatting';
 import './AdminDashboard.css';
 
 // Get the correct API base URL for admin endpoints
@@ -1499,13 +1500,16 @@ const RecipeDetailView = ({ recipe, recipeId, onUpdate }) => {
 
         <div className="recipe-metadata">
           <div className="metadata-item">
-            <strong>Prep Time:</strong> {recipe.prep_time || 'Not specified'}
+            <strong>Time:</strong> {formatRecipeText.formatTime(recipe.cooking_time || recipe.prep_time || recipe.cook_time) || 'Not specified'}
           </div>
           <div className="metadata-item">
-            <strong>Cook Time:</strong> {recipe.cook_time || 'Not specified'}
+            <strong>Servings:</strong> {formatRecipeText.formatServings(recipe.servings) || 'Not specified'}
           </div>
           <div className="metadata-item">
-            <strong>Servings:</strong> {recipe.servings || 'Not specified'}
+            <strong>Difficulty:</strong> {formatRecipeText.formatDifficulty(recipe.difficulty) || 'Not specified'}
+          </div>
+          <div className="metadata-item">
+            <strong>Cuisine:</strong> {formatRecipeText.formatCuisineType(recipe.cuisine_type) || 'Not specified'}
           </div>
           <div className="metadata-item">
             <strong>Meal Role:</strong> {recipe.meal_role || 'Not specified'}

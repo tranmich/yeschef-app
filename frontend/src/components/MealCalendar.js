@@ -49,6 +49,17 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onMoveRecipe }) => {
                 {...listeners}
                 {...attributes}
             >
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveRecipe(day, mealType, index);
+                    }}
+                    className="remove-recipe-btn"
+                    title="Remove recipe from meal plan"
+                    aria-label="Remove recipe"
+                >
+                    ✕
+                </button>
                 <div className="recipe-info">
                     <span className="recipe-title" title={recipe.title}>
                         {recipe.title}
@@ -64,16 +75,6 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onMoveRecipe }) => {
                         </span>
                     )}
                 </div>
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onRemoveRecipe(day, mealType, index);
-                    }}
-                    className="remove-recipe-btn"
-                    title="Remove recipe"
-                >
-                    ❌
-                </button>
             </div>
         );
     };

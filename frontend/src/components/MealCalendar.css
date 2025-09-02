@@ -75,14 +75,12 @@
 
 .calendar-row {
     display: grid;
-    grid-template-columns: 120px repeat(3, minmax(200px, 1fr));
-    /* Updated for 3 meal types: breakfast, lunch, dinner */
+    grid-template-columns: 120px 220px 220px 220px;
+    /* Fixed width columns: 120px day label + 3 x 220px meal columns */
     border-bottom: 1px solid #e0e0e0;
     min-height: 80px;
-    min-width: 720px;
-    /* Minimum width: 120px + (3 * 200px) = 720px */
-    width: max-content;
-    /* Force width to accommodate all content */
+    width: 780px;
+    /* Fixed total width: 120px + (3 * 220px) = 780px */
 }
 
 .calendar-row:last-child {
@@ -136,6 +134,10 @@
     flex-direction: column;
     min-height: 80px;
     transition: all 0.2s ease;
+    overflow: hidden;
+    /* Prevent content from expanding the column */
+    width: 100%;
+    /* Ensure slot respects grid column width */
 }
 
 .meal-slot:hover {
@@ -167,6 +169,12 @@
     padding: 0.5rem;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    /* Prevent overflow from expanding column */
+    width: 100%;
+    /* Ensure content respects column width */
+    box-sizing: border-box;
+    /* Include padding in width calculation */
 }
 
 .empty-slot {
@@ -203,12 +211,14 @@
     border: 1px solid #bbdefb;
     border-radius: 4px;
     padding: 0.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    display: block;
+    /* Changed from flex to block for better positioning */
+    position: relative;
+    /* Enable absolute positioning for the remove button */
     transition: all 0.2s ease;
     cursor: grab;
-    position: relative;
+    padding-top: 1.5rem;
+    /* Add extra top padding for the remove button */
 }
 
 .planned-recipe:hover {
@@ -237,7 +247,12 @@
     color: #0d47a1;
     margin-bottom: 0.25rem;
     word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
     line-height: 1.2;
+    max-width: 100%;
+    /* Ensure title respects container width */
 }
 
 .recipe-time,
@@ -249,20 +264,31 @@
 }
 
 .remove-recipe-btn {
-    background: none;
-    border: none;
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(244, 67, 54, 0.9);
+    border: 1px solid rgba(244, 67, 54, 0.5);
+    color: white;
     cursor: pointer;
-    font-size: 0.7rem;
-    padding: 0.1rem;
-    border-radius: 2px;
+    font-size: 0.6rem;
+    padding: 0.1rem 0.2rem;
+    border-radius: 3px;
     transition: all 0.2s ease;
-    margin-left: 0.5rem;
-    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 14px;
+    height: 14px;
+    line-height: 1;
+    z-index: 10;
+    /* Ensure it appears above other content */
 }
 
 .remove-recipe-btn:hover {
-    opacity: 1;
-    background-color: rgba(244, 67, 54, 0.1);
+    background-color: rgba(244, 67, 54, 1);
+    border-color: rgba(244, 67, 54, 0.8);
+    transform: scale(1.1);
 }
 
 /* Calendar Footer */
@@ -288,10 +314,10 @@
 /* Responsive Design */
 @media (max-width: 1024px) {
     .calendar-row {
-        grid-template-columns: 100px repeat(3, minmax(180px, 1fr));
-        /* Adjust for 3 meal types */
-        min-width: 640px;
-        /* 100px + (3 * 180px) = 640px */
+        grid-template-columns: 100px 200px 200px 200px;
+        /* Fixed width columns for tablet: 100px day label + 3 x 200px meal columns */
+        width: 700px;
+        /* Fixed total width: 100px + (3 * 200px) = 700px */
     }
 
     .day-label {
@@ -309,11 +335,11 @@
 
 @media (max-width: 768px) {
     .calendar-row {
-        grid-template-columns: 80px repeat(3, minmax(150px, 1fr));
-        /* Keep all 3 meal types on tablets */
+        grid-template-columns: 80px 170px 170px 170px;
+        /* Fixed width columns for mobile: 80px day label + 3 x 170px meal columns */
         min-height: 100px;
-        min-width: 530px;
-        /* 80px + (3 * 150px) = 530px */
+        width: 590px;
+        /* Fixed total width: 80px + (3 * 170px) = 590px */
     }
 
     .meal-slot-header {

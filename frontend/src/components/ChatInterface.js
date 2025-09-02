@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../utils/api';
 import SessionMemoryManager from '../utils/SessionMemoryManager';
 import RecipeDropdown from './RecipeDropdown';
+import { formatRecipeText } from '../utils/recipeFormatting';
 import './ChatInterface.css';
 
 const ChatInterface = ({ sessionMemory, getPantryForAPI, hasPantryItems, pantryItems, setShowPantry, isCompact = false, isExtraCompact = false, onAddToMealPlan }) => {

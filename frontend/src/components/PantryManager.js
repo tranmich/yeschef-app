@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { usePantry } from '../hooks/usePantry';
 import './PantryManager.css';
 
@@ -17,12 +17,38 @@ const PantryManager = () => {
   const [pantryEnabled, setPantryEnabled] = useState(true);
   const [availableIngredients, setAvailableIngredients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // Section visibility state
+  const [expandedSections, setExpandedSections] = useState({
+    spices: true,      // Spices open by default (highest value)
+    dryGoods: false,   // Dry goods collapsed by default
+    freshWeek: false   // Fresh this week collapsed by default
+  });
 
   useEffect(() => {
     checkPantryStatus();
     loadAvailableIngredients();
     setIsLoading(false); // Since pantry data comes from hook
   }, []);
+
+  // Debug: Monitor pantryItems changes
+  useEffect(() => {
+    console.log('🔄 PantryManager - pantryItems state updated:', pantryItems.length, 'items');
+    console.log('🔄 PantryManager - Items:', pantryItems.map(item => `${item.name} (${item.category})`));
+  }, [pantryItems]);
+
+  // Search for ingredients as user types
+  useEffect(() => {
+    if (searchTerm.length >= 2) {
+      searchIngredients(searchTerm);
+    } else {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [searchTerm]);
 
   const loadAvailableIngredients = async () => {
     try {
@@ -36,17 +62,150 @@ const PantryManager = () => {
         });
         setAvailableIngredients(data.ingredients || []);
       } else {
-        console.log('⚠️ Failed to load ingredients, using fallback');
+        console.log('⚠️ Failed to load ingredients, using smart fallback');
+        // Enhanced fallback with proper categorization
         setAvailableIngredients([
-          { name: 'Chicken Breast', category: 'protein' },
-          { name: 'Rice', category: 'grain' },
-          { name: 'Onion', category: 'produce' },
-          { name: 'Garlic', category: 'produce' }
+          // Spices - High value, low maintenance
+          { name: 'Garlic Powder', category: 'spices' },
+          { name: 'Black Pepper', category: 'spices' },
+          { name: 'Salt', category: 'spices' },
+          { name: 'Paprika', category: 'spices' },
+          { name: 'Cumin', category: 'spices' },
+          { name: 'Oregano', category: 'spices' },
+          { name: 'Basil', category: 'spices' },
+          { name: 'Thyme', category: 'spices' },
+          { name: 'Red Pepper Flakes', category: 'spices' },
+          { name: 'Onion Powder', category: 'spices' },
+          
+          // Dry goods - Medium value, medium maintenance
+          { name: 'Pasta', category: 'dryGoods' },
+          { name: 'Rice', category: 'dryGoods' },
+          { name: 'Flour', category: 'dryGoods' },
+          { name: 'Olive Oil', category: 'dryGoods' },
+          { name: 'Canned Beans', category: 'dryGoods' },
+          { name: 'Canned Tomatoes', category: 'dryGoods' },
+          { name: 'Quinoa', category: 'dryGoods' },
+          { name: 'Oats', category: 'dryGoods' },
+          { name: 'Coconut Oil', category: 'dryGoods' },
+          { name: 'Honey', category: 'dryGoods' },
+          
+          // Fresh items - For "this week" only
+          { name: 'Chicken Breast', category: 'fresh' },
+          { name: 'Ground Beef', category: 'fresh' },
+          { name: 'Onion', category: 'fresh' },
+          { name: 'Bell Pepper', category: 'fresh' },
+          { name: 'Spinach', category: 'fresh' },
+          { name: 'Broccoli', category: 'fresh' },
+          { name: 'Tomato', category: 'fresh' },
+          { name: 'Lemon', category: 'fresh' }
         ]);
       }
     } catch (err) {
       console.log('❌ Ingredients loading error:', err);
       setAvailableIngredients([]);
+    }
+  };
+
+  // Smart category mapping for existing items
+  const getCategoryFromName = (name) => {
+    const spices = ['salt', 'pepper', 'garlic', 'onion powder', 'paprika', 'cumin', 'oregano', 'basil', 'thyme', 'cinnamon', 'chili', 'red pepper', 'turmeric', 'ginger', 'bay leaves', 'rosemary', 'sage', 'parsley', 'cilantro', 'dill'];
+    const dryGoods = ['pasta', 'rice', 'flour', 'oil', 'vinegar', 'beans', 'lentils', 'quinoa', 'oats', 'sugar', 'honey', 'syrup', 'sauce', 'stock', 'broth', 'canned', 'dried'];
+    
+    const lowerName = name.toLowerCase();
+    
+    if (spices.some(spice => lowerName.includes(spice))) return 'spices';
+    if (dryGoods.some(dry => lowerName.includes(dry))) return 'dryGoods';
+    return 'fresh'; // Default to fresh for everything else
+  };
+
+  // Handle selecting a suggestion
+  const selectSuggestion = (suggestion, category) => {
+    console.log('✅ Selected suggestion:', suggestion.name, 'for category:', category);
+    addPantryItem({ 
+      name: suggestion.name, 
+      category: category || suggestion.category || getCategoryFromName(suggestion.name)
+    });
+    setSearchTerm('');
+    setSearchSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  // Toggle section visibility
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // Categorize pantry items with memo for performance
+  const categorizeItems = useMemo(() => {
+    const categorized = {
+      spices: [],
+      dryGoods: [],
+      fresh: []
+    };
+
+    console.log('🔄 Categorizing pantry items:', pantryItems);
+
+    pantryItems.forEach(item => {
+      const category = item.category === 'spices' || item.category === 'dryGoods' || item.category === 'fresh' 
+        ? item.category 
+        : getCategoryFromName(item.name);
+      
+      console.log(`📋 Item "${item.name}" categorized as "${category}"`);
+      
+      if (categorized[category]) {
+        categorized[category].push(item);
+      } else {
+        console.log(`⚠️ Unknown category "${category}" for item "${item.name}", defaulting to fresh`);
+        categorized.fresh.push(item); // Default fallback
+      }
+    });
+
+    console.log('📊 Final categorization:', categorized);
+    return categorized;
+  }, [pantryItems]);
+
+  // Search for ingredients with API
+  const searchIngredients = async (query) => {
+    if (!query || query.length < 2) {
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      setIsSearching(true);
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
+      const response = await fetch(`${apiUrl}/api/ingredients?query=${encodeURIComponent(query)}`);
+      
+      console.log('🔍 Search API response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🔍 Search results:', data.ingredients?.length || 0, 'ingredients');
+        console.log('🔍 Raw search response:', data);
+        
+        // Filter out ingredients already in pantry
+        const filteredSuggestions = (data.ingredients || []).filter(ingredient => 
+          !pantryItems.find(item => item.name.toLowerCase() === ingredient.name.toLowerCase())
+        );
+        
+        setSearchSuggestions(filteredSuggestions.slice(0, 8)); // Limit to 8 suggestions
+        setShowSuggestions(true);
+      } else {
+        const errorText = await response.text();
+        console.log('⚠️ Search failed:', response.status, errorText);
+        setSearchSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch (err) {
+      console.error('❌ Search error:', err);
+      setSearchSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -92,7 +251,16 @@ const PantryManager = () => {
 
   const addPantryItem = (ingredient) => {
     console.log('➕ Adding ingredient to pantry:', ingredient);
-    addToPantry(ingredient);
+    
+    // Ensure proper categorization
+    const categoryMapped = {
+      ...ingredient,
+      category: ingredient.category || getCategoryFromName(ingredient.name)
+    };
+    
+    console.log('🏷️ Category mapped ingredient:', categoryMapped);
+    
+    addToPantry(categoryMapped);
     setSearchTerm(''); // Clear search after adding
   };
 
@@ -142,118 +310,383 @@ const PantryManager = () => {
 
       <div className="pantry-sections">
 
-        {/* Current Pantry Items */}
-        <div className="pantry-section">
-          <h3>Your Pantry ({pantryItems.length} items)</h3>
-          {pantryItems.length === 0 ? (
-            <div className="empty-pantry">
-              <p>Your pantry is empty. Add some ingredients below!</p>
-            </div>
-          ) : (
-            <div className="pantry-items">
-              {pantryItems.map(item => (
-                <div key={item.id} className="pantry-item">
-                  <div className="item-info">
-                    <span className="item-name">{item.name}</span>
-                    <span className="item-category">{item.category}</span>
-                  </div>
-                  <div className="item-controls">
-                    <select
-                      value={item.amount}
-                      onChange={(e) => updateAmount(item.id, e.target.value)}
-                      className="amount-selector"
-                      style={{ borderColor: getAmountColor(item.amount) }}
-                    >
-                      <option value="plenty">Plenty</option>
-                      <option value="some">Some</option>
-                      <option value="low">Low</option>
-                    </select>
-                    <button
-                      onClick={() => removePantryItem(item.id)}
-                      className="remove-button"
-                    >
-                      ❌
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Add New Items */}
-        <div className="pantry-section">
-          <h3>Add Ingredients</h3>
-          <div className="ingredient-search">
-            <input
-              type="text"
-              placeholder="Search ingredients..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="ingredient-search-input"
-            />
-          </div>
-          <div className="available-ingredients">
-            {(() => {
-              const filteredIngredients = availableIngredients
-                .filter(ingredient => {
-                  const alreadyAdded = pantryItems.find(item => item.name === ingredient.name);
-                  const matchesSearch = ingredient.name.toLowerCase().includes(searchTerm.toLowerCase());
-                  return !alreadyAdded && matchesSearch;
-                })
-                .slice(0, 20); // Limit to 20 results
-
-              // Debug logging for search filtering
-              if (searchTerm) {
-                console.log('🔍 Search Debug:', {
-                  searchTerm,
-                  totalIngredients: availableIngredients.length,
-                  currentPantryItems: pantryItems.map(item => item.name),
-                  matchingIngredients: filteredIngredients.map(ing => ing.name),
-                  filteredCount: filteredIngredients.length
-                });
-              }
-
-              return filteredIngredients.map((ingredient, index) => (
-                <button
-                  key={`${ingredient.name}-${index}`}
-                  onClick={() => addPantryItem(ingredient)}
-                  className="add-ingredient-button"
+        {/* Smart 3-Section Pantry Organization */}
+        {(() => {
+          const categorizedItems = categorizeItems;
+          
+          return (
+            <>
+              {/* 1. SPICE RACK - High value, low maintenance */}
+              <div className="pantry-section smart-section spice-section">
+                <div 
+                  className="section-header" 
+                  onClick={() => toggleSection('spices')}
                 >
-                  <span className="ingredient-name">{ingredient.name}</span>
-                  <span className="ingredient-category">{ingredient.category}</span>
-                  <span className="add-icon">➕</span>
-                </button>
-              ));
-            })()}
-          </div>
-          {searchTerm && availableIngredients.filter(ingredient =>
-            ingredient.name.toLowerCase().includes(searchTerm.toLowerCase())
-          ).length === 0 && (
-              <div className="no-results">No ingredients found matching "{searchTerm}"</div>
-            )}
-        </div>
+                  <div className="header-content">
+                    <span className="section-icon">🧂</span>
+                    <h3>Spice Rack ({categorizedItems.spices.length})</h3>
+                    <span className="value-badge high-value">High Value</span>
+                  </div>
+                  <span className={`expand-icon ${expandedSections.spices ? 'expanded' : ''}`}>▼</span>
+                </div>
+                <div className="section-description">
+                  Set once, use forever. Greatest cooking impact for least effort.
+                </div>
+                
+                {expandedSections.spices && (
+                  <div className="section-content">
+                    {/* Current Spice Items */}
+                    {categorizedItems.spices.length > 0 ? (
+                      <div className="current-items">
+                        <h4>Your Spices</h4>
+                        {categorizedItems.spices.map(item => (
+                          <div key={item.id} className="pantry-item spice-item">
+                            <div className="item-info">
+                              <span className="item-name">{item.name}</span>
+                            </div>
+                            <div className="item-controls">
+                              <button
+                                onClick={() => removePantryItem(item.id)}
+                                className="remove-button"
+                                title="Remove from spice rack"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="empty-section">
+                        <p>No spices added yet. Start building your spice collection!</p>
+                      </div>
+                    )}
+                    
+                    {/* Add Spices - Smart Autocomplete */}
+                    <div className="add-section">
+                      <h4>Add Spices</h4>
+                      <div className="autocomplete-container">
+                        <div className="search-add-container">
+                          <input
+                            type="text"
+                            placeholder="Type spice name (e.g., paprika, cumin)..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="section-search-input spice-search"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && searchTerm.trim()) {
+                                if (searchSuggestions.length > 0) {
+                                  selectSuggestion(searchSuggestions[0], 'spices');
+                                } else {
+                                  addPantryItem({ name: searchTerm.trim(), category: 'spices' });
+                                }
+                              }
+                            }}
+                            onFocus={() => {
+                              if (searchSuggestions.length > 0) {
+                                setShowSuggestions(true);
+                              }
+                            }}
+                            onBlur={() => {
+                              // Delay hiding suggestions to allow click
+                              setTimeout(() => setShowSuggestions(false), 200);
+                            }}
+                          />
+                          {isSearching && (
+                            <div className="search-loading">🔍</div>
+                          )}
+                        </div>
+                        
+                        {/* Smart Suggestions Dropdown */}
+                        {showSuggestions && searchSuggestions.length > 0 && (
+                          <div className="suggestions-dropdown spice-suggestions">
+                            {searchSuggestions.map((suggestion, index) => (
+                              <button
+                                key={`suggestion-${index}-${suggestion.name}`}
+                                onClick={() => selectSuggestion(suggestion, 'spices')}
+                                className="suggestion-item"
+                              >
+                                <span className="suggestion-name">{suggestion.name}</span>
+                                <span className="suggestion-category">{suggestion.category}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Manual Add Button */}
+                        {searchTerm.trim() && !isSearching && (
+                          <button
+                            onClick={() => addPantryItem({ name: searchTerm.trim(), category: 'spices' })}
+                            className="add-search-button spice-add"
+                          >
+                            Add "{searchTerm.trim()}" as spice
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. DRY GOODS - Medium value, medium maintenance */}
+              <div className="pantry-section smart-section dry-goods-section">
+                <div 
+                  className="section-header" 
+                  onClick={() => toggleSection('dryGoods')}
+                >
+                  <div className="header-content">
+                    <span className="section-icon">🌾</span>
+                    <h3>Pantry Staples ({categorizedItems.dryGoods.length})</h3>
+                    <span className="value-badge medium-value">Optional</span>
+                  </div>
+                  <span className={`expand-icon ${expandedSections.dryGoods ? 'expanded' : ''}`}>▼</span>
+                </div>
+                <div className="section-description">
+                  Long-lasting staples. Update when you shop, ignore the rest.
+                </div>
+                
+                {expandedSections.dryGoods && (
+                  <div className="section-content">
+                    {/* Current Dry Goods */}
+                    {categorizedItems.dryGoods.length > 0 ? (
+                      <div className="current-items">
+                        <h4>Your Pantry Staples</h4>
+                        {categorizedItems.dryGoods.map(item => (
+                          <div key={item.id} className="pantry-item dry-goods-item">
+                            <div className="item-info">
+                              <span className="item-name">{item.name}</span>
+                            </div>
+                            <div className="item-controls">
+                              <select
+                                value={item.amount}
+                                onChange={(e) => updateAmount(item.id, e.target.value)}
+                                className="amount-selector"
+                                style={{ borderColor: getAmountColor(item.amount) }}
+                              >
+                                <option value="plenty">Plenty</option>
+                                <option value="some">Some</option>
+                                <option value="low">Low</option>
+                              </select>
+                              <button
+                                onClick={() => removePantryItem(item.id)}
+                                className="remove-button"
+                                title="Remove from pantry staples"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="empty-section">
+                        <p>No pantry staples added yet. Add your go-to cooking essentials!</p>
+                      </div>
+                    )}
+                    
+                    {/* Add Dry Goods - Smart Autocomplete */}
+                    <div className="add-section">
+                      <h4>Add Staples</h4>
+                      <div className="autocomplete-container">
+                        <div className="search-add-container">
+                          <input
+                            type="text"
+                            placeholder="Type staple name (e.g., pasta, rice, olive oil)..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="section-search-input dry-goods-search"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && searchTerm.trim()) {
+                                if (searchSuggestions.length > 0) {
+                                  selectSuggestion(searchSuggestions[0], 'dryGoods');
+                                } else {
+                                  addPantryItem({ name: searchTerm.trim(), category: 'dryGoods' });
+                                }
+                              }
+                            }}
+                            onFocus={() => {
+                              if (searchSuggestions.length > 0) {
+                                setShowSuggestions(true);
+                              }
+                            }}
+                            onBlur={() => {
+                              setTimeout(() => setShowSuggestions(false), 200);
+                            }}
+                          />
+                          {isSearching && (
+                            <div className="search-loading">🔍</div>
+                          )}
+                        </div>
+                        
+                        {/* Smart Suggestions Dropdown */}
+                        {showSuggestions && searchSuggestions.length > 0 && (
+                          <div className="suggestions-dropdown dry-goods-suggestions">
+                            {searchSuggestions.map((suggestion, index) => (
+                              <button
+                                key={`suggestion-${index}-${suggestion.name}`}
+                                onClick={() => selectSuggestion(suggestion, 'dryGoods')}
+                                className="suggestion-item"
+                              >
+                                <span className="suggestion-name">{suggestion.name}</span>
+                                <span className="suggestion-category">{suggestion.category}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Manual Add Button */}
+                        {searchTerm.trim() && !isSearching && (
+                          <button
+                            onClick={() => addPantryItem({ name: searchTerm.trim(), category: 'dryGoods' })}
+                            className="add-search-button dry-goods-add"
+                          >
+                            Add "{searchTerm.trim()}" as staple
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. FRESH THIS WEEK - Ephemeral, no pressure */}
+              <div className="pantry-section smart-section fresh-section">
+                <div 
+                  className="section-header" 
+                  onClick={() => toggleSection('freshWeek')}
+                >
+                  <div className="header-content">
+                    <span className="section-icon">🥬</span>
+                    <h3>Fresh This Week ({categorizedItems.fresh.length})</h3>
+                    <span className="value-badge low-pressure">No Pressure</span>
+                  </div>
+                  <span className={`expand-icon ${expandedSections.freshWeek ? 'expanded' : ''}`}>▼</span>
+                </div>
+                <div className="section-description">
+                  What's fresh right now? Perfect for "cook tonight" suggestions.
+                </div>
+                
+                {expandedSections.freshWeek && (
+                  <div className="section-content">
+                    {/* Current Fresh Items */}
+                    {categorizedItems.fresh.length > 0 ? (
+                      <div className="current-items">
+                        <h4>Fresh This Week</h4>
+                        {categorizedItems.fresh.map(item => (
+                          <div key={item.id} className="pantry-item fresh-item">
+                            <div className="item-info">
+                              <span className="item-name">{item.name}</span>
+                            </div>
+                            <div className="item-controls">
+                              <button
+                                onClick={() => removePantryItem(item.id)}
+                                className="remove-button"
+                                title="Remove from fresh items"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="empty-section">
+                        <p>No fresh items tracked this week. Add what's in your fridge!</p>
+                      </div>
+                    )}
+                    
+                    {/* Add Fresh Items - Smart Autocomplete */}
+                    <div className="add-section">
+                      <h4>Add Fresh Items</h4>
+                      <div className="autocomplete-container">
+                        <div className="search-add-container">
+                          <input
+                            type="text"
+                            placeholder="Type fresh item (e.g., chicken, spinach, tomato)..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="section-search-input fresh-search"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && searchTerm.trim()) {
+                                if (searchSuggestions.length > 0) {
+                                  selectSuggestion(searchSuggestions[0], 'fresh');
+                                } else {
+                                  addPantryItem({ name: searchTerm.trim(), category: 'fresh' });
+                                }
+                              }
+                            }}
+                            onFocus={() => {
+                              if (searchSuggestions.length > 0) {
+                                setShowSuggestions(true);
+                              }
+                            }}
+                            onBlur={() => {
+                              setTimeout(() => setShowSuggestions(false), 200);
+                            }}
+                          />
+                          {isSearching && (
+                            <div className="search-loading">🔍</div>
+                          )}
+                        </div>
+                        
+                        {/* Smart Suggestions Dropdown */}
+                        {showSuggestions && searchSuggestions.length > 0 && (
+                          <div className="suggestions-dropdown fresh-suggestions">
+                            {searchSuggestions.map((suggestion, index) => (
+                              <button
+                                key={`suggestion-${index}-${suggestion.name}`}
+                                onClick={() => selectSuggestion(suggestion, 'fresh')}
+                                className="suggestion-item"
+                              >
+                                <span className="suggestion-name">{suggestion.name}</span>
+                                <span className="suggestion-category">{suggestion.category}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Manual Add Button */}
+                        {searchTerm.trim() && !isSearching && (
+                          <button
+                            onClick={() => addPantryItem({ name: searchTerm.trim(), category: 'fresh' })}
+                            className="add-search-button fresh-add"
+                          >
+                            Add "{searchTerm.trim()}" as fresh
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          );
+        })()}
 
       </div>
 
       <div className="pantry-footer">
-        <div className="pantry-stats">
+        <div className="pantry-stats smart-stats">
           <div className="stat">
-            <span className="stat-number">{pantryItems.length}</span>
-            <span className="stat-label">Total Items</span>
+            <span className="stat-number">{categorizeItems.spices.length}</span>
+            <span className="stat-label">🧂 Spices</span>
+          </div>
+          <div className="stat">
+            <span className="stat-number">{categorizeItems.dryGoods.length}</span>
+            <span className="stat-label">🌾 Staples</span>
+          </div>
+          <div className="stat">
+            <span className="stat-number">{categorizeItems.fresh.length}</span>
+            <span className="stat-label">🥬 Fresh</span>
           </div>
           <div className="stat">
             <span className="stat-number">{pantryItems.filter(item => item.amount === 'low').length}</span>
-            <span className="stat-label">Running Low</span>
-          </div>
-          <div className="stat">
-            <span className="stat-number">{new Set(pantryItems.map(item => item.category)).size}</span>
-            <span className="stat-label">Categories</span>
+            <span className="stat-label">🔴 Running Low</span>
           </div>
         </div>
 
-        <div className="feature-note">
-          <p>💡 <strong>Next:</strong> Recipe matching will show which recipes you can make with your pantry items!</p>
+        <div className="feature-note smart-note">
+          <p>💡 <strong>Smart Strategy:</strong> Start with spices (high value, low effort), add staples when you shop, track fresh when convenient!</p>
         </div>
       </div>
     </div>

@@ -316,10 +316,15 @@ const MainApp = () => {
       // Call API to update recipe (we'll need to add this endpoint)
       console.log('Saving recipe:', updatedRecipe);
       
-      // For now, just update local state
+      // Update local recipes state
       setRecipes(prev => prev.map(r => 
         r.id === updatedRecipe.id ? updatedRecipe : r
       ));
+      
+      // Update viewing recipe if it's the same recipe being edited
+      if (viewingRecipe && viewingRecipe.id === updatedRecipe.id) {
+        setViewingRecipe(updatedRecipe);
+      }
       
       setEditingRecipe(null);
     } catch (error) {

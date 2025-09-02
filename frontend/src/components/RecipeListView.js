@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
+import { formatRecipeText } from '../utils/recipeFormatting';
 import './RecipeListView.css';
 
 const RecipeListView = ({ 
@@ -420,7 +421,17 @@ const RecipeCard = ({
         >
           <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
             <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>⏱️ Time:</span>
-            <span className="hungie-text-charcoal-light">{formatPrepTime(recipe.time_min) || 'Not set'}</span>
+            <span className="hungie-text-charcoal-light">{formatRecipeText.formatTime(recipe.cooking_time || recipe.time_min) || 'Not set'}</span>
+          </div>
+          
+          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
+            <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>👥 Serves:</span>
+            <span className="hungie-text-charcoal-light">{formatRecipeText.formatServings(recipe.servings) || 'Not set'}</span>
+          </div>
+          
+          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
+            <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>📊 Level:</span>
+            <span className="hungie-text-charcoal-light">{formatRecipeText.formatDifficulty(recipe.difficulty) || 'Not set'}</span>
           </div>
           
           <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>

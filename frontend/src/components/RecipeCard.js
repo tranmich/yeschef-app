@@ -1,18 +1,18 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatRecipeText } from '../utils/recipeFormatting';
 import './RecipeCard.css';
 
 const RecipeCard = ({ recipe }) => {
   const navigate = useNavigate();
 
-  const parseTime = (timeStr) => {
-    if (!timeStr) return 'Quick';
-    if (timeStr.includes('PT')) {
-      const minutes = timeStr.replace('PT', '').replace('M', '').replace('H', 'h ');
-      return minutes.includes('h') ? minutes + 'm' : minutes + ' min';
-    }
-    return timeStr;
-  };
+  // Use consistent formatting across all recipe displays
+  const formattedIngredients = formatRecipeText.formatIngredients(recipe.ingredients);
+  const formattedInstructions = formatRecipeText.formatInstructions(recipe.instructions);
+  const formattedTime = formatRecipeText.formatTime(recipe.cooking_time || recipe.time_min || recipe.prep_time);
+  const formattedServings = formatRecipeText.formatServings(recipe.servings);
+  const formattedDifficulty = formatRecipeText.formatDifficulty(recipe.difficulty);
+  const formattedCuisine = formatRecipeText.formatCuisineType(recipe.cuisine_type);
 
   const handleClick = () => {
     navigate(`/recipe/${recipe.id}`);
@@ -21,7 +21,7 @@ const RecipeCard = ({ recipe }) => {
   return (
     <div className="recipe-card" onClick={handleClick}>
       <div className="recipe-card-content">
-        <h3 className="recipe-title">{recipe.name}</h3>
+        <h3 className="recipe-title">{recipe.title || recipe.name}</h3>
         
         {recipe.description && (
           <p className="recipe-description">
@@ -33,12 +33,24 @@ const RecipeCard = ({ recipe }) => {
         )}
 
         <div className="recipe-meta">
-          <span className="time">
-            ⏱️ {parseTime(recipe.total_time)}
-          </span>
-          {recipe.servings && (
+          {formattedTime && (
+            <span className="time">
+              ⏱️ {formattedTime}
+            </span>
+          )}
+          {formattedServings && (
             <span className="servings">
-              👥 {recipe.servings} servings
+              👥 {formattedServings}
+            </span>
+          )}
+          {formattedDifficulty && (
+            <span className="difficulty">
+              📊 {formattedDifficulty}
+            </span>
+          )}
+          {formattedCuisine && (
+            <span className="cuisine">
+              🍽️ {formattedCuisine}
             </span>
           )}
         </div>

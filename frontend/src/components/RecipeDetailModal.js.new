@@ -5,74 +5,15 @@ import './RecipeDetailModal.css';
 const RecipeDetailModal = ({ recipe, isOpen, onClose, onEdit }) => {
   if (!isOpen || !recipe) return null;
 
-  // Helper function to parse recipe fields that might be JSON strings
-  function parseRecipeField(field) {
-    if (!field) return field;
-    
-    // If it's already an array, return as is
-    if (Array.isArray(field)) {
-      return field;
-    }
-    
-    // If it's a string that looks like JSON array, try to parse it
-    if (typeof field === 'string') {
-      // Check if it starts and ends with brackets (JSON array)
-      if (field.trim().startsWith('[') && field.trim().endsWith(']')) {
-        try {
-          return JSON.parse(field);
-        } catch (e) {
-          console.warn('Failed to parse JSON field:', field);
-          return field;
-        }
-      }
-      // Regular string, return as is
-      return field;
-    }
-    
-    return field;
-  }
-
-  // Debug logging to see what we're receiving
-  console.log('Recipe data:', recipe);
-  console.log('Ingredients type:', typeof recipe.ingredients, recipe.ingredients);
-  console.log('Instructions type:', typeof recipe.instructions, recipe.instructions);
-  
-  // Check if ingredients is an array of objects
-  if (Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0) {
-    console.log('First ingredient:', recipe.ingredients[0]);
-    console.log('Ingredient keys:', Object.keys(recipe.ingredients[0] || {}));
-  }
-
-  // Pre-process recipe data to handle JSON strings
-  const processedRecipe = {
-    ...recipe,
-    ingredients: parseRecipeField(recipe.ingredients),
-    instructions: parseRecipeField(recipe.instructions)
-  };
-
-  console.log('Processed ingredients:', processedRecipe.ingredients);
-  console.log('Processed instructions:', processedRecipe.instructions);
-
-  // Additional debugging for ingredients
-  if (Array.isArray(processedRecipe.ingredients)) {
-    console.log('Ingredients array length:', processedRecipe.ingredients.length);
-    console.log('First ingredient object:', processedRecipe.ingredients[0]);
-  }
-
   // Use consistent formatting utilities
-  const formattedIngredients = formatRecipeText.formatIngredients(processedRecipe.ingredients);
-  const formattedInstructions = formatRecipeText.formatInstructions(processedRecipe.instructions);
+  const formattedIngredients = formatRecipeText.formatIngredients(recipe.ingredients);
+  const formattedInstructions = formatRecipeText.formatInstructions(recipe.instructions);
   const formattedTime = formatRecipeText.formatTime(recipe.cooking_time || recipe.time_min || recipe.prep_time);
   const formattedServings = formatRecipeText.formatServings(recipe.servings);
   const formattedDifficulty = formatRecipeText.formatDifficulty(recipe.difficulty);
 
-  // Debug the formatting results
-  console.log('Formatted ingredients result:', formattedIngredients);
-  console.log('Formatted instructions result:', formattedInstructions);
-  console.log('Formatted ingredients length:', formattedIngredients ? formattedIngredients.length : 'null/undefined');
-
   return (
-    <div className="recipe-detail-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose}>
       <div className="recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
         
         {/* Header Section - Left-aligned title */}
@@ -80,14 +21,7 @@ const RecipeDetailModal = ({ recipe, isOpen, onClose, onEdit }) => {
           <div className="recipe-title-section">
             <h1 className="recipe-title-large">{recipe.title || 'Untitled Recipe'}</h1>
           </div>
-          <div className="header-buttons">
-            {onEdit && (
-              <button className="edit-button-header" onClick={() => onEdit(recipe)}>
-                ✎ Edit
-              </button>
-            )}
-            <button className="close-button" onClick={onClose}>✕</button>
-          </div>
+          <button className="close-button" onClick={onClose}>✕</button>
         </div>
 
         {/* Recipe Metadata Bar */}
@@ -165,7 +99,6 @@ const RecipeDetailModal = ({ recipe, isOpen, onClose, onEdit }) => {
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );

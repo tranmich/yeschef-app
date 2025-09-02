@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatRecipeText } from '../utils/recipeFormatting';
 import './RecipeEditModal.css';
 
 const RecipeEditModal = ({ recipe, isOpen, onClose, onSave }) => {
@@ -52,10 +53,30 @@ const RecipeEditModal = ({ recipe, isOpen, onClose, onSave }) => {
     }
   };
 
+  const handleAutoClean = () => {
+    // Apply the same formatting logic used in the display components
+    const cleanedIngredients = formatRecipeText.formatIngredients(formData.ingredients);
+    const cleanedInstructions = formatRecipeText.formatInstructions(formData.instructions);
+    
+    // Convert formatted text back to array format for editing
+    const ingredientsArray = cleanedIngredients ? cleanedIngredients.split('\n').filter(item => item.trim()) : [];
+    const instructionsArray = cleanedInstructions ? cleanedInstructions.split('\n').filter(item => item.trim()) : [];
+    
+    // Clean up the arrays by removing formatting prefixes for editing
+    const cleanIngredientsForEdit = ingredientsArray.map(item => item.replace(/^•\s*/, '').trim()).join('\n');
+    const cleanInstructionsForEdit = instructionsArray.map(item => item.replace(/^\d+\.\s*/, '').trim()).join('\n');
+    
+    setFormData(prev => ({
+      ...prev,
+      ingredients: cleanIngredientsForEdit,
+      instructions: cleanInstructionsForEdit
+    }));
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="recipe-edit-overlay" onClick={onClose}>
       <div className="recipe-edit-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Edit Recipe</h2>
@@ -126,6 +147,21 @@ const RecipeEditModal = ({ recipe, isOpen, onClose, onSave }) => {
               placeholder="Step-by-step instructions..."
               rows={8}
             />
+          </div>
+
+          {/* Auto Clean Button */}
+          <div className="auto-clean-section">
+            <button 
+              type="button" 
+              className="auto-clean-btn" 
+              onClick={handleAutoClean}
+              title="Automatically clean and format ingredients and instructions"
+            >
+              ✨ Auto Clean Formatting
+            </button>
+            <p className="auto-clean-help">
+              Click to automatically format ingredients with bullet points and number instruction steps
+            </p>
           </div>
 
           <div className="form-group">

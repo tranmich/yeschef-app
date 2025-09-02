@@ -1,77 +1,247 @@
 import { useState, useEffect } from 'react';
+import { getApiUrl } from '../utils/api';
 
 /**
  * Custom hook for managing pantry data across components
- * Provides pantry items and synchronization with backend
+ * Now uses backend API instead of localStorage for persistent, user-specific data
  */
 export const usePantry = () => {
   const [pantryItems, setPantryItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Load pantry from localStorage on component mount
+  // Load pantry from backend on component mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('pantryItems');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setPantryItems(parsed);
-        console.log('🥫 Pantry loaded from localStorage:', parsed.map(item => item.name));
-      }
-    } catch (err) {
-      console.error('❌ Error loading pantry from localStorage:', err);
-    }
+    loadPantryFromAPI();
   }, []);
 
-  // Save pantry to localStorage whenever it changes
-  useEffect(() => {
+  // Load pantry items from backend API
+  const loadPantryFromAPI = async () => {
     try {
-      localStorage.setItem('pantryItems', JSON.stringify(pantryItems));
-      console.log('💾 Pantry saved to localStorage:', pantryItems.map(item => item.name));
-    } catch (err) {
-      console.error('❌ Error saving pantry to localStorage:', err);
-    }
-  }, [pantryItems]);
-
-  // Add item to pantry
-  const addPantryItem = (ingredient) => {
-    console.log('➕ Adding to pantry via hook:', ingredient);
-    const newItem = {
-      id: Date.now(),
-      name: ingredient.name,
-      category: ingredient.category || 'other',
-      amount: 'some',
-      addedAt: new Date().toISOString()
-    };
-
-    setPantryItems(prev => {
-      const exists = prev.find(item => item.name.toLowerCase() === ingredient.name.toLowerCase());
-      if (exists) {
-        console.log('⚠️ Item already in pantry:', ingredient.name);
-        return prev;
+      setIsLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        console.log('🔑 usePantry Hook - No auth token, skipping pantry load');
+        setPantryItems([]);
+        return;
       }
-      const updated = [...prev, newItem];
-      console.log('✅ Pantry updated via hook:', updated.map(item => item.name));
-      return updated;
-    });
+
+      const response = await fetch(`${getApiUrl()}/api/pantry`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🥫 usePantry Hook - Loaded from API:', data.items?.length || 0, 'items');
+        console.log('🥫 usePantry Hook - API response data:', data);
+        setPantryItems(data.items || []);
+      } else if (response.status === 401) {
+        console.log('🔑 usePantry Hook - Unauthorized, clearing pantry');
+        setPantryItems([]);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ usePantry Hook - Load API error:', response.status, errorText);
+        throw new Error(`Failed to load pantry: ${response.status} - ${errorText}`);
+      }
+    } catch (err) {
+      console.error('❌ usePantry Hook - Error loading from API:', err);
+      setError('Failed to load pantry items');
+      // Don't clear pantry on network errors, keep existing state
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Remove item from pantry
-  const removePantryItem = (itemId) => {
-    setPantryItems(prev => {
-      const updated = prev.filter(item => item.id !== itemId);
-      console.log('🗑️ Item removed from pantry:', updated.map(item => item.name));
-      return updated;
-    });
+  // Add item to pantry via API
+  const addPantryItem = async (ingredient) => {
+    let tempId = null; // Declare tempId in function scope
+    try {
+      console.log('🥫 usePantry Hook - Adding to pantry via API:', ingredient);
+      
+      const token = localStorage.getItem('authToken');
+      console.log('🔑 usePantry Hook - Auth token present:', !!token);
+      console.log('🔑 usePantry Hook - Raw token value:', token ? token.substring(0, 20) + '...' : 'null');
+      console.log('🔑 usePantry Hook - localStorage keys:', Object.keys(localStorage));
+      
+      setError(null);
+      
+      if (!token) {
+        setError('Please log in to manage pantry');
+        return;
+      }
+
+      // Optimistic update
+      tempId = Date.now(); // Assign to function-scoped variable
+      const newItem = {
+        id: tempId,
+        name: ingredient.name,
+        category: ingredient.category || 'other',
+        amount: ingredient.amount || 'some',
+        addedAt: new Date().toISOString()
+      };
+
+      setPantryItems(prev => {
+        const exists = prev.find(item => item.name.toLowerCase() === ingredient.name.toLowerCase());
+        if (exists) {
+          console.log('⚠️ usePantry Hook - Item already in pantry:', ingredient.name);
+          return prev;
+        }
+        console.log('✅ usePantry Hook - Optimistic update applied, current items:', prev.length + 1);
+      return [...prev, newItem];
+      });
+
+      // Save to backend
+      console.log('🌐 usePantry Hook - Making API request to:', `${getApiUrl()}/api/pantry`);
+      const requestBody = JSON.stringify({
+        name: ingredient.name,
+        category: ingredient.category || 'other',
+        amount: ingredient.amount || 'some'
+      });
+      console.log('📤 usePantry Hook - Request body:', requestBody);
+      
+      const response = await fetch(`${getApiUrl()}/api/pantry`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: requestBody
+      });
+
+      console.log('📡 usePantry Hook - API response status:', response.status);
+      console.log('📡 usePantry Hook - API response ok:', response.ok);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ usePantry Hook - Added to API successfully:', data);
+        
+        // Update with real ID from backend
+        setPantryItems(prev => 
+          prev.map(item => 
+            item.id === tempId 
+              ? { ...item, id: data.item?.id || tempId }
+              : item
+          )
+        );
+      } else {
+        const errorText = await response.text();
+        console.error('❌ usePantry Hook - API error response:', errorText);
+        throw new Error(`Failed to add item: ${response.status} - ${errorText}`);
+      }
+      
+    } catch (err) {
+      console.error('❌ usePantry Hook - Error adding to API:', err);
+      setError('Failed to add item to pantry');
+      
+      // Revert optimistic update
+      if (tempId) {
+        setPantryItems(prev => prev.filter(item => item.id !== tempId));
+      }
+    }
   };
 
-  // Update item amount
-  const updatePantryAmount = (itemId, newAmount) => {
-    setPantryItems(prev =>
-      prev.map(item =>
-        item.id === itemId ? { ...item, amount: newAmount } : item
-      )
-    );
+  // Remove item from pantry via API
+  const removePantryItem = async (itemId) => {
+    try {
+      console.log('🗑️ usePantry Hook - Removing from pantry via API:', itemId);
+      setError(null);
+      
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setError('Please log in to manage pantry');
+        return;
+      }
+
+      // Optimistic update
+      const itemToRemove = pantryItems.find(item => item.id === itemId);
+      setPantryItems(prev => prev.filter(item => item.id !== itemId));
+
+      // Remove from backend
+      const response = await fetch(`${getApiUrl()}/api/pantry/${itemId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        console.log('✅ usePantry Hook - Removed from API successfully');
+      } else {
+        throw new Error(`Failed to remove item: ${response.status}`);
+      }
+      
+    } catch (err) {
+      console.error('❌ usePantry Hook - Error removing from API:', err);
+      setError('Failed to remove item from pantry');
+      
+      // Revert optimistic update
+      if (itemToRemove) {
+        setPantryItems(prev => [...prev, itemToRemove]);
+      }
+    }
+  };
+
+  // Update item amount via API
+  const updatePantryAmount = async (itemId, newAmount) => {
+    try {
+      console.log('🔄 usePantry Hook - Updating amount via API:', itemId, newAmount);
+      setError(null);
+      
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setError('Please log in to manage pantry');
+        return;
+      }
+
+      // Optimistic update
+      const oldAmount = pantryItems.find(item => item.id === itemId)?.amount;
+      setPantryItems(prev =>
+        prev.map(item =>
+          item.id === itemId ? { ...item, amount: newAmount } : item
+        )
+      );
+
+      // Update backend
+      const response = await fetch(`${getApiUrl()}/api/pantry/${itemId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: newAmount
+        })
+      });
+
+      if (response.ok) {
+        console.log('✅ usePantry Hook - Amount updated successfully');
+      } else {
+        throw new Error(`Failed to update amount: ${response.status}`);
+      }
+      
+    } catch (err) {
+      console.error('❌ usePantry Hook - Error updating amount:', err);
+      setError('Failed to update item amount');
+      
+      // Revert optimistic update
+      setPantryItems(prev =>
+        prev.map(item =>
+          item.id === itemId ? { ...item, amount: oldAmount } : item
+        )
+      );
+    }
+  };
+
+  // Refresh pantry from API
+  const refreshPantry = () => {
+    loadPantryFromAPI();
   };
 
   // Get pantry items formatted for API
@@ -83,10 +253,43 @@ export const usePantry = () => {
     }));
   };
 
-  // Clear all pantry items
-  const clearPantry = () => {
-    setPantryItems([]);
-    console.log('🧹 Pantry cleared');
+  // Clear all pantry items via API
+  const clearPantry = async () => {
+    try {
+      console.log('🧹 usePantry Hook - Clearing pantry via API');
+      setError(null);
+      
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setError('Please log in to manage pantry');
+        return;
+      }
+
+      // Optimistic update
+      const oldItems = [...pantryItems];
+      setPantryItems([]);
+
+      // Clear backend (delete all items)
+      const deletePromises = oldItems.map(item => 
+        fetch(`${getApiUrl()}/api/pantry/${item.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      );
+
+      await Promise.all(deletePromises);
+      console.log('✅ usePantry Hook - Pantry cleared successfully');
+      
+    } catch (err) {
+      console.error('❌ usePantry Hook - Error clearing pantry:', err);
+      setError('Failed to clear pantry');
+      
+      // Revert optimistic update
+      setPantryItems(oldItems);
+    }
   };
 
   return {
@@ -98,6 +301,7 @@ export const usePantry = () => {
     updatePantryAmount,
     getPantryForAPI,
     clearPantry,
+    refreshPantry,
     pantryCount: pantryItems.length,
     hasItems: pantryItems.length > 0
   };

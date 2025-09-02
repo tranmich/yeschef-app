@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import MealCalendar from './MealCalendar';
 import GroceryListGenerator from './GroceryListGenerator';
-import RecipeContainer from './RecipeContainer';
 import DraggableRecipeCard from './DraggableRecipeCard';
 import { getApiUrl } from '../utils/api';
 import './MealPlannerView.css';
@@ -229,17 +228,6 @@ const MealPlannerView = ({
                         onRemoveRecipe={removeRecipeFromMealPlan}
                     />
                 </div>
-
-                {/* Recipe Container - Bottom area */}
-                <RecipeContainer
-                    searchResults={searchResults}
-                    droppedRecipes={containerRecipes}
-                    onAddRecipe={(recipe, newRecipes) => {
-                        if (newRecipes) {
-                            setContainerRecipes(newRecipes);
-                        }
-                    }}
-                />
             </div>
 
             {/* Grocery List */}

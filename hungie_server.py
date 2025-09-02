@@ -2292,51 +2292,163 @@ def disable_pantry_system():
 
 @app.route('/api/pantry', methods=['GET'])
 def get_pantry_items():
-    """Get all pantry items"""
+    """Get user's pantry items"""
     try:
-        from core_systems.pantry_system import PantrySystem
-        pantry = PantrySystem()
-        items = pantry.get_all_pantry_items()
+        # Get user from JWT token
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
         
-        return jsonify({
-            'success': True,
-            'items': items,
-            'count': len(items)
-        })
+        logger.info(f"🔍 Fetching pantry items for user {user_id}")
         
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        try:
+            # Create pantry table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS pantry_items (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    name VARCHAR(255) NOT NULL,
+                    category VARCHAR(100) DEFAULT 'other',
+                    amount VARCHAR(100) DEFAULT 'some',
+                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            conn.commit()
+            logger.info("✅ Pantry table ensured to exist")
+            
+            # Fetch all pantry items for this user
+            cursor.execute("""
+                SELECT id, name, category, amount, added_at
+                FROM pantry_items 
+                WHERE user_id = %s
+                ORDER BY added_at DESC
+            """, (user_id,))
+            
+            rows = cursor.fetchall()
+            
+            items = []
+            for row in rows:
+                items.append({
+                    'id': row['id'],
+                    'name': row['name'],
+                    'category': row['category'],
+                    'amount': row['amount'],
+                    'addedAt': row['added_at'].isoformat() if row['added_at'] else None
+                })
+            
+            logger.info(f"✅ Retrieved {len(items)} pantry items for user {user_id}")
+            
+            return jsonify({
+                'success': True,
+                'items': items,
+                'count': len(items)
+            })
+            
+        finally:
+            cursor.close()
+            conn.close()
+            
     except Exception as e:
         logger.error(f"❌ Get pantry items error: {e}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'items': []
         }), 500
 
 @app.route('/api/pantry', methods=['POST'])
 def add_pantry_item():
-    """Add item to pantry"""
+    """Add item to user's pantry"""
     try:
-        from core_systems.pantry_system import PantrySystem
-        
+        # Get user from JWT token
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+            
         data = request.get_json()
+        logger.info(f"🔍 Received request data: {data}")
+        
         if not data:
             return jsonify({
                 'success': False,
                 'error': 'No data provided'
             }), 400
         
-        ingredient_name = data.get('ingredient_name', '').strip()
-        amount = data.get('amount', 1)
+        # Support both 'name' and 'ingredient_name' for flexibility
+        ingredient_name = data.get('name', data.get('ingredient_name', '')).strip()
+        amount = data.get('amount', 'some')
+        category = data.get('category', 'other')
+        
+        logger.info(f"🔍 Parsed values - name: '{ingredient_name}', amount: '{amount}', category: '{category}'")
         
         if not ingredient_name:
+            logger.error(f"❌ Missing ingredient name in data: {data}")
             return jsonify({
                 'success': False,
                 'error': 'Ingredient name required'
             }), 400
         
-        pantry = PantrySystem()
-        result = pantry.add_pantry_item(ingredient_name, amount)
+        logger.info(f"🥫 Adding pantry item for user {user_id}: {ingredient_name} ({category})")
         
-        return jsonify(result)
+        # Connect to database and actually save the item
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        try:
+            # Create pantry table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS pantry_items (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    name VARCHAR(255) NOT NULL,
+                    category VARCHAR(100) DEFAULT 'other',
+                    amount VARCHAR(100) DEFAULT 'some',
+                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            """)
+            conn.commit()
+            logger.info("✅ Pantry table ensured to exist")
+            
+            # Insert the new pantry item
+            cursor.execute("""
+                INSERT INTO pantry_items (user_id, name, category, amount)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id, added_at
+            """, (user_id, ingredient_name, category, amount))
+            
+            result = cursor.fetchone()
+            item_id = result['id']
+            added_at = result['added_at']
+            
+            conn.commit()
+            logger.info(f"✅ Pantry item saved to database with ID: {item_id}")
+            
+            item_data = {
+                'id': item_id,
+                'name': ingredient_name,
+                'category': category,
+                'amount': amount,
+                'addedAt': added_at.isoformat()
+            }
+            
+            return jsonify({
+                'success': True,
+                'message': f'Added {ingredient_name} to pantry',
+                'item': item_data
+            })
+            
+        except Exception as db_error:
+            conn.rollback()
+            logger.error(f"❌ Database error: {db_error}")
+            raise db_error
+        finally:
+            cursor.close()
+            conn.close()
         
     except Exception as e:
         logger.error(f"❌ Add pantry item error: {e}")
@@ -2401,60 +2513,57 @@ def get_ingredients():
     try:
         logger.info("🔍 Fetching canonical ingredients from PostgreSQL...")
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         # Get query parameter for search filtering
         query = request.args.get('query', '').strip()
         logger.info(f"📝 Search query parameter: '{query}'")
         
-        # Get clean ingredients (exclude entries with measurements, brackets, or complex formatting)
-        sql_query = """
-            SELECT DISTINCT 
-                canonical_name, 
-                category,
-                CASE category 
-                    WHEN 'protein' THEN 1
-                    WHEN 'produce' THEN 2
-                    WHEN 'dairy' THEN 3
-                    WHEN 'grain' THEN 4
-                    WHEN 'spice' THEN 5
-                    WHEN 'herb' THEN 6
-                    WHEN 'cooking' THEN 7
-                    WHEN 'baking' THEN 8
-                    ELSE 9
-                END as category_order
-            FROM canonical_ingredients 
-            WHERE canonical_name NOT LIKE '%cup%'
-            AND canonical_name NOT LIKE '%teaspoon%'
-            AND canonical_name NOT LIKE '%tablespoon%'
-            AND canonical_name NOT LIKE '%[%'
-            AND canonical_name NOT LIKE '"%'
-            AND canonical_name NOT LIKE '%{%'
-            AND canonical_name NOT LIKE '½%'
-            AND canonical_name NOT LIKE '¼%'
-            AND canonical_name NOT LIKE '1%'
-            AND canonical_name NOT LIKE '2%'
-            AND canonical_name NOT LIKE '3%'
-            AND canonical_name NOT LIKE '4%'
-            AND canonical_name NOT LIKE '5%'
-            AND LENGTH(canonical_name) < 50
-        """
-        
-        # Add search filter if query provided
+        # Get clean ingredients with simplified query
         if query:
-            sql_query += " AND canonical_name ILIKE %s"
-            cursor.execute(sql_query + " ORDER BY category_order, canonical_name LIMIT 200", (f'%{query}%',))
-            logger.info(f"🔍 Applied search filter for: '{query}'")
+            # Use simple string formatting temporarily to avoid parameterization issues
+            sql_query = f"""
+                SELECT DISTINCT canonical_name, category
+                FROM canonical_ingredients 
+                WHERE canonical_name ILIKE '%{query}%'
+                AND canonical_name NOT LIKE '%cup%'
+                AND canonical_name NOT LIKE '%teaspoon%'
+                AND canonical_name NOT LIKE '%tablespoon%'
+                AND LENGTH(canonical_name) < 50
+                ORDER BY canonical_name
+                LIMIT 200
+            """
+            logger.info(f"🔍 Executing simple search query for: '{query}'")
+            cursor.execute(sql_query)
         else:
-            cursor.execute(sql_query + " ORDER BY category_order, canonical_name LIMIT 200")
-            logger.info("📋 Fetching all ingredients (no search filter)")
+            sql_query = """
+                SELECT DISTINCT canonical_name, category
+                FROM canonical_ingredients 
+                WHERE canonical_name NOT LIKE '%cup%'
+                AND canonical_name NOT LIKE '%teaspoon%'
+                AND canonical_name NOT LIKE '%tablespoon%'
+                AND LENGTH(canonical_name) < 50
+                ORDER BY canonical_name
+                LIMIT 200
+            """
+            logger.info("� Executing simple query without search filter")
+            cursor.execute(sql_query)
+        
+        logger.info("📊 Fetching query results...")
+        rows = cursor.fetchall()
+        logger.info(f"📊 Retrieved {len(rows)} rows from database")
         
         ingredients = []
-        for row in cursor.fetchall():
-            ingredients.append({
-                'name': row['canonical_name'],
-                'category': row['category'] or 'other'
-            })
+        for row in rows:
+            try:
+                # Use dictionary access since we have RealDictCursor
+                ingredients.append({
+                    'name': row['canonical_name'],
+                    'category': row['category'] or 'other'
+                })
+            except Exception as row_error:
+                logger.error(f"❌ Error processing row: {row}, error: {row_error}")
+                continue
         
         logger.info(f"✅ Retrieved {len(ingredients)} ingredients from canonical_ingredients table")
         if ingredients:
