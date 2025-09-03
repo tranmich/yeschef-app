@@ -125,7 +125,19 @@ CORS(app, resources={
     r"/api/*": {
         "origins": [
             "http://localhost:3000",
+            "http://localhost:3001", 
+            "http://localhost:3002",
+            "http://localhost:3003",
+            "http://localhost:3004",
+            "http://localhost:3005",
+            "http://localhost:3006",
             "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
+            "http://127.0.0.1:3002", 
+            "http://127.0.0.1:3003",
+            "http://127.0.0.1:3004",
+            "http://127.0.0.1:3005",
+            "http://127.0.0.1:3006",
             "https://yeschef-app.vercel.app"
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -2017,6 +2029,255 @@ def generate_grocery_list_from_recipes():
 
     except Exception as e:
         logger.error(f"Generate grocery list from recipes error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ===================================
+# GROCERY LIST MANAGEMENT API
+# ===================================
+
+@app.route('/api/grocery-lists', methods=['GET'])
+def get_user_grocery_lists():
+    """Get user's saved grocery lists"""
+    try:
+        # Get user from session/auth (for now, we'll use a default user)
+        user_id = 1  # TODO: Get from authentication system
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Create table if it doesn't exist
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS grocery_lists (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER,
+                list_name TEXT NOT NULL,
+                list_data JSONB NOT NULL,
+                recipe_ids INTEGER[] DEFAULT '{}',
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
+        # Get user's grocery lists
+        cursor.execute("""
+            SELECT id, list_name, recipe_ids, created_at, updated_at,
+                   (list_data->>'ingredient_count')::int as item_count
+            FROM grocery_lists 
+            WHERE user_id = %s 
+            ORDER BY updated_at DESC
+        """, (user_id,))
+        
+        lists = cursor.fetchall()
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'grocery_lists': [dict(list_item) for list_item in lists]
+        })
+        
+    except Exception as e:
+        logger.error(f"Get grocery lists error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/grocery-lists', methods=['POST'])
+def save_grocery_list():
+    """Save a grocery list"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        list_name = data.get('list_name')
+        list_data = data.get('list_data')
+        recipe_ids = data.get('recipe_ids', [])
+        
+        if not list_name or not list_data:
+            return jsonify({
+                'success': False,
+                'error': 'List name and data are required'
+            }), 400
+        
+        # Get user from session/auth (for now, we'll use a default user)
+        user_id = 1  # TODO: Get from authentication system
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Create table if it doesn't exist
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS grocery_lists (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER,
+                list_name TEXT NOT NULL,
+                list_data JSONB NOT NULL,
+                recipe_ids INTEGER[] DEFAULT '{}',
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
+        # Insert the grocery list
+        cursor.execute("""
+            INSERT INTO grocery_lists (user_id, list_name, list_data, recipe_ids)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, created_at
+        """, (user_id, list_name, json.dumps(list_data), recipe_ids))
+        
+        result = cursor.fetchone()
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'list_id': result['id'],
+            'message': f'Grocery list "{list_name}" saved successfully',
+            'created_at': result['created_at'].isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Save grocery list error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/grocery-lists/<int:list_id>', methods=['GET'])
+def get_grocery_list_details(list_id):
+    """Get detailed grocery list data"""
+    try:
+        # Get user from session/auth (for now, we'll use a default user)
+        user_id = 1  # TODO: Get from authentication system
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        cursor.execute("""
+            SELECT id, list_name, list_data, recipe_ids, created_at, updated_at
+            FROM grocery_lists 
+            WHERE id = %s AND user_id = %s
+        """, (list_id, user_id))
+        
+        grocery_list = cursor.fetchone()
+        
+        if not grocery_list:
+            return jsonify({
+                'success': False,
+                'error': 'Grocery list not found'
+            }), 404
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'grocery_list': dict(grocery_list)
+        })
+        
+    except Exception as e:
+        logger.error(f"Get grocery list details error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/grocery-lists/<int:list_id>', methods=['PUT'])
+def update_grocery_list(list_id):
+    """Update an existing grocery list"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        list_name = data.get('list_name')
+        list_data = data.get('list_data')
+        recipe_ids = data.get('recipe_ids', [])
+        
+        # Get user from session/auth (for now, we'll use a default user)
+        user_id = 1  # TODO: Get from authentication system
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Update the grocery list
+        cursor.execute("""
+            UPDATE grocery_lists 
+            SET list_name = COALESCE(%s, list_name),
+                list_data = COALESCE(%s, list_data),
+                recipe_ids = COALESCE(%s, recipe_ids),
+                updated_at = NOW()
+            WHERE id = %s AND user_id = %s
+            RETURNING id, updated_at
+        """, (list_name, json.dumps(list_data) if list_data else None, recipe_ids, list_id, user_id))
+        
+        result = cursor.fetchone()
+        
+        if not result:
+            return jsonify({
+                'success': False,
+                'error': 'Grocery list not found or unauthorized'
+            }), 404
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Grocery list updated successfully',
+            'updated_at': result['updated_at'].isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Update grocery list error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/grocery-lists/<int:list_id>', methods=['DELETE'])
+def delete_grocery_list(list_id):
+    """Delete a grocery list"""
+    try:
+        # Get user from session/auth (for now, we'll use a default user)
+        user_id = 1  # TODO: Get from authentication system
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            DELETE FROM grocery_lists 
+            WHERE id = %s AND user_id = %s
+        """, (list_id, user_id))
+        
+        if cursor.rowcount == 0:
+            return jsonify({
+                'success': False,
+                'error': 'Grocery list not found or unauthorized'
+            }), 404
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Grocery list deleted successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Delete grocery list error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

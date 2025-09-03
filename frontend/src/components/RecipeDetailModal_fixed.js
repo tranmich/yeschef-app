@@ -1,0 +1,108 @@
+import React from 'react';
+import { formatRecipeText } from '../utils/recipeFormatting';
+import './RecipeDetailModal.css';
+
+const RecipeDetailModal = ({ recipe, isOpen, onClose, onEdit }) => {
+  if (!isOpen || !recipe) return null;
+
+  // Use consistent formatting utilities
+  const formattedIngredients = formatRecipeText.formatIngredients(recipe.ingredients);
+  const formattedInstructions = formatRecipeText.formatInstructions(recipe.instructions);
+  const formattedTime = formatRecipeText.formatTime(recipe.cooking_time || recipe.time_min || recipe.prep_time);
+  const formattedServings = formatRecipeText.formatServings(recipe.servings);
+  const formattedDifficulty = formatRecipeText.formatDifficulty(recipe.difficulty);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
+        
+        {/* Header Section - Left-aligned title */}
+        <div className="recipe-header">
+          <div className="recipe-title-section">
+            <h1 className="recipe-title-large">{recipe.title || 'Untitled Recipe'}</h1>
+          </div>
+          <button className="close-button" onClick={onClose}>✕</button>
+        </div>
+
+        {/* Recipe Metadata Bar */}
+        <div className="recipe-metadata-bar">
+          {formattedServings && (
+            <div className="metadata-item">
+              <span className="metadata-icon">🍽️</span>
+              <span className="metadata-value">{formattedServings}</span>
+            </div>
+          )}
+          
+          {formattedTime && (
+            <div className="metadata-item">
+              <span className="metadata-icon">⏱️</span>
+              <span className="metadata-value">{formattedTime}</span>
+            </div>
+          )}
+          
+          {formattedDifficulty && (
+            <div className="metadata-item">
+              <span className="metadata-icon">📊</span>
+              <span className="metadata-label">Level:</span>
+              <span className="metadata-value">{formattedDifficulty}</span>
+            </div>
+          )}
+          
+          {recipe.rating && (
+            <div className="metadata-item">
+              <span className="metadata-icon">⭐</span>
+              <span className="metadata-label">Rating:</span>
+              <span className="metadata-value">{recipe.rating}/5</span>
+            </div>
+          )}
+        </div>
+
+        {/* Recipe Content - Single Column Layout */}
+        <div className="recipe-content-flow">
+          
+          {/* Description */}
+          {recipe.description && (
+            <div className="recipe-section">
+              <p className="recipe-description">{recipe.description}</p>
+            </div>
+          )}
+          
+          {/* Ingredients Section */}
+          {formattedIngredients && (
+            <div className="recipe-section">
+              <h2 className="section-title">🛒 Ingredients</h2>
+              <div className="section-content">
+                <pre className="formatted-recipe-text">{formattedIngredients}</pre>
+              </div>
+            </div>
+          )}
+
+          {/* Instructions Section */}
+          {formattedInstructions && (
+            <div className="recipe-section">
+              <h2 className="section-title">👨‍🍳 Instructions</h2>
+              <div className="section-content">
+                <pre className="formatted-recipe-text">{formattedInstructions}</pre>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="recipe-actions">
+            {onEdit && (
+              <button className="action-button edit-button" onClick={() => onEdit(recipe)}>
+                ✎ Edit Recipe
+              </button>
+            )}
+            <button className="action-button close-button-secondary" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default RecipeDetailModal;

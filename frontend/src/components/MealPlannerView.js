@@ -13,9 +13,7 @@ const MealPlannerView = ({
     mealPlan,
     setMealPlan,
     containerRecipes,
-    setContainerRecipes,
-    showGroceryListFromNav,
-    setShowGroceryListFromNav
+    setContainerRecipes
 }) => {
     // Use meal plan state from parent if provided, otherwise create local state
     const [localMealPlan, setLocalMealPlan] = useState({
@@ -42,14 +40,6 @@ const MealPlannerView = ({
     useEffect(() => {
         loadSavedMealPlans();
     }, []);
-
-    // Handle grocery list activation from navigation
-    useEffect(() => {
-        if (showGroceryListFromNav) {
-            setShowGroceryList(true);
-            setShowGroceryListFromNav?.(false); // Reset the flag
-        }
-    }, [showGroceryListFromNav, setShowGroceryListFromNav]);
 
     const loadSavedMealPlans = async () => {
         try {

@@ -13,8 +13,6 @@ const SidebarContainer = ({
     setMealPlan,
     containerRecipes,
     setContainerRecipes,
-    showGroceryListFromNav,
-    setShowGroceryListFromNav,
     onFeatureSelect,
     isPantryExpanded,
     isMealPlannerExpanded,
@@ -130,8 +128,6 @@ const SidebarContainer = ({
                     setMealPlan={setMealPlan}
                     containerRecipes={containerRecipes}
                     setContainerRecipes={setContainerRecipes}
-                    showGroceryListFromNav={showGroceryListFromNav}
-                    setShowGroceryListFromNav={setShowGroceryListFromNav}
                     isVisible={showMealPlanner}
                     isCompact={showMealPlanner}
                 />

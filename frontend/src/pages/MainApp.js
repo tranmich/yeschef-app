@@ -9,6 +9,7 @@ import ImportRecipeModal from '../components/ImportRecipeModal';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import AdminDashboard from '../components/AdminDashboard';
 import AdminRecipeOverlay from '../components/AdminRecipeOverlay';
+import GroceryManagerWorkspace from '../components/GroceryManagerWorkspace';
 import './MainApp.css';
 import SessionMemoryManager from '../utils/SessionMemoryManager';
 import { usePantry } from '../hooks/usePantry';
@@ -48,8 +49,8 @@ const MainApp = () => {
   // Recipe container state
   const [containerRecipes, setContainerRecipes] = useState([]);
 
-  // Grocery list navigation state
-  const [showGroceryListFromNav, setShowGroceryListFromNav] = useState(false);
+  // Active view state (cookbook or grocery-manager)
+  const [activeView, setActiveView] = useState('cookbook');
 
   // Load recipes on component mount
   useEffect(() => {
@@ -346,12 +347,9 @@ const MainApp = () => {
 
   // Handle grocery list activation from navigation
   const handleShowGroceryList = () => {
-    // First ensure meal planner is visible
-    if (!sidebarHook.isMealPlannerVisible) {
-      sidebarHook.toggleMealPlanner();
-    }
-    // Signal to show grocery list
-    setShowGroceryListFromNav(true);
+    setActiveView('grocery-manager');
+    setShowChat(false); // Close chat if open
+    sidebarHook.closeAllSidebars(); // Close other sidebars
   };
 
   // Handle recipe import functionality
@@ -473,14 +471,17 @@ const MainApp = () => {
           setMealPlan={mealPlannerHook.setMealPlan}
           containerRecipes={containerRecipes}
           setContainerRecipes={setContainerRecipes}
-          showGroceryListFromNav={showGroceryListFromNav}
-          setShowGroceryListFromNav={setShowGroceryListFromNav}
           onShowGroceryList={handleShowGroceryList}
           showChat={showChat}
           onToggleChat={handleToggleChat}
           onFeatureSelect={(feature) => {
             console.log('Feature selected:', feature);
             if (feature === 'cookbook') {
+              setActiveView('cookbook');
+              setShowChat(false);
+              sidebarHook.closeAllSidebars();
+            } else if (feature === 'grocery-lists') {
+              setActiveView('grocery-manager');
               setShowChat(false);
               sidebarHook.closeAllSidebars();
             } else if (feature === 'import') {
@@ -546,16 +547,24 @@ const MainApp = () => {
             </div>
           )}
 
-          {/* Recipe List View */}
-          <RecipeListView
-            recipes={getFilteredRecipes()}
-            selectedCategory={selectedCategory}
-            onRecipeClick={handleRecipeClick}
-            onRecipeEdit={handleRecipeEdit}
-            loading={loading}
-            adminMode={adminMode && isAdmin}
-            isAdmin={isAdmin}
-          />
+          {/* Main Content - Conditional View */}
+          {activeView === 'cookbook' && (
+            <RecipeListView
+              recipes={getFilteredRecipes()}
+              selectedCategory={selectedCategory}
+              onRecipeClick={handleRecipeClick}
+              onRecipeEdit={handleRecipeEdit}
+              loading={loading}
+              adminMode={adminMode && isAdmin}
+              isAdmin={isAdmin}
+            />
+          )}
+
+          {activeView === 'grocery-manager' && (
+            <GroceryManagerWorkspace
+              mealPlanRecipes={mealPlannerHook.getAllMealPlanRecipes().map(recipe => recipe.id).filter(Boolean)}
+            />
+          )}
 
           {/* Chat Panel - Toggle Overlay */}
           {showChat && (

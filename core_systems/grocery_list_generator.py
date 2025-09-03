@@ -219,24 +219,35 @@ class GroceryListGenerator:
             for row in rows:
                 recipe_id, recipe_title, ingredients_json = row
                 
-                # Parse the ingredients JSON
+                # Parse the ingredients - handle both JSON and text formats
                 try:
                     if ingredients_json:
-                        ingredients_list = json.loads(ingredients_json)
-                        for ingredient_text in ingredients_list:
-                            # Parse each ingredient text to extract quantity, unit, and name
-                            parsed = self._parse_ingredient_text(ingredient_text)
-                            if parsed['name']:  # Only add if we could extract a name
-                                ingredients.append({
-                                    'recipe_id': recipe_id,
-                                    'ingredient_name': parsed['name'],
-                                    'quantity': parsed['quantity'],
-                                    'unit': parsed['unit'],
-                                    'preparation': parsed['preparation'],
-                                    'recipe_title': recipe_title,
-                                    'original_text': ingredient_text
-                                })
-                except (json.JSONDecodeError, TypeError) as e:
+                        # First try to parse as JSON array
+                        try:
+                            ingredients_list = json.loads(ingredients_json)
+                            if isinstance(ingredients_list, list):
+                                # It's a JSON array of ingredients
+                                for ingredient_text in ingredients_list:
+                                    # Parse each ingredient text to extract quantity, unit, and name
+                                    parsed = self._parse_ingredient_text(str(ingredient_text))
+                                    if parsed['name']:  # Only add if we could extract a name
+                                        ingredients.append({
+                                            'recipe_id': recipe_id,
+                                            'ingredient_name': parsed['name'],
+                                            'quantity': parsed['quantity'],
+                                            'unit': parsed['unit'],
+                                            'preparation': parsed['preparation'],
+                                            'recipe_title': recipe_title,
+                                            'original_text': str(ingredient_text)
+                                        })
+                            else:
+                                # JSON parsed but not a list, treat as single string
+                                ingredient_text = str(ingredients_list)
+                                self._parse_text_ingredients(ingredient_text, recipe_id, recipe_title, ingredients)
+                        except (json.JSONDecodeError, TypeError):
+                            # Not valid JSON, treat as formatted text
+                            self._parse_text_ingredients(ingredients_json, recipe_id, recipe_title, ingredients)
+                except Exception as e:
                     self.logger.warning(f"Could not parse ingredients for recipe {recipe_id}: {e}")
                     continue
             
@@ -247,6 +258,41 @@ class GroceryListGenerator:
             return []
         finally:
             conn.close()
+    
+    def _parse_text_ingredients(self, ingredients_text: str, recipe_id: int, recipe_title: str, ingredients: List[Dict]):
+        """
+        Parse text-based ingredients (like bullet point lists) into structured data.
+        
+        Args:
+            ingredients_text: Raw ingredients text (with bullets, newlines, etc.)
+            recipe_id: Recipe ID for reference
+            recipe_title: Recipe title for reference
+            ingredients: List to append parsed ingredients to
+        """
+        if not ingredients_text:
+            return
+            
+        # Split by newlines and filter out empty lines
+        ingredient_lines = [line.strip() for line in ingredients_text.split('\n') if line.strip()]
+        
+        for ingredient_text in ingredient_lines:
+            # Clean up the ingredient text (remove bullets, extra spaces)
+            cleaned_text = ingredient_text.strip()
+            cleaned_text = cleaned_text.lstrip('•').lstrip('-').lstrip('*').strip()
+            
+            if cleaned_text:  # Only process non-empty ingredients
+                # Parse each ingredient text to extract quantity, unit, and name
+                parsed = self._parse_ingredient_text(cleaned_text)
+                if parsed['name']:  # Only add if we could extract a name
+                    ingredients.append({
+                        'recipe_id': recipe_id,
+                        'ingredient_name': parsed['name'],
+                        'quantity': parsed['quantity'],
+                        'unit': parsed['unit'],
+                        'preparation': parsed['preparation'],
+                        'recipe_title': recipe_title,
+                        'original_text': cleaned_text
+                    })
     
     def _aggregate_ingredients(self, ingredients: List[Dict]) -> Dict[str, Dict]:
         """
