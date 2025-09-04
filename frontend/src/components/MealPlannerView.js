@@ -258,25 +258,9 @@ const MealPlannerView = ({
                             'lunch': { name: 'Lunch', recipes: [] },
                             'dinner': { name: 'Dinner', recipes: [] }
                         }
-                    },
-                    'day2': { 
-                        name: 'Day 2',
-                        meals: {
-                            'breakfast': { name: 'Breakfast', recipes: [] },
-                            'lunch': { name: 'Lunch', recipes: [] },
-                            'dinner': { name: 'Dinner', recipes: [] }
-                        }
-                    },
-                    'day3': { 
-                        name: 'Day 3',
-                        meals: {
-                            'breakfast': { name: 'Breakfast', recipes: [] },
-                            'lunch': { name: 'Lunch', recipes: [] },
-                            'dinner': { name: 'Dinner', recipes: [] }
-                        }
                     }
                 },
-                dayOrder: ['day1', 'day2', 'day3']
+                dayOrder: ['day1']
             });
             setCurrentPlanName('');
         }

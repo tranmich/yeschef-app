@@ -350,9 +350,14 @@ const MainApp = () => {
 
   // Handle grocery list activation from navigation
   const handleShowGroceryList = () => {
-    setActiveView('grocery-manager');
-    setShowChat(false); // Close chat if open
-    sidebarHook.closeAllSidebars(); // Close other sidebars
+    // Toggle functionality - if already showing grocery manager, close it
+    if (activeView === 'grocery-manager') {
+      setActiveView('cookbook'); // Return to cookbook view
+    } else {
+      setActiveView('grocery-manager');
+      setShowChat(false); // Close chat if open
+      sidebarHook.closeAllSidebars(); // Close other sidebars
+    }
   };
 
   // Handle recipe import functionality
