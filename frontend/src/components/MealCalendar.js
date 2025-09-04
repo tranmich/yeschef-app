@@ -166,7 +166,7 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onAddDay, onRemoveDay, onAddMe
     return (
         <div className="meal-calendar">
             <div className="calendar-header">
-                <h3>📅 Custom Meal Plan</h3>
+                <h3>📅 Meal Plan</h3>
             </div>
 
             <div className="calendar-grid-dynamic">

@@ -22,6 +22,8 @@
 .sidebar-navigation .navigation-header .header-left {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .sidebar-navigation .navigation-header .app-logo {
@@ -38,12 +40,6 @@
   font-size: 1.1rem;
   font-weight: 600;
   color: #1f2937;
-}
-
-.sidebar-navigation .navigation-header .header-right {
-  display: flex;
-  align-items: center;
-  margin-left: auto;
 }
 
 /* === USER MENU === */

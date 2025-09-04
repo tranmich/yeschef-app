@@ -292,7 +292,7 @@ const MealPlannerView = ({
             {/* Enhanced Header with Controls */}
             <div className="meal-planner-header">
                 <div className="header-left">
-                    <h2>Custom Meal Planner</h2>
+                    <h2>Meal Planner</h2>
                     <button
                         onClick={addNewDay}
                         className="add-day-btn"

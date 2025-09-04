@@ -101,9 +101,7 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
             <span className="logo-icon">🍽️</span>
             <span className="logo-text">Yes Chef!</span>
           </div>
-        </div>
-
-        <div className="header-right">
+          
           <div className="user-menu-container">
             <button
               className="user-avatar"
