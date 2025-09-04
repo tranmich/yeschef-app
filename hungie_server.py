@@ -1880,23 +1880,14 @@ def list_meal_plans():
     try:
         limit = request.args.get('limit', 50, type=int)
 
-        # Temporary fix: Return empty meal plans instead of erroring
-        # TODO: Fix meal planning system database connection issue
+        meal_planner = MealPlanningSystem()
+        plans = meal_planner.list_meal_plans(limit=limit)
+        
         return jsonify({
             'success': True,
-            'meal_plans': [],
-            'count': 0,
-            'note': 'Meal planning temporarily disabled due to database connection issue'
+            'meal_plans': plans,
+            'count': len(plans)
         })
-
-        # meal_planner = MealPlanningSystem()
-        # plans = meal_planner.list_meal_plans(limit=limit)
-        # 
-        # return jsonify({
-        #     'success': True,
-        #     'meal_plans': plans,
-        #     'count': len(plans)
-        # })
 
     except Exception as e:
         logger.error(f"List meal plans error: {e}")

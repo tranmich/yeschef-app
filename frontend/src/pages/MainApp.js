@@ -46,11 +46,14 @@ const MainApp = () => {
   const [adminMode, setAdminMode] = useState(false);
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
 
+    // --- Meal Planner Mode ---
+  const [mealPlannerMode, setMealPlannerMode] = useState('traditional'); // 'traditional' or 'notion'
+  const [activeView, setActiveView] = useState('cookbook'); // 'cookbook', 'grocery-manager', 'notion-planner'
+
   // Recipe container state
   const [containerRecipes, setContainerRecipes] = useState([]);
 
-  // Active view state (cookbook or grocery-manager)
-  const [activeView, setActiveView] = useState('cookbook');
+  // View state management
 
   // Load recipes on component mount
   useEffect(() => {
@@ -482,6 +485,10 @@ const MainApp = () => {
               sidebarHook.closeAllSidebars();
             } else if (feature === 'grocery-lists') {
               setActiveView('grocery-manager');
+              setShowChat(false);
+              sidebarHook.closeAllSidebars();
+            } else if (feature === 'notion-planner') {
+              setActiveView('notion-planner');
               setShowChat(false);
               sidebarHook.closeAllSidebars();
             } else if (feature === 'import') {

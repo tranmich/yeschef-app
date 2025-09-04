@@ -9,7 +9,6 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
   const [activeFeature, setActiveFeature] = useState('cookbook');
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // Header functionality
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -28,7 +27,7 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
   const features = [
     {
       id: 'cookbook',
-      icon: '�',
+      icon: '📚',
       label: 'My Cookbook',
       description: 'Browse and organize recipes',
       available: true,
@@ -39,7 +38,7 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
     },
     {
       id: 'chat',
-      icon: '�',
+      icon: '🤖',
       label: 'AI Chat',
       description: 'Chat with cooking assistant',
       available: true,
@@ -50,9 +49,9 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
     },
     {
       id: 'meal-planner',
-      icon: '�',
+      icon: '📅',
       label: 'Meal Planner',
-      description: 'Plan your weekly meals',
+      description: 'Customizable meal planning',
       available: true,
       onClick: () => {
         onToggleMealPlanner?.();
@@ -71,19 +70,19 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
       }
     },
     {
-      id: 'grocery-lists',
+      id: 'grocery-list',
       icon: '🛒',
       label: 'Grocery Lists',
-      description: 'Smart shopping lists',
+      description: 'Shopping list management',
       available: true,
       onClick: () => {
-        setActiveFeature('grocery-lists');
         onShowGroceryList?.();
+        setActiveFeature('grocery-list');
       }
     },
     {
       id: 'import',
-      icon: '📥',
+      icon: '⬇️',
       label: 'Import Recipe',
       description: 'Add recipes from anywhere',
       available: true,
@@ -94,9 +93,11 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
     }
   ];
 
+  console.log('🔍 PROGRESSIVE: About to render JSX with', features.length, 'features');
+
+  // PROGRESSIVE RENDER - Start with minimal structure
   return (
     <nav className="sidebar-navigation">
-      {/* Navigation Header with Hungie logo and user account */}
       <div className="navigation-header">
         <div className="header-left">
           <div className="app-logo">
@@ -104,35 +105,43 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
             <span className="logo-text">Yes Chef!</span>
           </div>
         </div>
-
+        
+        {/* Add user menu section */}
         <div className="header-right">
-          <div className="user-menu-container">
-            <button
+          <div className="user-section">
+            <button 
               className="user-avatar"
               onClick={toggleUserMenu}
-              title={`${user?.name} - Click for account menu`}
+              title={user ? `Logged in as ${user.email}` : 'User menu'}
             >
-              <span className="avatar-initials">{getUserInitials(user?.name)}</span>
+              <div className="avatar-circle">
+                {user ? getUserInitials(user.name || user.email) : 'U'}
+              </div>
             </button>
-
+            
             {showUserMenu && (
               <div className="user-dropdown">
-                <div className="user-info">
-                  <div className="user-name">{user?.name}</div>
-                  <div className="user-email">{user?.email}</div>
-                </div>
-                <div className="dropdown-divider"></div>
-                <div className="dropdown-actions">
-                  <button className="dropdown-item" disabled>
-                    ⚙️ Account Settings
-                  </button>
-                  <button className="dropdown-item" disabled>
-                    🎨 Preferences
-                  </button>
+                <div className="dropdown-header">
+                  <div className="user-info">
+                    <div className="user-name">{user?.name || 'User'}</div>
+                    <div className="user-email">{user?.email}</div>
+                  </div>
                   <div className="dropdown-divider"></div>
-                  <button className="dropdown-item logout" onClick={handleLogout}>
-                    🚪 Sign Out
-                  </button>
+                  <div className="dropdown-actions">
+                    <button className="dropdown-item" disabled>
+                      ⚙️ Account Settings
+                    </button>
+                    <button className="dropdown-item" disabled>
+                      🎨 Preferences
+                    </button>
+                    <div className="dropdown-divider"></div>
+                    <button 
+                      className="dropdown-item logout-btn"
+                      onClick={handleLogout}
+                    >
+                      🚪 Logout
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -140,36 +149,50 @@ const SidebarNavigation = ({ onFeatureSelect, showMealPlanner, onToggleMealPlann
         </div>
       </div>
 
-      <div className="sidebar-content">
-        <div className="nav-section">
-          <div className="nav-section-title">Features</div>
-          <div className="nav-items">
-            {features.map((feature) => (
-              <button
-                key={feature.id}
-                className={`nav-item ${activeFeature === feature.id ? 'active' : ''} ${!feature.available ? 'disabled' : ''} ${feature.id === 'meal-planner' && showMealPlanner ? 'active' : ''} ${feature.id === 'pantry' && showPantry ? 'active' : ''} ${feature.id === 'chat' && showChat ? 'active' : ''}`}
-                onClick={feature.onClick}
-                disabled={!feature.available}
-                title={feature.available ? feature.description : `${feature.description} (Coming Soon)`}
-              >
-                <div className="nav-item-icon">{feature.icon}</div>
-                <div className="nav-item-content">
-                  <div className="nav-item-label">{feature.label}</div>
-                  {!feature.available && (
-                    <div className="nav-item-badge">Soon</div>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
+      <div className="features-grid">
+        {features.map(feature => {
+          const featureClasses = `feature-card ${!feature.available ? 'disabled' : ''} ${activeFeature === feature.id ? 'active' : ''}`;
+          return (
+            <button
+              key={feature.id}
+              className={featureClasses}
+              onClick={feature.available ? feature.onClick : undefined}
+              disabled={!feature.available}
+              title={feature.description}
+            >
+              <div className="feature-icon">{feature.icon}</div>
+              <div className="feature-label">{feature.label}</div>
+              {!feature.available && (
+                <div className="coming-soon-badge">Coming Soon</div>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-        <div className="sidebar-footer">
-          <div className="feature-hint">
-            <div className="hint-icon">💡</div>
-            <div className="hint-text">
-              More features coming soon! Focus on AI chat and meal planning for now.
-            </div>
+  console.log('🔍 PROGRESSIVE: About to render JSX with', features.length, 'features');
+
+  return (
+
+      <div className="sidebar-status">
+        <div className="status-grid">
+          <div className="status-item">
+            <span className="status-label">🍽️ Meal Plan</span>
+            <span className={`status-indicator ${showMealPlanner ? 'active' : 'inactive'}`}>
+              {showMealPlanner ? 'Open' : 'Closed'}
+            </span>
+          </div>
+          <div className="status-item">
+            <span className="status-label">🥕 Pantry</span>
+            <span className={`status-indicator ${showPantry ? 'active' : 'inactive'}`}>
+              {showPantry ? 'Open' : 'Closed'}
+            </span>
+          </div>
+          <div className="status-item">
+            <span className="status-label">🤖 AI Chat</span>
+            <span className={`status-indicator ${showChat ? 'active' : 'inactive'}`}>
+              {showChat ? 'Active' : 'Ready'}
+            </span>
           </div>
         </div>
       </div>

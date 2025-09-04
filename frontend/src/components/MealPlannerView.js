@@ -15,20 +15,9 @@ const MealPlannerView = ({
     containerRecipes,
     setContainerRecipes
 }) => {
-    // Use meal plan state from parent if provided, otherwise create local state
-    const [localMealPlan, setLocalMealPlan] = useState({
-        monday: { breakfast: [], lunch: [], dinner: [] },
-        tuesday: { breakfast: [], lunch: [], dinner: [] },
-        wednesday: { breakfast: [], lunch: [], dinner: [] },
-        thursday: { breakfast: [], lunch: [], dinner: [] },
-        friday: { breakfast: [], lunch: [], dinner: [] },
-        saturday: { breakfast: [], lunch: [], dinner: [] },
-        sunday: { breakfast: [], lunch: [], dinner: [] }
-    });
-
-    // Use external meal plan if provided, otherwise use local
-    const currentMealPlan = mealPlan || localMealPlan;
-    const updateMealPlan = setMealPlan || setLocalMealPlan;
+    // Use the meal plan from props (which comes from the hook)
+    const currentMealPlan = mealPlan;
+    const updateMealPlan = setMealPlan;
 
     const [savedMealPlans, setSavedMealPlans] = useState([]);
     const [currentPlanName, setCurrentPlanName] = useState('');
@@ -59,12 +48,144 @@ const MealPlannerView = ({
         }
     };
 
-    const removeRecipeFromMealPlan = (day, mealType, recipeIndex) => {
+    const removeRecipeFromMealPlan = (dayId, mealType, recipeIndex) => {
         updateMealPlan(prev => ({
             ...prev,
-            [day]: {
-                ...prev[day],
-                [mealType]: prev[day][mealType].filter((_, index) => index !== recipeIndex)
+            days: {
+                ...prev.days,
+                [dayId]: {
+                    ...prev.days[dayId],
+                    meals: {
+                        ...prev.days[dayId].meals,
+                        [mealType]: {
+                            ...prev.days[dayId].meals[mealType],
+                            recipes: prev.days[dayId].meals[mealType].recipes.filter((_, index) => index !== recipeIndex)
+                        }
+                    }
+                }
+            }
+        }));
+    };
+
+    // Add new day function
+    const addNewDay = () => {
+        const newDayId = `day${Object.keys(currentMealPlan.days).length + 1}`;
+        const dayNumber = Object.keys(currentMealPlan.days).length + 1;
+        
+        updateMealPlan(prev => ({
+            ...prev,
+            days: {
+                ...prev.days,
+                [newDayId]: {
+                    name: `Day ${dayNumber}`,
+                    meals: {
+                        'breakfast': { name: 'Breakfast', recipes: [] },
+                        'lunch': { name: 'Lunch', recipes: [] },
+                        'dinner': { name: 'Dinner', recipes: [] }
+                    }
+                }
+            },
+            dayOrder: [...prev.dayOrder, newDayId]
+        }));
+    };
+
+    // Remove day function
+    const removeDay = (dayId) => {
+        if (currentMealPlan.dayOrder.length <= 1) {
+            alert('Cannot remove the last day');
+            return;
+        }
+        
+        if (window.confirm('Are you sure you want to remove this day and all its meals?')) {
+            updateMealPlan(prev => {
+                const newDays = { ...prev.days };
+                delete newDays[dayId];
+                
+                return {
+                    ...prev,
+                    days: newDays,
+                    dayOrder: prev.dayOrder.filter(id => id !== dayId)
+                };
+            });
+        }
+    };
+
+    // Add new meal type function
+    const addMealType = (dayId, mealName = 'New Meal') => {
+        const mealId = mealName.toLowerCase().replace(/\s+/g, '');
+        
+        updateMealPlan(prev => ({
+            ...prev,
+            days: {
+                ...prev.days,
+                [dayId]: {
+                    ...prev.days[dayId],
+                    meals: {
+                        ...prev.days[dayId].meals,
+                        [mealId]: { name: mealName, recipes: [] }
+                    }
+                }
+            }
+        }));
+    };
+
+    // Remove meal type function
+    const removeMealType = (dayId, mealId) => {
+        const mealCount = Object.keys(currentMealPlan.days[dayId].meals).length;
+        if (mealCount <= 1) {
+            alert('Cannot remove the last meal type');
+            return;
+        }
+        
+        if (window.confirm('Are you sure you want to remove this meal type and all its recipes?')) {
+            updateMealPlan(prev => {
+                const newMeals = { ...prev.days[dayId].meals };
+                delete newMeals[mealId];
+                
+                return {
+                    ...prev,
+                    days: {
+                        ...prev.days,
+                        [dayId]: {
+                            ...prev.days[dayId],
+                            meals: newMeals
+                        }
+                    }
+                };
+            });
+        }
+    };
+
+    // Rename day function
+    const renameDay = (dayId, newName) => {
+        updateMealPlan(prev => ({
+            ...prev,
+            days: {
+                ...prev.days,
+                [dayId]: {
+                    ...prev.days[dayId],
+                    name: newName
+                }
+            }
+        }));
+    };
+
+    // Rename meal type function
+    const renameMealType = (dayId, mealId, newName) => {
+        updateMealPlan(prev => ({
+            ...prev,
+            days: {
+                ...prev.days,
+                [dayId]: {
+                    ...prev.days[dayId],
+                    meals: {
+                        ...prev.days[dayId].meals,
+                        [mealId]: {
+                            ...prev.days[dayId].meals[mealId],
+                            name: newName
+                        }
+                    }
+                }
             }
         }));
     };
@@ -129,13 +250,33 @@ const MealPlannerView = ({
     const clearMealPlan = () => {
         if (window.confirm('Are you sure you want to clear the current meal plan?')) {
             updateMealPlan({
-                monday: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-                tuesday: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-                wednesday: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-                thursday: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-                friday: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-                saturday: { breakfast: [], lunch: [], dinner: [], snacks: [] },
-                sunday: { breakfast: [], lunch: [], dinner: [], snacks: [] }
+                days: {
+                    'day1': { 
+                        name: 'Day 1',
+                        meals: {
+                            'breakfast': { name: 'Breakfast', recipes: [] },
+                            'lunch': { name: 'Lunch', recipes: [] },
+                            'dinner': { name: 'Dinner', recipes: [] }
+                        }
+                    },
+                    'day2': { 
+                        name: 'Day 2',
+                        meals: {
+                            'breakfast': { name: 'Breakfast', recipes: [] },
+                            'lunch': { name: 'Lunch', recipes: [] },
+                            'dinner': { name: 'Dinner', recipes: [] }
+                        }
+                    },
+                    'day3': { 
+                        name: 'Day 3',
+                        meals: {
+                            'breakfast': { name: 'Breakfast', recipes: [] },
+                            'lunch': { name: 'Lunch', recipes: [] },
+                            'dinner': { name: 'Dinner', recipes: [] }
+                        }
+                    }
+                },
+                dayOrder: ['day1', 'day2', 'day3']
             });
             setCurrentPlanName('');
         }
@@ -150,9 +291,9 @@ const MealPlannerView = ({
 
     const getAllRecipeIds = () => {
         const recipeIds = [];
-        Object.values(currentMealPlan).forEach(day => {
-            Object.values(day).forEach(meals => {
-                meals.forEach(recipe => {
+        Object.values(currentMealPlan.days || {}).forEach(day => {
+            Object.values(day.meals || {}).forEach(meal => {
+                (meal.recipes || []).forEach(recipe => {
                     recipeIds.push(recipe.id || recipe.recipe_id);
                 });
             });
@@ -164,10 +305,17 @@ const MealPlannerView = ({
 
     return (
         <div className="meal-planner-view">
-            {/* New Header with Controls */}
+            {/* Enhanced Header with Controls */}
             <div className="meal-planner-header">
                 <div className="header-left">
-                    <h2>Weekly Meal Planner</h2>
+                    <h2>Custom Meal Planner</h2>
+                    <button
+                        onClick={addNewDay}
+                        className="add-day-btn"
+                        title="Add New Day"
+                    >
+                        ➕ Day
+                    </button>
                     <button
                         onClick={clearMealPlan}
                         className="clear-plan-btn-small"
@@ -216,6 +364,12 @@ const MealPlannerView = ({
                     <MealCalendar
                         mealPlan={currentMealPlan}
                         onRemoveRecipe={removeRecipeFromMealPlan}
+                        onAddDay={addNewDay}
+                        onRemoveDay={removeDay}
+                        onAddMealType={addMealType}
+                        onRemoveMealType={removeMealType}
+                        onRenameDay={renameDay}
+                        onRenameMealType={renameMealType}
                     />
                 </div>
             </div>
