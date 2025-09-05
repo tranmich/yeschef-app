@@ -1,0 +1,533 @@
+/* NotionMealPlanner.css - Notion-Style Meal Planning Interface */
+
+.notion-meal-planner {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #fafafa;
+  overflow: hidden;
+}
+
+/* Header */
+.planner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 32px;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header-left h2 {
+  margin: 0 0 4px 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plan-name-input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 200px;
+  background: white;
+}
+
+.plan-name-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.save-btn, .load-btn, .clear-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.save-btn {
+  background: #10b981;
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #059669;
+}
+
+.save-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.load-btn {
+  background: #3b82f6;
+  color: white;
+}
+
+.load-btn:hover {
+  background: #2563eb;
+}
+
+.clear-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.clear-btn:hover {
+  background: #dc2626;
+}
+
+/* Meal Plan Container */
+.meal-plan-container {
+  flex: 1;
+  overflow: auto;
+  padding: 20px 32px;
+}
+
+.meal-plan-grid {
+  display: inline-grid;
+  gap: 2px;
+  background: #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  min-width: 100%;
+}
+
+/* Dynamic Grid Layout */
+.grid-header-row,
+.grid-data-row {
+  display: contents;
+}
+
+/* Grid Cells */
+.day-label-cell,
+.column-header-cell,
+.meal-cell,
+.add-column-cell,
+.empty-cell {
+  background: white;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Day Labels */
+.day-label-cell {
+  min-width: 120px;
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.add-day-btn, .remove-day-btn {
+  background: #e5e7eb;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.add-day-btn:hover {
+  background: #10b981;
+  color: white;
+}
+
+.remove-day-btn:hover {
+  background: #ef4444;
+  color: white;
+}
+
+/* Column Headers */
+.column-header-cell {
+  min-width: 200px;
+  background: #f3f4f6;
+  font-weight: 600;
+  color: #374151;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.column-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.remove-column-btn {
+  background: #e5e7eb;
+  border: none;
+  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.2s ease;
+}
+
+.remove-column-btn:hover {
+  background: #ef4444;
+  color: white;
+}
+
+/* Add Column Cell */
+.add-column-cell {
+  min-width: 150px;
+  background: #f9fafb;
+  border: 2px dashed #d1d5db;
+}
+
+.add-column-btn {
+  background: #e5e7eb;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.add-column-btn:hover {
+  background: #10b981;
+  color: white;
+}
+
+/* Meal Cells */
+.meal-cell {
+  min-width: 200px;
+  min-height: 100px;
+  padding: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  background: white;
+  border: 2px dashed transparent;
+  transition: all 0.2s ease;
+}
+
+.meal-cell:hover {
+  border-color: #d1d5db;
+}
+
+.meal-cell[data-over="true"] {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.empty-meal-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 14px;
+}
+
+.drop-hint {
+  padding: 16px;
+  text-align: center;
+}
+
+/* Recipe Cards in Cells */
+.meal-recipes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.meal-recipe-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.meal-recipe-card:hover {
+  background: #e5e7eb;
+}
+
+.recipe-title {
+  flex: 1;
+  font-weight: 500;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove-recipe-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  color: #9ca3af;
+  transition: color 0.2s ease;
+  padding: 2px;
+}
+
+.remove-recipe-btn:hover {
+  color: #ef4444;
+}
+
+/* Editable Labels */
+.editable-label {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.editable-label:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.edit-input {
+  border: 1px solid #3b82f6;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  background: white;
+  outline: none;
+}
+
+/* Recipe Sources */
+.recipe-sources {
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  padding: 20px 32px;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.recipe-sources h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.sources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.source-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.recipe-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+/* Draggable Recipes */
+.draggable-recipe {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.draggable-recipe:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.draggable-recipe:active {
+  cursor: grabbing;
+}
+
+.drag-indicator {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.no-sources {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Saved Plans Modal */
+.saved-plans-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 600px;
+  max-height: 70vh;
+  overflow: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.modal-header button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: #9ca3af;
+}
+
+.plans-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plan-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.plan-item span {
+  font-weight: 500;
+  color: #374151;
+}
+
+.plan-item button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.plan-item button:hover {
+  background: #2563eb;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .meal-plan-container {
+    padding: 16px 20px;
+  }
+  
+  .planner-header {
+    padding: 16px 20px;
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+  
+  .header-controls {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 768px) {
+  .meal-plan-grid {
+    overflow-x: auto;
+  }
+  
+  .column-header-cell,
+  .meal-cell {
+    min-width: 150px;
+  }
+  
+  .recipe-sources {
+    padding: 16px 20px;
+  }
+  
+  .sources-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Drag & Drop Visual Feedback */
+.meal-cell[data-drop-target="true"] {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.draggable-recipe[data-dragging="true"] {
+  opacity: 0.5;
+  transform: rotate(5deg);
+}

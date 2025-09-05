@@ -258,9 +258,23 @@ class UniversalRecipeImporter:
                 # Extract recipe using advanced web extraction
                 web_recipe_data = self.web_extractor.extract_from_url(url)
                 
+                # Debug: Log what the web extractor actually returned
+                logger.info(f"🔍 Web extractor returned:")
+                logger.info(f"  - Title: '{web_recipe_data.title if web_recipe_data else 'None'}'")
+                logger.info(f"  - Ingredients count: {len(web_recipe_data.ingredients) if web_recipe_data and web_recipe_data.ingredients else 0}")
+                logger.info(f"  - Instructions count: {len(web_recipe_data.instructions) if web_recipe_data and web_recipe_data.instructions else 0}")
+                logger.info(f"  - Confidence: {web_recipe_data.confidence if web_recipe_data else 0}")
+                logger.info(f"  - Extraction method: {web_recipe_data.extraction_method if web_recipe_data else 'None'}")
+                
                 if web_recipe_data and web_recipe_data.confidence > 0.3:
                     # Convert WebRecipeData to our standard format
                     recipe_dict = self._convert_web_recipe_data(web_recipe_data)
+                    
+                    # Debug: Log what the conversion produced
+                    logger.info(f"🔄 After conversion:")
+                    logger.info(f"  - Title: '{recipe_dict.get('title', 'Missing')}'")
+                    logger.info(f"  - Ingredients: '{recipe_dict.get('ingredients', 'Missing')[:100]}...'")
+                    logger.info(f"  - Instructions: '{recipe_dict.get('instructions', 'Missing')[:100]}...'")
                     
                     # Process with ingredient intelligence
                     processed_recipe = self._process_with_intelligence(recipe_dict, user_id)
@@ -325,22 +339,59 @@ class UniversalRecipeImporter:
             # Convert instructions list to string
             instructions_str = '\n'.join(web_data.instructions) if web_data.instructions else ''
             
-            # Determine category from cuisine or keywords
-            category = 'imported'
-            if web_data.category:
-                category = web_data.category.lower()
-            elif web_data.cuisine:
-                category = web_data.cuisine.lower()
-            elif web_data.keywords:
-                # Use first keyword as category
-                category = web_data.keywords[0].lower()
+            # Validate that we have actual content
+            if not web_data.title and not ingredients_str and not instructions_str:
+                logger.warning("⚠️ Web extraction returned empty recipe data!")
+                # Return minimal fallback data instead of empty
+                return {
+                    'title': 'Failed Import - No Data Extracted',
+                    'ingredients': '',
+                    'instructions': '',
+                    'description': f'Failed to extract recipe data from {web_data.source_url}',
+                    'category': 'import_failed',
+                    'confidence': 0.0,  # Override confidence to 0 for empty data
+                    'extraction_method': web_data.extraction_method + '_empty_data'
+                }
             
-            return {
+            # Intelligently determine category based on recipe content
+            smart_category = self._detect_smart_category(web_data)
+            
+            # Always keep 'imported' as a secondary category for easy finding
+            # This way recipes appear in both their natural category AND the imported folder
+            if smart_category != 'imported':
+                category = smart_category
+                # Store that this was imported for secondary categorization
+                secondary_category = 'imported'
+                logger.info(f"📂 Recipe categorized as '{category}' with secondary 'imported' tag")
+            else:
+                category = 'imported'
+                secondary_category = None
+                logger.info(f"📂 Recipe categorized as 'imported' only")
+            
+            # Store original category info for reference
+            original_category = None
+            if web_data.category:
+                original_category = web_data.category.lower()
+            elif web_data.cuisine:
+                original_category = web_data.cuisine.lower()
+            elif web_data.keywords:
+                original_category = web_data.keywords[0].lower() if web_data.keywords else None
+            
+            # Enhanced description with import tracking
+            description = web_data.description or ""
+            if secondary_category:
+                description += f" [Imported recipe - also appears in {secondary_category} folder]"
+            if original_category:
+                description += f" [Original category: {original_category}]"
+            else:
+                original_category = None
+            
+            result = {
                 'title': web_data.title or 'Imported Recipe',
                 'ingredients': ingredients_str,
                 'instructions': instructions_str,
-                'description': web_data.description,
-                'category': category,
+                'description': description,
+                'category': category,  # Primary category (breakfast/lunch/dinner/etc)
                 'time_min': web_data.total_time or web_data.cook_time or web_data.prep_time,
                 'servings': web_data.servings or 4,
                 'source_url': web_data.source_url,
@@ -348,8 +399,20 @@ class UniversalRecipeImporter:
                 'rating': web_data.rating,
                 'image_url': web_data.image_url,
                 'confidence': web_data.confidence,
-                'extraction_method': web_data.extraction_method
+                'extraction_method': web_data.extraction_method,
+                # Add import tracking metadata
+                'is_imported': True,  # Flag to identify imported recipes
+                'secondary_category': secondary_category,  # For dual categorization
+                'import_date': datetime.now().isoformat()  # When it was imported
             }
+            
+            # Final validation - reduce confidence for poor extractions
+            if not result['title'] or result['title'] == 'Imported Recipe':
+                result['confidence'] = min(result['confidence'], 0.3)
+            if not result['ingredients'] and not result['instructions']:
+                result['confidence'] = 0.1
+            
+            return result
             
         except Exception as e:
             logger.warning(f"Error converting web recipe data: {e}")
@@ -360,6 +423,63 @@ class UniversalRecipeImporter:
                 'category': 'imported',
                 'confidence': 0.0
             }
+    
+    def _detect_smart_category(self, web_data: 'WebRecipeData') -> str:
+        """Intelligently detect recipe category based on content"""
+        
+        # Get all text to analyze
+        title = (web_data.title or '').lower()
+        description = (web_data.description or '').lower()
+        ingredients = ' '.join(web_data.ingredients).lower() if web_data.ingredients else ''
+        
+        all_text = f"{title} {description} {ingredients}"
+        
+        # Define category keywords with better prioritization
+        category_keywords = {
+            'breakfast': [
+                'oatmeal', 'pancake', 'waffle', 'cereal', 'toast', 'egg', 'bacon', 
+                'sausage', 'muffin', 'bagel', 'coffee', 'smoothie', 'granola',
+                'french toast', 'breakfast', 'brunch'
+            ],
+            'lunch': [
+                'sandwich', 'salad', 'wrap', 'soup', 'burger', 'pizza slice',
+                'lunch', 'panini', 'quesadilla', 'bowl', 'sloppy joe'
+            ],
+            'dinner': [
+                'ground beef', 'steak', 'chicken breast', 'roast', 'casserole', 'pasta', 'rice dish',
+                'curry', 'stir fry', 'grilled', 'baked chicken', 'fish fillet',
+                'dinner', 'entree', 'main course', 'lasagna', 'risotto', 'beef', 'pork'
+            ],
+            'dessert': [
+                'cake', 'cookie', 'pie', 'ice cream', 'chocolate chip', 'brownie',
+                'pudding', 'tart', 'cupcake', 'dessert', 'sweet', 'candy', 'frosting'
+            ],
+            'snack': [
+                'chips', 'crackers', 'nuts', 'trail mix', 'popcorn', 'dip',
+                'snack', 'appetizer', 'finger food'
+            ],
+            'beverage': [
+                'drink', 'smoothie', 'juice', 'cocktail', 'tea', 'coffee',
+                'lemonade', 'beverage', 'shake'
+            ]
+        }
+        
+        # Count matches for each category
+        category_scores = {}
+        for category, keywords in category_keywords.items():
+            score = sum(1 for keyword in keywords if keyword in all_text)
+            if score > 0:
+                category_scores[category] = score
+        
+        # Return the category with the highest score
+        if category_scores:
+            best_category = max(category_scores, key=category_scores.get)
+            logger.info(f"🎯 Smart category detection: '{best_category}' (score: {category_scores[best_category]})")
+            return best_category
+        
+        # Fallback to 'imported' if no clear category detected
+        logger.info("🤷 No clear category detected, using 'imported'")
+        return 'imported'
     
     def _simple_text_parse(self, text: str) -> Dict:
         """
@@ -442,12 +562,13 @@ class UniversalRecipeImporter:
             conn = self.get_database_connection()
             cursor = conn.cursor()
             
-            # Insert recipe using existing schema - match what search expects
+            # Insert recipe using enhanced schema for imported recipes
             insert_query = """
                 INSERT INTO recipes (title, ingredients, instructions, category, 
                                    hands_on_time, total_time, servings, created_at,
-                                   book_id, page_number, meal_role)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, %s)
+                                   book_id, page_number, meal_role, user_id, 
+                                   imported_at, source_url, confidence)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, NOW(), %s, %s)
                 RETURNING id
             """
             
@@ -478,13 +599,16 @@ class UniversalRecipeImporter:
                 recipe_data.get('title', 'Imported Recipe'),
                 recipe_data.get('ingredients', ''),
                 recipe_data.get('instructions', ''),
-                recipe_data.get('category', 'imported'),
+                'imported',  # Always mark as 'imported' category for easy filtering
                 time_min,  # hands_on_time
                 time_min,  # total_time (same as hands_on for imported)
                 recipe_data.get('servings', 4),    # Default 4 servings
                 0,  # book_id (0 for imported recipes)
                 0,  # page_number (0 for imported recipes)
-                meal_role  # proper meal_role mapping
+                meal_role,  # proper meal_role mapping
+                user_id,  # link to importing user
+                recipe_data.get('source_url', ''),  # source URL if available
+                recipe_data.get('confidence', 0.8)  # import confidence score
             ))
             
             recipe_id = cursor.fetchone()['id']

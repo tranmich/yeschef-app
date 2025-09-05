@@ -590,11 +590,15 @@ def get_recipe(recipe_id):
 
 @app.route('/api/user/recipes', methods=['GET'])
 def get_user_recipes():
-    """Get user's personal recipe collection with admin override"""
+    """Get user's personal recipe collection with admin override and category filtering"""
     try:
         user_id, error_response, status_code = check_authentication()
         if error_response:
             return error_response, status_code
+        
+        # Get category filter from query parameters for Recent Imports functionality
+        category_filter = request.args.get('category', 'all')
+        logger.info(f"📂 User recipes request for category: '{category_filter}'")
         
         if not template_system:
             return jsonify({
@@ -644,13 +648,14 @@ def get_user_recipes():
             logger.error(f"❌ Admin detection error: {e}")
         
         if is_admin:
-            # Admin sees ALL recipes in the database for curation
-            logger.info(f"🔧 Admin requesting all recipes for curation")
+            # Admin sees ALL recipes in the database for curation with category filtering
+            logger.info(f"🔧 Admin requesting all recipes for curation (category: {category_filter})")
             try:
                 conn = get_db_connection()
                 cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
                 
-                cursor.execute('''
+                # Build query based on category filter
+                base_query = '''
                     SELECT r.*, 
                            CASE WHEN r.is_template THEN 'template' 
                                 WHEN r.template_id IS NOT NULL THEN 'template_copy' 
@@ -658,41 +663,78 @@ def get_user_recipes():
                            u.email as owner_email
                     FROM recipes r
                     LEFT JOIN users u ON r.user_id = u.id
-                    ORDER BY r.created_at DESC
-                ''')
+                '''
                 
+                # Add category filtering
+                if category_filter == 'recent-imports':
+                    # Filter for imported recipes
+                    base_query += " WHERE r.category = 'imported' OR r.imported_at IS NOT NULL"
+                elif category_filter != 'all':
+                    # Filter by other categories
+                    if category_filter in ['breakfast', 'lunch', 'dinner']:
+                        base_query += f" WHERE r.meal_role = '{category_filter}'"
+                    elif category_filter == 'desserts':
+                        base_query += " WHERE r.meal_role = 'dessert'"
+                    elif category_filter == 'one-pot':
+                        base_query += " WHERE r.is_one_pot = true"
+                    elif category_filter == 'quick':
+                        base_query += " WHERE r.time_min <= 30"
+                
+                base_query += " ORDER BY r.created_at DESC"
+                
+                cursor.execute(base_query)
                 all_recipes = [dict(row) for row in cursor.fetchall()]
                 conn.close()
                 
-                logger.info(f"🔧 Admin retrieved {len(all_recipes)} total recipes for curation")
+                logger.info(f"🔧 Admin retrieved {len(all_recipes)} recipes for category '{category_filter}'")
                 return jsonify({
                     'success': True,
                     'data': all_recipes,
                     'count': len(all_recipes),
                     'admin_access': True,
-                    'message': f'All {len(all_recipes)} recipes available for admin curation'
+                    'category': category_filter,
+                    'message': f'Found {len(all_recipes)} recipes in category "{category_filter}"'
                 })
                 
             except Exception as e:
                 logger.error(f"❌ Failed to get admin recipes: {e}")
                 return jsonify({'success': False, 'error': 'Failed to retrieve admin recipes'}), 500
         else:
-            # Regular users get their personal collection (limited to 500)
-            recipes = template_system.get_user_recipes(user_id)
+            # Regular users get their personal collection with category filtering
+            if category_filter == 'all':
+                recipes = template_system.get_user_recipes(user_id)
+            else:
+                # Get all user recipes first, then filter by category
+                all_user_recipes = template_system.get_user_recipes(user_id)
+                
+                # Filter by category
+                if category_filter == 'recent-imports':
+                    recipes = [r for r in all_user_recipes if r.get('category') == 'imported' or r.get('imported_at')]
+                elif category_filter in ['breakfast', 'lunch', 'dinner']:
+                    recipes = [r for r in all_user_recipes if r.get('meal_role') == category_filter]
+                elif category_filter == 'desserts':
+                    recipes = [r for r in all_user_recipes if r.get('meal_role') == 'dessert']
+                elif category_filter == 'one-pot':
+                    recipes = [r for r in all_user_recipes if r.get('is_one_pot')]
+                elif category_filter == 'quick':
+                    recipes = [r for r in all_user_recipes if r.get('time_min') and r.get('time_min') <= 30]
+                else:
+                    recipes = all_user_recipes
             
             # Apply 500 recipe limit for regular users
             if len(recipes) > 500:
                 recipes = recipes[:500]
-                limited_message = f"Showing first 500 of your recipes"
+                limited_message = f"Showing first 500 recipes in category '{category_filter}'"
             else:
-                limited_message = f"All {len(recipes)} personal recipes"
+                limited_message = f"Found {len(recipes)} recipes in category '{category_filter}'"
             
-            logger.info(f"👤 User {user_id} retrieved {len(recipes)} personal recipes")
+            logger.info(f"👤 User {user_id} retrieved {len(recipes)} recipes for category '{category_filter}'")
             return jsonify({
                 'success': True,
                 'data': recipes,
                 'count': len(recipes),
                 'admin_access': False,
+                'category': category_filter,
                 'message': limited_message
             })
         
@@ -786,6 +828,360 @@ def edit_recipe_copy_on_write(recipe_id):
         
     except Exception as e:
         logger.error(f"Edit recipe error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/recipes/<recipe_id>', methods=['DELETE'])
+def delete_user_recipe(recipe_id):
+    """Delete a user's recipe - only works for user-owned recipes, not templates"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        logger.info(f"🗑️ User {user_id} attempting to delete recipe {recipe_id}")
+        
+        if not template_system:
+            return jsonify({
+                'success': False,
+                'error': 'Template system not available'
+            }), 503
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # First check if the recipe exists and belongs to the user
+        cursor.execute('''
+            SELECT id, title, is_template, user_id 
+            FROM recipes 
+            WHERE id = %s
+        ''', (recipe_id,))
+        
+        recipe = cursor.fetchone()
+        if not recipe:
+            conn.close()
+            logger.warning(f"❌ Recipe {recipe_id} not found for deletion by user {user_id}")
+            
+            # Let's check if the recipe exists for any user for debugging
+            cursor2 = get_db_connection().cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor2.execute('SELECT id, user_id, is_template FROM recipes WHERE id = %s', (recipe_id,))
+            any_recipe = cursor2.fetchone()
+            cursor2.close()
+            
+            if any_recipe:
+                logger.info(f"🔍 Recipe {recipe_id} exists but belongs to user {any_recipe['user_id']}, is_template={any_recipe['is_template']}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Recipe {recipe_id} not found or access denied'
+                }), 404
+            else:
+                logger.info(f"🔍 Recipe {recipe_id} does not exist in database at all")
+                return jsonify({
+                    'success': False,
+                    'error': f'Recipe {recipe_id} does not exist'
+                }), 404
+        
+        logger.info(f"🔍 Recipe details: ID={recipe['id']}, title='{recipe['title']}', is_template={recipe['is_template']}, user_id={recipe['user_id']}")
+        
+        # Check ownership - users can only delete their own recipes, not templates
+        if recipe['is_template']:
+            conn.close()
+            logger.warning(f"❌ User {user_id} tried to delete template recipe {recipe_id}")
+            return jsonify({
+                'success': False,
+                'error': 'Cannot delete template recipes. Templates can only be removed by administrators.'
+            }), 403
+        
+        if recipe['user_id'] != user_id:
+            conn.close()
+            if recipe['user_id'] is None:
+                logger.warning(f"❌ User {user_id} tried to delete orphaned recipe {recipe_id} (no owner)")
+                return jsonify({
+                    'success': False,
+                    'error': f'This recipe has no owner. You can claim it first using the "Claim Recipe" option, then delete it.',
+                    'can_claim': True,
+                    'recipe_id': recipe_id
+                }), 403
+            else:
+                logger.warning(f"❌ User {user_id} tried to delete recipe {recipe_id} owned by user {recipe['user_id']}")
+                return jsonify({
+                    'success': False,
+                    'error': f'You can only delete your own recipes. This recipe belongs to user {recipe["user_id"]} but you are user {user_id}.'
+                }), 403
+        
+        # Delete the recipe (only user-owned, non-template recipes)
+        cursor.execute('''
+            DELETE FROM recipes 
+            WHERE id = %s AND user_id = %s AND is_template = FALSE
+        ''', (recipe_id, user_id))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            logger.warning(f"❌ Failed to delete recipe {recipe_id} for user {user_id}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to delete recipe - recipe may not belong to you or may be a template'
+            }), 403
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"✅ User {user_id} deleted recipe {recipe_id}: {recipe['title']}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Recipe "{recipe["title"]}" deleted successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Delete user recipe error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/recipes/<recipe_id>/info', methods=['GET'])
+def get_recipe_debug_info(recipe_id):
+    """Debug endpoint to check recipe ownership and details"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        cursor.execute('''
+            SELECT id, title, is_template, user_id, template_id, created_at
+            FROM recipes 
+            WHERE id = %s
+        ''', (recipe_id,))
+        
+        recipe = cursor.fetchone()
+        conn.close()
+        
+        if not recipe:
+            return jsonify({
+                'success': False,
+                'error': 'Recipe not found'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'recipe_id': recipe['id'],
+                'title': recipe['title'],
+                'is_template': recipe['is_template'],
+                'user_id': recipe['user_id'],
+                'template_id': recipe['template_id'],
+                'created_at': str(recipe['created_at']),
+                'current_user_id': user_id,
+                'can_delete': recipe['user_id'] == user_id and not recipe['is_template']
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Recipe debug info error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/debug/user-recipes', methods=['GET'])
+def debug_user_recipes():
+    """Debug endpoint to check what recipes exist for the current user"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Get all recipes that could be visible to this user
+        cursor.execute('''
+            SELECT id, title, is_template, user_id, template_id, created_at
+            FROM recipes 
+            ORDER BY id
+            LIMIT 20
+        ''')
+        
+        all_recipes = cursor.fetchall()
+        
+        # Get recipes specifically for this user
+        cursor.execute('''
+            SELECT id, title, is_template, user_id, template_id, created_at
+            FROM recipes 
+            WHERE user_id = %s OR user_id IS NULL
+            ORDER BY id
+        ''', (user_id,))
+        
+        user_recipes = cursor.fetchall()
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'current_user_id': user_id,
+            'all_recipes_sample': [dict(r) for r in all_recipes],
+            'user_recipes': [dict(r) for r in user_recipes],
+            'total_all_recipes': len(all_recipes),
+            'total_user_recipes': len(user_recipes)
+        })
+        
+    except Exception as e:
+        logger.error(f"Debug user recipes error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/debug/all-recipes-public', methods=['GET'])
+def debug_all_recipes_public():
+    """Public debug endpoint to check what recipes exist (no auth required)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Get all recipes in the database
+        cursor.execute('''
+            SELECT id, title, is_template, user_id, template_id, created_at
+            FROM recipes 
+            ORDER BY id
+            LIMIT 50
+        ''')
+        
+        all_recipes = cursor.fetchall()
+        
+        # Get count by user_id
+        cursor.execute('''
+            SELECT user_id, COUNT(*) as count
+            FROM recipes 
+            GROUP BY user_id
+            ORDER BY user_id
+        ''')
+        
+        user_counts = cursor.fetchall()
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'all_recipes': [dict(r) for r in all_recipes],
+            'total_recipes': len(all_recipes),
+            'recipes_by_user': [dict(r) for r in user_counts],
+            'message': 'This shows all recipes in the database for debugging'
+        })
+        
+    except Exception as e:
+        logger.error(f"Debug all recipes public error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/debug/recipe-list-api', methods=['GET'])
+def debug_recipe_list_api():
+    """Debug what the recipe list API actually returns"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        # Call the same function that the recipe list uses
+        if template_system:
+            recipes = template_system.get_user_recipes(user_id, include_templates=True)
+            
+            return jsonify({
+                'success': True,
+                'user_id': user_id,
+                'total_recipes': len(recipes),
+                'recipe_ids': [r.get('id') for r in recipes],
+                'recipes_sample': recipes[:10],  # First 10 recipes
+                'message': 'This is what the recipe list API returns for your user'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Template system not available'
+            }), 503
+        
+    except Exception as e:
+        logger.error(f"Debug recipe list API error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/recipes/<recipe_id>/claim', methods=['POST'])
+def claim_orphaned_recipe(recipe_id):
+    """Claim ownership of a recipe that has no user_id (orphaned recipe)"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Check if recipe exists and is orphaned (no user_id)
+        cursor.execute('''
+            SELECT id, title, is_template, user_id 
+            FROM recipes 
+            WHERE id = %s
+        ''', (recipe_id,))
+        
+        recipe = cursor.fetchone()
+        if not recipe:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Recipe not found'
+            }), 404
+        
+        # Only allow claiming orphaned recipes (user_id is NULL) that are not templates
+        if recipe['is_template']:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Cannot claim template recipes'
+            }), 403
+        
+        if recipe['user_id'] is not None:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': f'Recipe already belongs to user {recipe["user_id"]}'
+            }), 403
+        
+        # Claim the recipe by setting user_id
+        cursor.execute('''
+            UPDATE recipes 
+            SET user_id = %s 
+            WHERE id = %s AND user_id IS NULL AND is_template = FALSE
+        ''', (user_id, recipe_id))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Failed to claim recipe'
+            }), 500
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"✅ User {user_id} claimed orphaned recipe {recipe_id}: {recipe['title']}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully claimed recipe "{recipe["title"]}"'
+        })
+        
+    except Exception as e:
+        logger.error(f"Claim recipe error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -1834,6 +2230,11 @@ def create_meal_plan():
             'error': 'Meal planning system not available'
         }), 503
 
+    # Check authentication
+    user_id, error_response, status_code = check_authentication()
+    if error_response:
+        return error_response, status_code
+
     try:
         data = request.get_json()
         if not data:
@@ -1846,20 +2247,19 @@ def create_meal_plan():
         week_start_date = data.get('week_start_date', datetime.now().strftime("%Y-%m-%d"))
         meal_data = data.get('meal_data', {})
 
-        try:
-            meal_planner = MealPlanningSystem()
-            plan_id = meal_planner.create_meal_plan(plan_name, week_start_date, meal_data)
-            
-            return jsonify({
-                'success': True,
-                'plan_id': plan_id,
-                'plan_name': plan_name,
-                'week_start_date': week_start_date
-            })
-        finally:
-            # Ensure connection cleanup
-            if hasattr(meal_planner, 'db_connection') and meal_planner.db_connection:
-                meal_planner.db_connection.close()
+        logger.info(f"💾 User {user_id} creating meal plan: {plan_name}")
+
+        meal_planner = MealPlanningSystem()
+        plan_id = meal_planner.create_meal_plan(plan_name, week_start_date, meal_data, user_id)
+        
+        logger.info(f"✅ Meal plan created successfully: ID {plan_id}")
+        
+        return jsonify({
+            'success': True,
+            'plan_id': plan_id,
+            'plan_name': plan_name,
+            'week_start_date': week_start_date
+        })
 
     except Exception as e:
         logger.error(f"Create meal plan error: {e}")
@@ -1870,18 +2270,23 @@ def create_meal_plan():
 
 @app.route('/api/meal-plans', methods=['GET'])
 def list_meal_plans():
-    """List all meal plans"""
+    """List all meal plans for the authenticated user"""
     if not MEAL_PLANNING_AVAILABLE:
         return jsonify({
             'success': False,
             'error': 'Meal planning system not available'
         }), 503
 
+    # Check authentication
+    user_id, error_response, status_code = check_authentication()
+    if error_response:
+        return error_response, status_code
+
     try:
         limit = request.args.get('limit', 50, type=int)
 
         meal_planner = MealPlanningSystem()
-        plans = meal_planner.list_meal_plans(limit=limit)
+        plans = meal_planner.list_user_meal_plans(user_id, limit=limit)
         
         return jsonify({
             'success': True,
@@ -1898,21 +2303,26 @@ def list_meal_plans():
 
 @app.route('/api/meal-plans/<int:plan_id>', methods=['GET'])
 def get_meal_plan(plan_id):
-    """Get a specific meal plan"""
+    """Get a specific meal plan for the authenticated user"""
     if not MEAL_PLANNING_AVAILABLE:
         return jsonify({
             'success': False,
             'error': 'Meal planning system not available'
         }), 503
 
+    # Check authentication
+    user_id, error_response, status_code = check_authentication()
+    if error_response:
+        return error_response, status_code
+
     try:
         meal_planner = MealPlanningSystem()
-        plan = meal_planner.get_meal_plan(plan_id)
+        plan = meal_planner.get_user_meal_plan(plan_id, user_id)
 
         if not plan:
             return jsonify({
                 'success': False,
-                'error': 'Meal plan not found'
+                'error': 'Meal plan not found or access denied'
             }), 404
 
         return jsonify({
@@ -2957,39 +3367,65 @@ def import_recipe_from_url():
     logger.info("🚨 IMPORT REQUEST RECEIVED!")
     
     if not RECIPE_IMPORT_AVAILABLE:
+        logger.error("❌ Recipe import system not available")
         return jsonify({
             'success': False,
             'error': 'Recipe import system not available'
         }), 503
     
     # Check authentication
-    user_id, error_response, status_code = check_authentication()
-    if error_response:
-        return error_response, status_code
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            logger.error(f"❌ Authentication failed: {error_response}")
+            return error_response, status_code
+        logger.info(f"✅ Authentication successful for user {user_id}")
+    except Exception as e:
+        logger.error(f"❌ Authentication error: {e}")
+        return jsonify({'success': False, 'error': f'Authentication error: {str(e)}'}), 500
     
     try:
         data = request.get_json()
+        logger.info(f"📝 Request data: {data}")
         
         # Validate request
         if not data or 'url' not in data:
+            logger.error("❌ Missing URL in request")
             return jsonify({
                 'success': False,
                 'error': 'Missing url in request body'
             }), 400
         
         url = data['url']
+        logger.info(f"🌐 Processing URL: {url}")
         
         # Create import request
-        import_request = ImportRequest(
-            source_type='url',
-            source_data=url,
-            user_id=user_id,
-            metadata=data.get('metadata', {})
-        )
+        try:
+            import_request = ImportRequest(
+                source_type='url',
+                source_data=url,
+                user_id=user_id,
+                metadata=data.get('metadata', {})
+            )
+            logger.info(f"✅ Import request created successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to create import request: {e}")
+            return jsonify({'success': False, 'error': f'Request creation failed: {str(e)}'}), 500
         
         # Initialize importer and process
-        importer = UniversalRecipeImporter()
-        result = importer.import_recipe(import_request)
+        try:
+            logger.info("🚀 Initializing UniversalRecipeImporter...")
+            importer = UniversalRecipeImporter()
+            logger.info("✅ Importer initialized, starting import...")
+            
+            result = importer.import_recipe(import_request)
+            logger.info(f"📊 Import result: success={result.success}, confidence={result.confidence}, errors={result.errors}")
+            
+        except Exception as e:
+            logger.error(f"❌ Import processing failed: {e}")
+            import traceback
+            logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+            return jsonify({'success': False, 'error': f'Import processing failed: {str(e)}'}), 500
         
         # CRITICAL: Refresh search engine cache after successful import
         if result.success and result.recipe_id:
@@ -2999,7 +3435,7 @@ def import_recipe_from_url():
             logger.info(f"✅ Search cache refreshed - new recipe should be visible")
         
         # Return result
-        return jsonify({
+        response_data = {
             'success': result.success,
             'recipe_id': result.recipe_id,
             'recipe_data': result.recipe_data,
@@ -3009,10 +3445,15 @@ def import_recipe_from_url():
             'processing_time': result.processing_time,
             'errors': result.errors,
             'warnings': result.warnings
-        })
+        }
+        
+        logger.info(f"📤 Sending response: {response_data}")
+        return jsonify(response_data)
         
     except Exception as e:
-        logger.error(f"URL import failed: {e}")
+        logger.error(f"❌ URL import failed with exception: {e}")
+        import traceback
+        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
             'error': f'Import failed: {str(e)}'

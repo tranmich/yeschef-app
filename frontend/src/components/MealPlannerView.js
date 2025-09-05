@@ -32,7 +32,18 @@ const MealPlannerView = ({
 
     const loadSavedMealPlans = async () => {
         try {
-            const response = await fetch(`${getApiUrl()}/api/meal-plans`);
+            const token = localStorage.getItem('authToken');
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${getApiUrl()}/api/meal-plans`, {
+                headers: headers
+            });
             const data = await response.json();
 
             if (data.success) {
@@ -198,10 +209,18 @@ const MealPlannerView = ({
 
         setLoading(true);
         try {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                alert('Please log in to save meal plans');
+                setLoading(false);
+                return;
+            }
+
             const response = await fetch(`${getApiUrl()}/api/meal-plans`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     plan_name: currentPlanName,
@@ -230,7 +249,18 @@ const MealPlannerView = ({
     const loadMealPlan = async (planId) => {
         setLoading(true);
         try {
-            const response = await fetch(`${getApiUrl()}/api/meal-plans/${planId}`);
+            const token = localStorage.getItem('authToken');
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${getApiUrl()}/api/meal-plans/${planId}`, {
+                headers: headers
+            });
             const data = await response.json();
 
             if (data.success) {
@@ -321,9 +351,13 @@ const MealPlannerView = ({
                         onClick={saveMealPlan}
                         disabled={loading || !currentPlanName.trim()}
                         className="save-plan-btn-icon"
-                        title="Save Plan"
+                        title={loading ? "Saving..." : !currentPlanName.trim() ? "Enter a plan name first" : "Save Plan"}
+                        style={{
+                            opacity: (loading || !currentPlanName.trim()) ? 0.5 : 1,
+                            cursor: (loading || !currentPlanName.trim()) ? 'not-allowed' : 'pointer'
+                        }}
                     >
-                        💾
+                        💾 {loading ? 'Saving...' : 'Save'}
                     </button>
 
                     <button

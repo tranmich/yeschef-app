@@ -15,6 +15,7 @@ const CookbookSidebar = ({
   // Default categories with icons and colors
   const defaultCategories = [
     { id: 'all', name: 'All', icon: '📚', color: '#6B7280', isDefault: true },
+    { id: 'recent-imports', name: 'Recent Imports', icon: '📥', color: '#059669', isDefault: true, priority: true },
     { id: 'breakfast', name: 'Breakfast', icon: '🍳', color: '#F59E0B', isDefault: true },
     { id: 'lunch', name: 'Lunch', icon: '🥗', color: '#10B981', isDefault: true },
     { id: 'dinner', name: 'Dinner', icon: '🍽️', color: '#3B82F6', isDefault: true },
@@ -76,6 +77,7 @@ const CookbookSidebar = ({
           <div
             key={category.id}
             className={`category-folder ${selectedCategory === category.id ? 'active' : ''}`}
+            data-category={category.id}
             onClick={() => onCategorySelect(category.id)}
             style={{ '--category-color': category.color }}
           >

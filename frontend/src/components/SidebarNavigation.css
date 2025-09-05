@@ -43,6 +43,10 @@
 }
 
 /* === USER MENU === */
+.sidebar-navigation .user-menu-container {
+  position: relative;
+}
+
 .sidebar-navigation .user-section {
   position: relative;
 }
@@ -67,65 +71,94 @@
   color: #374151;
 }
 
-.sidebar-navigation .user-avatar:hover .avatar-circle {
+.sidebar-navigation .avatar-initials {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.sidebar-navigation .user-avatar:hover .avatar-circle,
+.sidebar-navigation .user-avatar:hover .avatar-initials {
   background: #d1d5db;
 }
 
 .sidebar-navigation .user-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
+  position: fixed;
+  top: auto;
+  left: auto;
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  min-width: 180px;
-  z-index: 1000;
-  padding: 0.5rem 0;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  min-width: 220px;
+  z-index: 9999;
+  padding: 0;
+  overflow: hidden;
+  animation: dropdownSlide 0.15s ease-out;
 }
 
-.sidebar-navigation .dropdown-header {
-  padding: 0.75rem 1rem;
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .sidebar-navigation .user-info {
-  margin-bottom: 0.5rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .sidebar-navigation .user-name {
   font-weight: 600;
   color: #1f2937;
-  font-size: 13px;
+  font-size: 14px;
+  margin-bottom: 0.25rem;
 }
 
 .sidebar-navigation .user-email {
   color: #6b7280;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .sidebar-navigation .dropdown-divider {
   height: 1px;
   background: #e5e7eb;
-  margin: 0.5rem 0;
+  margin: 0;
 }
 
 .sidebar-navigation .dropdown-actions {
-  display: flex;
-  flex-direction: column;
+  padding: 0.5rem 0;
 }
 
 .sidebar-navigation .dropdown-item {
   background: none;
   border: none;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  width: 100%;
   text-align: left;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   color: #374151;
   transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.sidebar-navigation .dropdown-item:hover {
+.sidebar-navigation .dropdown-item:hover:not(:disabled) {
   background: #f3f4f6;
 }
 

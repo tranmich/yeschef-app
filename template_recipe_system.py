@@ -328,6 +328,11 @@ class TemplateRecipeSystem:
                 ''', (user_id,))
             
             recipes = cursor.fetchall()
+            
+            logger.info(f"📊 Found {len(recipes)} recipes for user {user_id}")
+            for recipe in recipes[:5]:  # Log first 5 recipes
+                logger.info(f"  - Recipe ID {recipe['id']}: '{recipe['title']}' (user_id={recipe['user_id']}, is_template={recipe['is_template']}, template_id={recipe.get('template_id')})")
+            
             conn.close()
             
             # Convert to list of dicts for JSON serialization

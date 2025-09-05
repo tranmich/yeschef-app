@@ -86,7 +86,10 @@ export const searchRecipes = (query) => apiCall(`/api/search?q=${encodeURICompon
 export const getRecipe = (id) => apiCall(`/api/recipes/${id}`);
 
 // Template Recipe System Functions
-export const getUserRecipes = () => apiCall('/api/user/recipes');
+export const getUserRecipes = (category = 'all') => {
+  const url = category === 'all' ? '/api/user/recipes' : `/api/user/recipes?category=${encodeURIComponent(category)}`;
+  return apiCall(url);
+};
 export const editRecipe = (recipeId, updatedRecipe) => 
   apiCall(`/api/recipes/${recipeId}/edit`, {
     method: 'POST',

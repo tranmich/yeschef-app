@@ -69,15 +69,15 @@ const MainApp = () => {
     calculateRecipeCounts();
   }, [recipes]);
 
-  const loadRecipes = async () => {
+  const loadRecipes = async (category = 'all') => {
     setLoading(true);
-    console.log('🔄 Starting recipe load process...');
+    console.log(`🔄 Starting recipe load process for category: ${category}...`);
     
     try {
       console.log('🍽️ Loading user recipes from personal collection...');
       
-      // Use the new user-specific API that returns only user's recipes
-      const response = await api.getUserRecipes();
+      // Use the new user-specific API with category filtering
+      const response = await api.getUserRecipes(category);
       console.log('📊 User recipes response:', response);
       
       // Check for admin access
@@ -92,7 +92,7 @@ const MainApp = () => {
       let recipes = [];
       if (response && response.success && Array.isArray(response.data)) {
         recipes = response.data;
-        console.log('✅ Found user recipes:', recipes.length);
+        console.log(`✅ Found ${recipes.length} recipes for category '${category}'`);
         console.log('📝 Recipe types:', recipes.map(r => r.recipe_type || 'unknown'));
         
         // Admin gets different message
@@ -120,14 +120,14 @@ const MainApp = () => {
         console.log('📋 First recipe sample:', recipes[0]);
         setRecipes(recipes);
       } else {
-        console.log('⚠️ No recipes found in any expected format, using sample data as fallback');
-        setSampleRecipes();
+        console.log('ℹ️ No recipes found - starting with empty cookbook');
+        setRecipes([]);
       }
     } catch (error) {
       console.error('❌ Error loading recipes via api.searchRecipes:', error);
       console.error('❌ Error details:', error.message, error.stack);
-      console.log('🔄 Using sample data as fallback due to error');
-      setSampleRecipes();
+      console.log('ℹ️ Starting with empty cookbook due to error');
+      setRecipes([]);
     } finally {
       setLoading(false);
     }
@@ -160,86 +160,15 @@ const MainApp = () => {
       console.error('❌ Direct API call error:', error);
     }
     
-    // If all API calls fail, use sample data
-    console.log('🔄 All API calls failed, using sample data');
-    setSampleRecipes();
-  };
-
-  const setSampleRecipes = () => {
-    // Temporary sample data to see the interface
-    const sampleRecipes = [
-      {
-        id: 1,
-        title: "Classic Spaghetti Carbonara",
-        ingredients: "Spaghetti, eggs, pancetta, parmesan cheese, black pepper",
-        instructions: "Cook pasta, mix eggs with cheese, combine with hot pasta and pancetta",
-        time_min: 25,
-        servings: 4,
-        meal_role: "dinner",
-        is_easy: true,
-        is_one_pot: false,
-        rating: 4.8,
-        date_added: "2025-08-20"
-      },
-      {
-        id: 2,
-        title: "Fluffy Pancakes",
-        ingredients: "Flour, milk, eggs, sugar, baking powder, butter",
-        instructions: "Mix dry ingredients, combine wet ingredients, fold together, cook on griddle",
-        time_min: 15,
-        servings: 2,
-        meal_role: "breakfast",
-        is_easy: true,
-        is_one_pot: true,
-        rating: 4.6,
-        date_added: "2025-08-21"
-      },
-      {
-        id: 3,
-        title: "Mediterranean Quinoa Salad",
-        ingredients: "Quinoa, cucumber, tomatoes, feta cheese, olives, lemon, olive oil",
-        instructions: "Cook quinoa, chop vegetables, combine with cheese and dressing",
-        time_min: 20,
-        servings: 6,
-        meal_role: "lunch",
-        is_easy: true,
-        is_one_pot: false,
-        rating: 4.4,
-        date_added: "2025-08-19"
-      },
-      {
-        id: 4,
-        title: "Chocolate Chip Cookies",
-        ingredients: "Flour, butter, brown sugar, eggs, vanilla, chocolate chips",
-        instructions: "Cream butter and sugar, add eggs and vanilla, mix in flour and chips, bake",
-        time_min: 35,
-        servings: 24,
-        meal_role: "dessert",
-        is_easy: true,
-        is_one_pot: false,
-        rating: 4.9,
-        date_added: "2025-08-18"
-      },
-      {
-        id: 5,
-        title: "One-Pot Chicken and Rice",
-        ingredients: "Chicken thighs, rice, onion, garlic, chicken broth, peas",
-        instructions: "Brown chicken, sauté onion and garlic, add rice and broth, simmer until tender",
-        time_min: 40,
-        servings: 4,
-        meal_role: "dinner",
-        is_easy: true,
-        is_one_pot: true,
-        rating: 4.7,
-        date_added: "2025-08-17"
-      }
-    ];
-    setRecipes(sampleRecipes);
+    // If all API calls fail, start with empty cookbook
+    console.log('ℹ️ All API calls failed, starting with empty cookbook');
+    setRecipes([]);
   };
 
   const calculateRecipeCounts = () => {
     const counts = {
       all: recipes.length,
+      'recent-imports': 0,  // Add recent imports category
       breakfast: 0,
       lunch: 0,
       dinner: 0,
@@ -250,6 +179,11 @@ const MainApp = () => {
     };
 
     recipes.forEach(recipe => {
+      // Count imported recipes (those with category 'imported' or marked as imported)
+      if (recipe.category === 'imported' || recipe.is_imported || recipe.imported_at) {
+        counts['recent-imports']++;
+      }
+
       // Count by meal role
       if (recipe.meal_role === 'breakfast') counts.breakfast++;
       else if (recipe.meal_role === 'lunch') counts.lunch++;
@@ -270,6 +204,9 @@ const MainApp = () => {
     
     return recipes.filter(recipe => {
       switch (selectedCategory) {
+        case 'recent-imports':
+          // Show recipes that were imported (category 'imported' or has import markers)
+          return recipe.category === 'imported' || recipe.is_imported || recipe.imported_at;
         case 'breakfast':
         case 'lunch':
         case 'dinner':
@@ -289,7 +226,20 @@ const MainApp = () => {
   };
 
   const handleCategorySelect = (categoryId) => {
+    console.log(`📂 Category selected: ${categoryId}`);
     setSelectedCategory(categoryId);
+    
+    // Load recipes for the selected category
+    if (categoryId === 'recent-imports') {
+      console.log('📥 Loading recent imports...');
+      loadRecipes('recent-imports');
+    } else if (categoryId !== 'all') {
+      console.log(`📋 Loading category: ${categoryId}`);
+      loadRecipes(categoryId);
+    } else {
+      console.log('📚 Loading all recipes...');
+      loadRecipes('all');
+    }
   };
 
   const handleAddCategory = (newCategory) => {
@@ -417,14 +367,15 @@ const MainApp = () => {
         cook_time: importResult.recipe_data.cook_time || '',
         time_min: totalTimeMin, // Add time_min field that UI expects
         servings: importResult.recipe_data.servings || '',
-        category: importResult.recipe_data.category || 'Imported',
+        category: 'imported', // Use lowercase to match backend database schema
         meal_role: mapCategoryToMealRole(importResult.recipe_data.category), // Proper meal role mapping
         source_url: importResult.recipe_data.source_url || '',
         confidence: importResult.confidence || 0.0,
         is_easy: totalTimeMin && totalTimeMin <= 30, // Mark as easy if quick
         pantryOverlap: 0, // Default pantry overlap
-        // Add current timestamp for sorting
+        // Add import tracking metadata
         imported_at: new Date().toISOString(),
+        is_imported: true, // Additional import marker
         created_at: new Date().toISOString(),
         date_added: new Date().toISOString()
       };
@@ -434,6 +385,16 @@ const MainApp = () => {
       // Add the new recipe to the top of the list
       setRecipes(prevRecipes => [newRecipe, ...prevRecipes]);
       console.log('✅ Added imported recipe to list:', newRecipe.title);
+      
+      // 🎯 AUTOMATICALLY SWITCH TO RECENT IMPORTS CATEGORY AND RELOAD
+      setSelectedCategory('recent-imports');
+      console.log('📥 Switching to Recent Imports category and reloading...');
+      
+      // Reload the recent-imports category to ensure backend data is fresh
+      setTimeout(() => {
+        loadRecipes('recent-imports');
+      }, 500); // Small delay to ensure backend has processed the import
+      
     } else {
       // Fallback: refresh recipe list only if we couldn't get the recipe data
       console.log('⚠️ Import result missing recipe data, refreshing full list');
@@ -566,6 +527,7 @@ const MainApp = () => {
               selectedCategory={selectedCategory}
               onRecipeClick={handleRecipeClick}
               onRecipeEdit={handleRecipeEdit}
+              onRefreshRecipes={loadRecipes}
               loading={loading}
               adminMode={adminMode && isAdmin}
               isAdmin={isAdmin}

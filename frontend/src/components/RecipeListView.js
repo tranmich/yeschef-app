@@ -8,6 +8,7 @@ const RecipeListView = ({
   selectedCategory, 
   onRecipeClick, 
   onRecipeEdit,
+  onRefreshRecipes,
   loading = false 
 }) => {
   const [sortBy, setSortBy] = useState('alphabetical');
@@ -116,6 +117,7 @@ const RecipeListView = ({
   const getCategoryDisplayName = (categoryId) => {
     const categoryNames = {
       'all': 'All Recipes',
+      'recent-imports': 'Recent Imports',
       'breakfast': 'Breakfast',
       'lunch': 'Lunch', 
       'dinner': 'Dinner',
@@ -199,7 +201,30 @@ const RecipeListView = ({
             </div>
           ) : filteredAndSortedRecipes.length === 0 ? (
             <div className="empty-state">
-              <p>No recipes found</p>
+              <div className="empty-state-content">
+                <div className="empty-state-icon">📚</div>
+                <h3>Your cookbook is empty</h3>
+                <p>Start building your recipe collection! Import recipes from any website in seconds.</p>
+                <div className="empty-state-actions">
+                  <button 
+                    className="import-recipe-btn hungie-btn hungie-btn-primary"
+                    onClick={() => {
+                      // Trigger the import feature
+                      const sidebar = document.querySelector('[data-feature="import"]');
+                      if (sidebar) {
+                        sidebar.click();
+                      } else {
+                        alert('💡 Click on "📥 Import Recipe" in the sidebar to get started!');
+                      }
+                    }}
+                  >
+                    📥 Import Recipe
+                  </button>
+                  <div className="quick-tips">
+                    <p><strong>💡 Pro tip:</strong> Just paste any recipe URL and we'll extract it automatically!</p>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="recipe-explorer" style={{overflow: 'visible', position: 'relative', zIndex: 1}}>
@@ -232,6 +257,7 @@ const RecipeListView = ({
                                   recipe={recipe}
                                   onRecipeClick={onRecipeClick}
                                   onRecipeEdit={onRecipeEdit}
+                                  onRefreshRecipes={onRefreshRecipes}
                                   isChild={true}
                                 />
                               );
@@ -256,6 +282,7 @@ const RecipeListView = ({
                           recipe={recipe}
                           onRecipeClick={onRecipeClick}
                           onRecipeEdit={onRecipeEdit}
+                          onRefreshRecipes={onRefreshRecipes}
                           isChild={false}
                         />
                       );
@@ -278,7 +305,8 @@ const RecipeListView = ({
 const RecipeCard = ({ 
   recipe, 
   onRecipeClick, 
-  onRecipeEdit, 
+  onRecipeEdit,
+  onRefreshRecipes,
   isChild = false
 }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -327,13 +355,109 @@ const RecipeCard = ({
         onRecipeEdit(recipe);
         break;
       case 'remove':
-        console.log('Remove recipe:', recipe.id);
+        handleDeleteRecipe();
         break;
       case 'move':
         console.log('Move recipe:', recipe.id);
         break;
       default:
         break;
+    }
+  };
+
+  const handleDeleteRecipe = async () => {
+    // Show confirmation dialog
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${recipe.title}"?\n\nThis action cannot be undone.`
+    );
+    
+    if (!confirmDelete) {
+      return;
+    }
+    
+    console.log('🗑️ Attempting to delete recipe:', {
+      id: recipe.id,
+      title: recipe.title,
+      user_id: recipe.user_id,
+      is_template: recipe.is_template
+    });
+    
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        alert('Please log in to delete recipes');
+        return;
+      }
+      
+      console.log(`🌐 Making DELETE request to: /api/recipes/${recipe.id}`);
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/recipes/${recipe.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('📡 Delete response status:', response.status);
+      
+      const result = await response.json();
+      console.log('📄 Delete response data:', result);
+      
+      if (result.success) {
+        alert(`✅ ${result.message}`);
+        // Refresh the recipe list using the parent's refresh function
+        if (onRefreshRecipes) {
+          onRefreshRecipes();
+        } else {
+          // Fallback to page reload if no refresh function provided
+          window.location.reload();
+        }
+      } else {
+        // Check if this is an orphaned recipe that can be claimed
+        if (result.can_claim) {
+          const claimConfirm = window.confirm(
+            `${result.error}\n\nWould you like to claim ownership of this recipe so you can delete it?`
+          );
+          
+          if (claimConfirm) {
+            await handleClaimRecipe();
+          }
+        } else {
+          alert(`❌ Error: ${result.error}`);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Delete recipe error:', error);
+      alert(`❌ Failed to delete recipe: ${error.message}`);
+    }
+  };
+
+  const handleClaimRecipe = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/recipes/${recipe.id}/claim`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ ${result.message}\n\nYou can now delete this recipe if needed.`);
+        // Refresh the recipe list
+        if (onRefreshRecipes) {
+          onRefreshRecipes();
+        }
+      } else {
+        alert(`❌ Failed to claim recipe: ${result.error}`);
+      }
+      
+    } catch (error) {
+      console.error('Claim recipe error:', error);
+      alert(`❌ Failed to claim recipe: ${error.message}`);
     }
   };
 

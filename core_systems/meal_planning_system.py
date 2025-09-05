@@ -28,23 +28,20 @@ class MealPlanningSystem:
     
     def __init__(self):
         """Initialize meal planning system with PostgreSQL connection."""
-        self.db_connection = None
         self.logger = logging.getLogger(__name__)
         self.init_database_tables()
     
     def _get_db_connection(self):
-        """Get PostgreSQL database connection"""
-        if not self.db_connection:
-            try:
-                db_url = os.getenv('DATABASE_URL')
-                if not db_url:
-                    raise Exception("DATABASE_URL environment variable required")
-                
-                self.db_connection = psycopg2.connect(db_url)
-            except Exception as e:
-                print(f"❌ Database connection failed: {e}")
-                raise
-        return self.db_connection
+        """Get a fresh PostgreSQL database connection"""
+        try:
+            db_url = os.getenv('DATABASE_URL')
+            if not db_url:
+                raise Exception("DATABASE_URL environment variable required")
+            
+            return psycopg2.connect(db_url)
+        except Exception as e:
+            print(f"❌ Database connection failed: {e}")
+            raise
     
     def init_database_tables(self):
         """Initialize required database tables for meal planning."""
@@ -59,15 +56,27 @@ class MealPlanningSystem:
                     plan_name TEXT NOT NULL,
                     week_start_date TEXT NOT NULL,
                     plan_data_json TEXT NOT NULL,
+                    user_id INTEGER,
                     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
+            ''')
+            
+            # Add user_id column if it doesn't exist (for existing installations)
+            cursor.execute('''
+                ALTER TABLE meal_plans 
+                ADD COLUMN IF NOT EXISTS user_id INTEGER
             ''')
             
             # Create index for better performance
             cursor.execute('''
                 CREATE INDEX IF NOT EXISTS idx_meal_plans_date 
                 ON meal_plans(week_start_date)
+            ''')
+            
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_meal_plans_user 
+                ON meal_plans(user_id)
             ''')
             
             conn.commit()
@@ -79,7 +88,7 @@ class MealPlanningSystem:
         finally:
             conn.close()
     
-    def create_meal_plan(self, plan_name: str, week_start_date: str, meal_data: Dict) -> int:
+    def create_meal_plan(self, plan_name: str, week_start_date: str, meal_data: Dict, user_id: int = None) -> int:
         """
         Create a new meal plan.
         
@@ -87,6 +96,7 @@ class MealPlanningSystem:
             plan_name: Name for the meal plan
             week_start_date: Start date of the week (YYYY-MM-DD format)
             meal_data: Dictionary containing meal assignments
+            user_id: ID of the user creating the meal plan
             
         Returns:
             int: ID of the created meal plan
@@ -99,16 +109,17 @@ class MealPlanningSystem:
             if not self._validate_meal_data(meal_data):
                 raise ValueError("Invalid meal data structure")
             
-            # Insert meal plan
+            # Insert meal plan with user_id
             cursor.execute('''
-                INSERT INTO meal_plans (plan_name, week_start_date, plan_data_json)
-                VALUES (%s, %s, %s)
-            ''', (plan_name, week_start_date, json.dumps(meal_data)))
+                INSERT INTO meal_plans (plan_name, week_start_date, plan_data_json, user_id)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+            ''', (plan_name, week_start_date, json.dumps(meal_data), user_id))
             
-            plan_id = cursor.lastrowid
+            plan_id = cursor.fetchone()[0]
             conn.commit()
             
-            self.logger.info(f"Created meal plan '{plan_name}' with ID {plan_id}")
+            self.logger.info(f"Created meal plan '{plan_name}' with ID {plan_id} for user {user_id}")
             return plan_id
             
         except Exception as e:
@@ -116,6 +127,7 @@ class MealPlanningSystem:
             self.logger.error(f"Error creating meal plan: {e}")
             raise
         finally:
+            cursor.close()
             conn.close()
     
     def update_meal_plan(self, plan_id: int, meal_data: Dict) -> bool:
@@ -197,6 +209,49 @@ class MealPlanningSystem:
             self.logger.error(f"Error retrieving meal plan: {e}")
             raise
         finally:
+            cursor.close()
+            conn.close()
+
+    def get_user_meal_plan(self, plan_id: int, user_id: int) -> Optional[Dict]:
+        """
+        Retrieve a specific meal plan for a user.
+        
+        Args:
+            plan_id: ID of the meal plan to retrieve
+            user_id: ID of the user (for access control)
+            
+        Returns:
+            Dict or None: Meal plan data if found and belongs to user
+        """
+        conn = self._get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                SELECT id, plan_name, week_start_date, plan_data_json, 
+                       created_date, updated_date
+                FROM meal_plans 
+                WHERE id = %s AND user_id = %s
+            ''', (plan_id, user_id))
+            
+            row = cursor.fetchone()
+            if not row:
+                return None
+            
+            return {
+                'id': row[0],
+                'plan_name': row[1],
+                'week_start_date': row[2],
+                'meal_data': json.loads(row[3]),
+                'created_date': row[4],
+                'updated_date': row[5]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error retrieving user meal plan: {e}")
+            raise
+        finally:
+            cursor.close()
             conn.close()
     
     def list_meal_plans(self, limit: int = 50) -> List[Dict]:
@@ -214,11 +269,55 @@ class MealPlanningSystem:
         
         try:
             cursor.execute('''
-                SELECT id, plan_name, week_start_date, created_date, updated_date
+                SELECT id, plan_name, week_start_date, created_date, updated_date, user_id
                 FROM meal_plans 
                 ORDER BY updated_date DESC
                 LIMIT %s
             ''', (limit,))
+            
+            rows = cursor.fetchall()
+            
+            return [
+                {
+                    'id': row[0],
+                    'plan_name': row[1],
+                    'week_start_date': row[2],
+                    'created_date': row[3],
+                    'updated_date': row[4],
+                    'user_id': row[5]
+                }
+                for row in rows
+            ]
+            
+        except Exception as e:
+            self.logger.error(f"Error listing meal plans: {e}")
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    def list_user_meal_plans(self, user_id: int, limit: int = 50) -> List[Dict]:
+        """
+        List meal plans for a specific user.
+        
+        Args:
+            user_id: ID of the user
+            limit: Maximum number of plans to return
+            
+        Returns:
+            List[Dict]: List of user's meal plan summaries
+        """
+        conn = self._get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                SELECT id, plan_name, week_start_date, created_date, updated_date
+                FROM meal_plans 
+                WHERE user_id = %s
+                ORDER BY updated_date DESC
+                LIMIT %s
+            ''', (user_id, limit))
             
             rows = cursor.fetchall()
             
@@ -234,9 +333,10 @@ class MealPlanningSystem:
             ]
             
         except Exception as e:
-            self.logger.error(f"Error listing meal plans: {e}")
-            raise
+            self.logger.error(f"Error listing user meal plans: {e}")
+            return []
         finally:
+            cursor.close()
             conn.close()
     
     def delete_meal_plan(self, plan_id: int) -> bool:
