@@ -148,18 +148,20 @@ export const usePantry = () => {
 
   // Remove item from pantry via API
   const removePantryItem = async (itemId) => {
-    try {
-      console.log('🗑️ usePantry Hook - Removing from pantry via API:', itemId);
-      setError(null);
-      
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        setError('Please log in to manage pantry');
-        return;
-      }
+    console.log('🗑️ usePantry Hook - Removing from pantry via API:', itemId);
+    setError(null);
+    
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setError('Please log in to manage pantry');
+      return;
+    }
 
+    // Get reference to item before try block
+    const itemToRemove = pantryItems.find(item => item.id === itemId);
+    
+    try {
       // Optimistic update
-      const itemToRemove = pantryItems.find(item => item.id === itemId);
       setPantryItems(prev => prev.filter(item => item.id !== itemId));
 
       // Remove from backend
@@ -190,18 +192,20 @@ export const usePantry = () => {
 
   // Update item amount via API
   const updatePantryAmount = async (itemId, newAmount) => {
-    try {
-      console.log('🔄 usePantry Hook - Updating amount via API:', itemId, newAmount);
-      setError(null);
-      
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        setError('Please log in to manage pantry');
-        return;
-      }
+    console.log('🔄 usePantry Hook - Updating amount via API:', itemId, newAmount);
+    setError(null);
+    
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setError('Please log in to manage pantry');
+      return;
+    }
 
+    // Get old amount before try block
+    const oldAmount = pantryItems.find(item => item.id === itemId)?.amount;
+    
+    try {
       // Optimistic update
-      const oldAmount = pantryItems.find(item => item.id === itemId)?.amount;
       setPantryItems(prev =>
         prev.map(item =>
           item.id === itemId ? { ...item, amount: newAmount } : item
@@ -255,18 +259,20 @@ export const usePantry = () => {
 
   // Clear all pantry items via API
   const clearPantry = async () => {
-    try {
-      console.log('🧹 usePantry Hook - Clearing pantry via API');
-      setError(null);
-      
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        setError('Please log in to manage pantry');
-        return;
-      }
+    console.log('🧹 usePantry Hook - Clearing pantry via API');
+    setError(null);
+    
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      setError('Please log in to manage pantry');
+      return;
+    }
 
+    // Save old items before try block
+    const oldItems = [...pantryItems];
+    
+    try {
       // Optimistic update
-      const oldItems = [...pantryItems];
       setPantryItems([]);
 
       // Clear backend (delete all items)
