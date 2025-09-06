@@ -10,7 +10,7 @@ const AdminRecipeOverlay = ({ recipe, adminMode = false, onRefresh }) => {
   }
 
   const promoteToTemplate = async () => {
-    if (!confirm(`Promote "${recipe.title}" to default template? This will make it available to all new users.`)) {
+    if (!window.confirm(`Promote "${recipe.title}" to default template? This will make it available to all new users.`)) {
       return;
     }
 
@@ -42,7 +42,7 @@ const AdminRecipeOverlay = ({ recipe, adminMode = false, onRefresh }) => {
   };
 
   const removeFromTemplate = async () => {
-    if (!confirm(`Remove "${recipe.title}" from default templates? New users will no longer get this recipe.`)) {
+    if (!window.confirm(`Remove "${recipe.title}" from default templates? New users will no longer get this recipe.`)) {
       return;
     }
 

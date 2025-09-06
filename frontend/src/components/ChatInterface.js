@@ -402,10 +402,10 @@ const ChatInterface = ({ sessionMemory, getPantryForAPI, hasPantryItems, pantryI
     };
 
     const handleMealPlanCancel = () => {
-        setShowMealPlanModal(false);
+        // setShowMealPlanModal(false);
         setSelectedRecipeForMealPlan(null);
-        setSelectedDay('monday');
-        setSelectedMeal('dinner');
+        // setSelectedDay('monday');
+        // setSelectedMeal('dinner');
     };
 
     // Helper function to check if pantry is sparse and suggest generation
@@ -436,7 +436,9 @@ const ChatInterface = ({ sessionMemory, getPantryForAPI, hasPantryItems, pantryI
                 ? `I only have ${pantryCount} ingredients. Can you suggest recipes using what I have and recommend what to buy?`
                 : "I couldn't find good matches. Can you suggest recipes using my pantry items and what to buy?";
 
-            handleSendMessage(message);
+            // Use sendMessage function to send the message
+            setInputMessage(message);
+            sendMessage();
         };
 
         return (

@@ -537,7 +537,7 @@ const DuplicateAnalysis = ({ duplicates, handleBulkDeleteConfirmation: onBulkDel
         confirmMessage = `⚠️ Delete recipe ${recipeId}?\n\nThis will orphan ${orphanedCopies.length} user copies (they'll lose the connection to the original).`;
       }
 
-      if (!confirm(confirmMessage)) {
+      if (!window.confirm(confirmMessage)) {
         return;
       }
 
@@ -1635,7 +1635,7 @@ const BulkDeleteButton = ({ recipeIds }) => {
 
 // Helper functions
 const deleteRecipe = async (recipeId) => {
-  if (!confirm(`Are you sure you want to delete recipe ${recipeId} from the live database?`)) {
+  if (!window.confirm(`Are you sure you want to delete recipe ${recipeId} from the live database?`)) {
     return;
   }
 
@@ -1659,7 +1659,7 @@ const deleteRecipe = async (recipeId) => {
 };
 
 const demoteTemplate = async (templateId) => {
-  if (!confirm(`Remove template status from recipe ${templateId}?`)) {
+  if (!window.confirm(`Remove template status from recipe ${templateId}?`)) {
     return;
   }
 
