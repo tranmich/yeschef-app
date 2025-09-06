@@ -170,13 +170,13 @@
 }
 
 .list-item {
-    padding: 0.75rem 1.5rem;
-    cursor: pointer;
+    padding: 0.75rem 1rem;
     border-left: 3px solid transparent;
     transition: all 0.2s;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
 }
 
 .list-item:hover {
@@ -187,6 +187,38 @@
 .list-item.selected {
     background-color: rgba(40, 167, 69, 0.1);
     border-left-color: #28a745;
+}
+
+.list-content {
+    flex: 1;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+
+.delete-list-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.25rem 0.4rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.delete-list-btn:hover {
+    background: #c82333;
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.list-item:hover .delete-list-btn {
+    opacity: 1;
 }
 
 .list-name {
@@ -274,6 +306,36 @@
 .workspace-controls .save-btn:hover {
     background: #218838;
     transform: translateY(-1px);
+}
+
+.consolidate-btn {
+    background: #6f42c1;
+    color: white;
+}
+
+.consolidate-btn:hover {
+    background: #5a32a3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(111, 66, 193, 0.3);
+}
+
+.consolidate-btn:active {
+    transform: translateY(0);
+}
+
+.show-hidden-btn {
+    background: #17a2b8;
+    color: white;
+}
+
+.show-hidden-btn:hover {
+    background: #138496;
+    transform: translateY(-1px);
+}
+
+.show-hidden-btn.active {
+    background: #138496;
+    box-shadow: 0 0 0 2px rgba(23, 162, 184, 0.3);
 }
 
 /* Grocery Columns - Notion-style Layout */
@@ -384,12 +446,280 @@
     color: #495057;
     display: block;
     margin-bottom: 0.25rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.item-name:hover {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+}
+
+/* Inline Editing Styles - Notion-like */
+.item-name-input {
+    font-weight: 500;
+    color: #495057;
+    display: block;
+    margin-bottom: 0.25rem;
+    width: 100%;
+    border: 2px solid #28a745;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: inherit;
+    font-family: inherit;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.item-name-input:focus {
+    border-color: #1e7e34;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+}
+
+.grocery-item-card.editing {
+    background: rgba(40, 167, 69, 0.02);
+    border-color: #28a745;
+    box-shadow: 0 0 0 1px rgba(40, 167, 69, 0.2);
 }
 
 .item-recipes {
     font-size: 0.8rem;
     color: #6c757d;
     font-style: italic;
+}
+
+/* Consolidation badges and info */
+.consolidated-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 6px;
+    background: #6f42c1;
+    color: white;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-style: normal;
+    font-weight: 500;
+}
+
+.consolidated-info {
+    color: #6f42c1;
+    font-weight: 500;
+}
+
+.grocery-item-card.consolidated {
+    border-left: 3px solid #6f42c1;
+    background: rgba(111, 66, 193, 0.02);
+}
+
+/* Pantry Integration Styles */
+.grocery-item-card.in-pantry {
+    border-left: 3px solid #28a745;
+    background: rgba(40, 167, 69, 0.02);
+}
+
+.grocery-item-card.hidden-item {
+    opacity: 0.6;
+    background: rgba(108, 117, 125, 0.1);
+    border: 1px dashed #6c757d;
+}
+
+.pantry-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-right: 0.5rem;
+}
+
+.pantry-status-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(40, 167, 69, 0.2);
+    font-size: 0.85rem;
+}
+
+.pantry-badge {
+    background: #28a745;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.pantry-badge.compound {
+    background: #6f42c1;
+    background: linear-gradient(45deg, #28a745, #6f42c1);
+}
+
+/* Smart Combination Visual Cues */
+.combinable {
+    border-left: 3px solid #ffc107 !important;
+    transition: all 0.2s ease;
+}
+
+.combinable:hover {
+    background: rgba(255, 193, 7, 0.1);
+    transform: translateX(2px);
+}
+
+.combination-target {
+    border: 2px dashed #28a745 !important;
+    background: rgba(40, 167, 69, 0.1) !important;
+    transform: scale(1.02);
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.3);
+}
+
+.combination-preview {
+    margin-top: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    background: #28a745;
+    color: white;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    animation: slideIn 0.2s ease;
+}
+
+.combination-preview.smart {
+    background: #ff9500;
+    background: linear-gradient(45deg, #ff9500, #ffc107);
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.preview-text {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Undo button styling */
+.undo-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.undo-btn:hover {
+    background: #5a6268;
+    transform: scale(1.05);
+}
+
+/* Save Dialog Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    min-width: 400px;
+    max-width: 500px;
+}
+
+.modal-content h3 {
+    margin: 0 0 1rem 0;
+    color: #333;
+}
+
+.modal-content p {
+    margin: 0 0 1rem 0;
+    color: #666;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.modal-content input:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.modal-buttons .cancel-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.modal-buttons .cancel-btn:hover {
+    background: #5a6268;
+}
+
+.modal-buttons .save-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.hide-btn, .unhide-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.hide-btn:hover {
+    background: #218838;
+    transform: scale(1.05);
+}
+
+.unhide-btn {
+    background: #17a2b8;
+}
+
+.unhide-btn:hover {
+    background: #138496;
+    transform: scale(1.05);
 }
 
 .item-actions {
@@ -517,4 +847,111 @@
         min-width: 100%;
         max-height: 400px;
     }
+}
+
+/* Drag and Drop Enhancements */
+.column-title-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-drag-handle {
+    cursor: grab;
+    color: #6c757d;
+    font-size: 16px; /* Increased size */
+    padding: 6px 8px; /* More padding */
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    user-select: none;
+    border: 1px solid transparent; /* Subtle border */
+    background: rgba(255, 255, 255, 0.5); /* Slight background */
+}
+
+.section-drag-handle:hover {
+    background: #28a745; /* Green background on hover */
+    color: white;
+    border-color: #1e7e34;
+    transform: scale(1.05); /* Slight scale effect */
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.section-drag-handle:active {
+    cursor: grabbing;
+    background: #1e7e34;
+    transform: scale(0.95);
+}
+
+.drag-handle {
+    cursor: grab;
+    color: #6c757d;
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.drag-handle:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+    background: #dee2e6;
+}
+
+/* Dragging States */
+.grocery-item-card.dragging {
+    opacity: 0.7;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: rotate(2deg);
+}
+
+.grocery-column.section-dragging {
+    opacity: 0.8;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: rotate(1deg) scale(1.02);
+    border: 2px solid #28a745;
+    background: rgba(40, 167, 69, 0.02);
+}
+
+/* Enhanced Section Drop Zones */
+.grocery-column[data-section-over="true"] {
+    border: 3px dashed #28a745;
+    background: rgba(40, 167, 69, 0.1);
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+}
+
+.grocery-column[data-section-over="true"] .column-header {
+    background: rgba(40, 167, 69, 0.1);
+}
+
+/* Item Drop Zones */
+.grocery-column[data-droppable="true"] {
+    border: 2px dashed #007bff;
+    background: rgba(0, 123, 255, 0.05);
+}
+
+.column-items[data-droppable="true"] {
+    border: 2px dashed #007bff;
+    background: rgba(0, 123, 255, 0.05);
+    border-radius: 8px;
+    min-height: 60px;
+}
+
+/* Visual Feedback for Valid Drop Targets */
+.drop-indicator {
+    height: 2px;
+    background: #28a745;
+    border-radius: 1px;
+    margin: 2px 0;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.drop-indicator.active {
+    opacity: 1;
 }
