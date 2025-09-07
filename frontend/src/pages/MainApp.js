@@ -6,7 +6,7 @@ import CookbookSidebar from '../components/CookbookSidebar';
 import RecipeListView from '../components/RecipeListView';
 import RecipeEditModal from '../components/RecipeEditModal';
 import ImportRecipeModal from '../components/ImportRecipeModal';
-import RecipeDetailModal from '../components/RecipeDetailModal';
+import RecipePanel from '../components/RecipePanel';
 import AdminDashboard from '../components/AdminDashboard';
 import AdminRecipeOverlay from '../components/AdminRecipeOverlay';
 import GroceryManagerWorkspace from '../components/GroceryManagerWorkspace';
@@ -261,8 +261,33 @@ const MainApp = () => {
     setViewingRecipe(null);
   };
 
-  const handleRecipeEdit = (recipe) => {
-    setEditingRecipe(recipe);
+  const handleRecipeEdit = async (updatedRecipe) => {
+    console.log('💾 Handling recipe edit:', updatedRecipe);
+    
+    try {
+      // For now, just update local state - we can add API call later
+      console.log('📝 Updating local recipe state...');
+      
+      // Update recipes list
+      setRecipes(prev => prev.map(r => 
+        r.id === updatedRecipe.id ? updatedRecipe : r
+      ));
+      
+      // Update viewing recipe if it's the same recipe being edited
+      if (viewingRecipe && viewingRecipe.id === updatedRecipe.id) {
+        setViewingRecipe(updatedRecipe);
+        console.log('🎨 Updated viewing recipe');
+      }
+      
+      console.log('✅ Recipe updated successfully');
+      
+      // TODO: Add API call to persist changes
+      // await api.updateRecipe(updatedRecipe);
+      
+    } catch (error) {
+      console.error('❌ Error saving recipe:', error);
+      // TODO: Show error message to user
+    }
   };
 
   const handleSaveRecipe = async (updatedRecipe) => {
@@ -590,8 +615,8 @@ const MainApp = () => {
           onImport={handleImportRecipe}
         />
 
-        {/* Recipe Detail Modal */}
-        <RecipeDetailModal
+        {/* Recipe Panel - Notion-style slide-in */}
+        <RecipePanel
           recipe={viewingRecipe}
           isOpen={showRecipeDetail}
           onClose={handleCloseRecipeDetail}

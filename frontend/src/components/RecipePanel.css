@@ -1,0 +1,556 @@
+/* RecipePanel.css - Notion-style sliding panel with component-scoped architecture */
+
+/* Panel Backdrop - subtle overlay that doesn't block view completely */
+.recipe-panel-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1); /* Much lighter than modal overlay */
+  z-index: 998;
+  transition: all 0.3s ease;
+}
+
+/* Main Panel - slides in from right */
+.recipe-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 45%;
+  max-width: 600px;
+  min-width: 400px;
+  height: 100vh;
+  background: white;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(0);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden; /* Prevent internal scrolling in normal mode */
+}
+
+/* Full-screen mode */
+.recipe-panel-fullscreen {
+  width: 100vw !important;
+  max-width: none !important;
+  left: 0 !important;
+  right: 0 !important;
+  box-shadow: none !important;
+  overflow-y: auto; /* Allow page-level scrolling in full-screen */
+}
+
+/* Panel entrance animation */
+.recipe-panel {
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Header Section - Clean Notion-style */
+.recipe-panel .recipe-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem 2rem 1rem 2rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fafbfc;
+  min-height: 80px;
+}
+
+.recipe-panel .header-left-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recipe-panel .expand-panel-btn {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  color: #495057;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.recipe-panel .expand-panel-btn:hover {
+  background: #e9ecef;
+  color: #28a745;
+  transform: scale(1.05);
+  border-color: #28a745;
+}
+
+.recipe-panel .recipe-title-section {
+  flex: 1;
+  margin: 0 1rem;
+}
+
+.recipe-panel .recipe-title-large {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin: 0;
+  color: #111827;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer; /* Ready for Phase 2 inline editing */
+  transition: all 0.2s ease;
+}
+
+/* Ready for Phase 2 - inline editing hover */
+.recipe-panel .recipe-title-large:hover {
+  color: #28a745;
+  background: rgba(40, 167, 69, 0.05);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.recipe-panel .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recipe-panel .close-panel-btn {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.recipe-panel .close-panel-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+  transform: scale(1.1);
+}
+
+/* Recipe Metadata Bar - Component-scoped */
+.recipe-panel .recipe-metadata-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.recipe-panel .metadata-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.recipe-panel .metadata-item:hover {
+  border-color: #28a745;
+  box-shadow: 0 0 0 1px rgba(40, 167, 69, 0.1);
+}
+
+.recipe-panel .metadata-icon {
+  font-size: 1rem;
+}
+
+.recipe-panel .metadata-label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.recipe-panel .metadata-value {
+  color: #111827;
+  font-weight: 600;
+}
+
+/* Recipe Content Flow - Block-based architecture */
+.recipe-panel .recipe-content-flow {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 2rem 2rem 2rem;
+}
+
+/* Full-screen content layout */
+.recipe-panel .recipe-content-fullscreen {
+  max-width: 800px; /* Comfortable reading width */
+  margin: 0 auto; /* Center the content */
+  padding: 2rem 3rem; /* More generous padding */
+  overflow-y: visible; /* No internal scrolling in full-screen */
+}
+
+/* Recipe blocks spacing in full-screen */
+.recipe-panel-fullscreen .recipe-block {
+  margin-bottom: 3rem; /* More space between sections */
+}
+
+.recipe-panel-fullscreen .block-title {
+  font-size: 1.5rem; /* Larger section titles */
+  margin-bottom: 1.5rem;
+}
+
+.recipe-panel-fullscreen .formatted-recipe-text {
+  font-size: 1.1rem; /* Larger text for better readability */
+  line-height: 1.7; /* More line spacing */
+}
+
+.recipe-panel-fullscreen .recipe-description {
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+/* Recipe Blocks - Foundation for rich editing */
+.recipe-panel .recipe-block {
+  margin-bottom: 2rem;
+  transition: all 0.2s ease;
+  cursor: pointer; /* Ready for Phase 2 */
+}
+
+.recipe-panel .recipe-block:hover {
+  background: rgba(40, 167, 69, 0.02);
+  padding: 0.5rem;
+  margin: -0.5rem -0.5rem 1.5rem -0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(40, 167, 69, 0.1);
+}
+
+.recipe-panel .recipe-block:last-child {
+  margin-bottom: 0;
+}
+
+/* Block Titles - Ready for inline editing */
+.recipe-panel .block-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer; /* Ready for Phase 2 */
+  transition: all 0.2s ease;
+}
+
+.recipe-panel .block-title:hover {
+  color: #28a745;
+  background: rgba(40, 167, 69, 0.05);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin: -0.25rem -0.5rem 0.75rem -0.5rem;
+}
+
+/* Block Content - Foundation for rich text */
+.recipe-panel .block-content {
+  line-height: 1.6;
+}
+
+.recipe-panel .recipe-description {
+  font-size: 1rem;
+  color: #4b5563;
+  margin: 0;
+  font-style: italic;
+  cursor: pointer; /* Ready for Phase 2 */
+  transition: all 0.2s ease;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
+.recipe-panel .recipe-description:hover {
+  background: rgba(40, 167, 69, 0.05);
+  color: #28a745;
+}
+
+.recipe-panel .formatted-recipe-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 0.95rem;
+  color: #374151;
+  white-space: pre-wrap;
+  margin: 0;
+  padding: 0.5rem;
+  background: rgba(248, 250, 252, 0.5);
+  border-radius: 6px;
+  border: 1px solid rgba(226, 232, 240, 0.5);
+  cursor: pointer; /* Ready for Phase 2 */
+  transition: all 0.2s ease;
+}
+
+.recipe-panel .formatted-recipe-text:hover {
+  background: rgba(40, 167, 69, 0.02);
+  border-color: rgba(40, 167, 69, 0.2);
+  color: #111827;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .recipe-panel {
+    width: 55%;
+    min-width: 350px;
+  }
+}
+
+@media (max-width: 768px) {
+  .recipe-panel {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+  }
+  
+  .recipe-panel .recipe-panel-header {
+    padding: 1.5rem 1.5rem 1rem 1.5rem;
+  }
+  
+  .recipe-panel .recipe-content-flow {
+    padding: 1rem 1.5rem 1.5rem 1.5rem;
+  }
+  
+  .recipe-panel .recipe-metadata-bar {
+    padding: 1rem 1.5rem;
+  }
+}
+
+/* Scrollbar Styling */
+.recipe-panel .recipe-content-flow::-webkit-scrollbar {
+  width: 6px;
+}
+
+.recipe-panel .recipe-content-flow::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.recipe-panel .recipe-content-flow::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.recipe-panel .recipe-content-flow::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Inline Editing Components - Notion-style */
+
+/* Base inline editable text styling - More subtle hints */
+.recipe-panel .inline-edit-text {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 3px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  display: inline-block;
+  min-width: 20px;
+  min-height: 1em;
+  position: relative;
+}
+
+.recipe-panel .inline-edit-text:hover {
+  background: rgba(40, 167, 69, 0.05); /* More subtle hover */
+  color: #28a745;
+  box-shadow: 0 0 0 1px rgba(40, 167, 69, 0.1); /* Subtle outline hint */
+}
+
+.recipe-panel .inline-edit-text:empty::before {
+  content: attr(title);
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Input styling for inline editing - Truly seamless */
+.recipe-panel .inline-edit-input {
+  width: 100%;
+  border: none; /* Remove all borders */
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  color: inherit;
+  background: transparent; /* Transparent background */
+  outline: none;
+  transition: all 0.2s ease;
+  resize: none; /* For textareas */
+  line-height: inherit;
+  white-space: normal; /* Remove pre-wrap for natural editing */
+  word-wrap: break-word;
+  box-shadow: none; /* Remove any shadows */
+  min-height: auto; /* Auto height */
+  overflow: visible; /* No internal scrolling */
+}
+
+.recipe-panel .inline-edit-input:focus {
+  background: rgba(40, 167, 69, 0.02); /* Very subtle background hint */
+  border: none; /* Still no border on focus */
+  box-shadow: none; /* No focus shadow */
+}
+
+/* Title inline editing */
+.recipe-panel .recipe-title-large.inline-edit-text {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  margin: -4px -8px;
+}
+
+.recipe-panel .recipe-title-large.inline-edit-input {
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 8px 12px;
+  margin: -8px -12px;
+}
+
+/* Metadata inline editing */
+.recipe-panel .metadata-value.inline-edit-text {
+  min-width: 40px;
+  display: inline-block;
+}
+
+.recipe-panel .metadata-value.inline-edit-input {
+  min-width: 80px;
+  padding: 2px 6px;
+  font-size: 0.875rem;
+}
+
+/* Block title inline editing */
+.recipe-panel .block-title.inline-edit-text {
+  display: block;
+  width: fit-content;
+  padding: 4px 8px;
+  margin: -4px -8px 1rem -8px;
+}
+
+.recipe-panel .block-title.inline-edit-input {
+  font-size: 1.25rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  margin: -6px -10px 0.5rem -10px;
+}
+
+/* Description inline editing */
+.recipe-panel .recipe-description.inline-edit-text {
+  display: block;
+  width: 100%;
+  min-height: 2em;
+  padding: 8px;
+  margin: -8px;
+}
+
+.recipe-panel .recipe-description.inline-edit-input {
+  min-height: 80px;
+  font-style: italic;
+  resize: vertical;
+}
+
+/* Formatted text inline editing - Invisible editing container */
+.recipe-panel .formatted-recipe-text.inline-edit-text {
+  display: block;
+  width: 100%;
+  min-height: 4em;
+  white-space: pre-wrap;
+  padding: 8px;
+  margin: -8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.recipe-panel .formatted-recipe-text.inline-edit-input {
+  min-height: auto; /* Let it grow naturally */
+  max-height: none; /* No height restrictions */
+  font-family: inherit; /* Use same font as display */
+  font-size: inherit; /* Use same size as display */
+  white-space: normal; /* Normal editing, not pre-wrap */
+  resize: none; /* No resize handle */
+  line-height: 1.6;
+  padding: 8px; /* Match the display padding */
+  margin: -8px; /* Match the display margin */
+  border-radius: 4px;
+  border: none; /* No border */
+  background: transparent; /* Transparent background */
+  overflow: visible; /* No scrollbar */
+  height: auto; /* Auto height based on content */
+}
+
+/* Empty state styling */
+.recipe-panel .inline-edit-text:empty {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.recipe-panel .inline-edit-text:empty::after {
+  content: "Click to add...";
+}
+
+/* Specific empty state messages */
+.recipe-panel .recipe-description.inline-edit-text:empty::after {
+  content: "Click to add a description...";
+}
+
+.recipe-panel .formatted-recipe-text.inline-edit-text:empty::after {
+  content: "Click to add content...";
+}
+
+/* Focus and editing state indicators - Nearly invisible */
+.recipe-panel .recipe-block:has(.inline-edit-input) {
+  background: transparent; /* No background change */
+  border: none; /* No border */
+  border-radius: 6px;
+  padding: 0; /* No extra padding */
+  margin: 0; /* No margin changes */
+  transition: all 0.2s ease; /* Smooth transition */
+}
+
+/* Responsive adjustments for inline editing */
+@media (max-width: 768px) {
+  .recipe-panel .inline-edit-input {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .recipe-panel .recipe-title-large.inline-edit-input {
+    font-size: 1.5rem;
+  }
+  
+  .recipe-panel .formatted-recipe-text.inline-edit-input {
+    min-height: 100px;
+  }
+
+  /* Mobile full-screen adjustments */
+  .recipe-panel .recipe-content-fullscreen {
+    padding: 1.5rem; /* Less padding on mobile */
+  }
+  
+  .recipe-panel-fullscreen .recipe-block {
+    margin-bottom: 2rem; /* Less space on mobile */
+  }
+  
+  .recipe-panel .header-left-actions {
+    gap: 0.25rem; /* Tighter spacing on mobile */
+  }
+  
+  .recipe-panel .expand-panel-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}

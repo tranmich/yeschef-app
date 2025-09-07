@@ -510,6 +510,89 @@ def api_root():
         }
     })
 
+@app.route('/api/recipes', methods=['GET'])
+def get_recipes():
+    """Get recipes with optional filtering"""
+    try:
+        # Get query parameters
+        category = request.args.get('category')
+        search = request.args.get('search')
+        limit = int(request.args.get('limit', 50))
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Build query with filters
+        where_conditions = []
+        params = []
+        
+        if category:
+            where_conditions.append("category ILIKE %s")
+            params.append(f"%{category}%")
+            
+        if search:
+            where_conditions.append("(title ILIKE %s OR description ILIKE %s)")
+            params.extend([f"%{search}%", f"%{search}%"])
+        
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+            
+        query = f"""
+            SELECT id, title, description, ingredients, instructions, 
+                   category, source, confidence, prep_time, cook_time, 
+                   servings, created_at
+            FROM recipes 
+            {where_clause}
+            ORDER BY created_at DESC 
+            LIMIT %s
+        """
+        params.append(limit)
+        
+        cursor.execute(query, params)
+        recipes = cursor.fetchall()
+        
+        # Convert to list of dicts
+        recipe_list = []
+        for recipe in recipes:
+            recipe_dict = dict(recipe)
+            # Parse JSON fields if they're stored as strings
+            if isinstance(recipe_dict.get('ingredients'), str):
+                try:
+                    recipe_dict['ingredients'] = json.loads(recipe_dict['ingredients'])
+                except:
+                    recipe_dict['ingredients'] = recipe_dict['ingredients'].split('\n') if recipe_dict['ingredients'] else []
+            
+            if isinstance(recipe_dict.get('instructions'), str):
+                try:
+                    recipe_dict['instructions'] = json.loads(recipe_dict['instructions'])
+                except:
+                    recipe_dict['instructions'] = recipe_dict['instructions'].split('\n') if recipe_dict['instructions'] else []
+            
+            # Ensure confidence_score is available for mobile app
+            if recipe_dict.get('confidence'):
+                recipe_dict['confidence_score'] = float(recipe_dict['confidence']) * 100
+            else:
+                recipe_dict['confidence_score'] = 85  # Default confidence
+                
+            recipe_list.append(recipe_dict)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'recipes': recipe_list,
+            'count': len(recipe_list)
+        })
+        
+    except Exception as e:
+        logger.error(f"Get recipes error: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch recipes'
+        }), 500
+
 @app.route('/api/recipes', methods=['POST'])
 def create_recipe():
     """Create a new recipe"""
