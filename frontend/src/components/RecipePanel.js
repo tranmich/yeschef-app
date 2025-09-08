@@ -3,8 +3,6 @@ import { formatRecipeText } from '../utils/recipeFormatting';
 import './RecipePanel.css';
 
 const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
-  if (!isOpen || !recipe) return null;
-
   // Inline editing states for different fields
   const [editingField, setEditingField] = useState(null);
   const [tempValues, setTempValues] = useState({});
@@ -14,6 +12,9 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
   
   // Refs for auto-focus
   const inputRefs = useRef({});
+
+  // Early return AFTER all hooks are declared
+  if (!isOpen || !recipe) return null;
 
   // Helper function to parse recipe fields that might be JSON strings
   function parseRecipeField(field) {
