@@ -13,6 +13,26 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
   // Refs for auto-focus
   const inputRefs = useRef({});
 
+  // Handle keyboard shortcuts (moved before early return)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isFullScreen) {
+        setIsFullScreen(false);
+      } else if (e.key === 'f' && e.ctrlKey) { // Ctrl+F for full-screen
+        e.preventDefault();
+        toggleFullScreen();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFullScreen]);
+
+  // Full-screen mode handlers
+  const toggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
+
   // Early return AFTER all hooks are declared
   if (!isOpen || !recipe) return null;
 
@@ -81,26 +101,6 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
   console.log('🎨 RecipePanel - Formatted ingredients result:', formattedIngredients);
   console.log('🎨 RecipePanel - Formatted instructions result:', formattedInstructions);
   console.log('🎨 RecipePanel - Formatted ingredients length:', formattedIngredients ? formattedIngredients.length : 'null/undefined');
-
-  // Full-screen mode handlers
-  const toggleFullScreen = () => {
-    setIsFullScreen(!isFullScreen);
-  };
-
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isFullScreen) {
-        setIsFullScreen(false);
-      } else if (e.key === 'f' && e.ctrlKey) { // Ctrl+F for full-screen
-        e.preventDefault();
-        toggleFullScreen();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isFullScreen]);
 
   // Helper function to clean text for editing (remove formatting characters)
   const cleanTextForEditing = (text) => {
