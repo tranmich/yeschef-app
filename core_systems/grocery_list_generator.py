@@ -121,9 +121,12 @@ class GroceryListGenerator:
         """
         try:
             # Get recipe IDs from meal plan
+            print(f"🛒 DEBUG: Getting recipe IDs for meal plan ID: {meal_plan_id}")
             recipe_ids = self._get_recipe_ids_from_meal_plan(meal_plan_id)
+            print(f"🛒 DEBUG: Found recipe IDs: {recipe_ids}")
             
             if not recipe_ids:
+                print(f"🛒 DEBUG: No recipe IDs found for meal plan {meal_plan_id}")
                 return {
                     'success': False,
                     'message': 'No recipes found in meal plan',

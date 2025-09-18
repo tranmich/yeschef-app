@@ -72,6 +72,42 @@ def create_auth_routes(auth_system):
             logger.error(f"[ERROR] Login API error: {e}")
             return jsonify({'success': False, 'message': 'Login failed'}), 500
 
+    @auth_bp.route('/logout', methods=['POST'])
+    def logout():
+        """Logout user (client-side token removal)"""
+        try:
+            # Since we're using JWT tokens, logout is mainly handled client-side
+            # by removing the token from storage. However, we can log the event
+            # and potentially blacklist the token in the future.
+            
+            # Try to get current user for logging
+            try:
+                user_id = get_jwt_identity()
+                if user_id:
+                    user = auth_system.get_user_by_id(user_id)
+                    if user:
+                        logger.info(f"[OK] User logged out: {user['email']}")
+                    else:
+                        logger.info(f"[OK] User logged out: ID {user_id}")
+                else:
+                    logger.info("[OK] Logout called without valid token")
+            except:
+                # If token is invalid or missing, that's fine for logout
+                logger.info("[OK] Logout called - token validation not required")
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Logged out successfully'
+            }), 200
+
+        except Exception as e:
+            logger.error(f"[ERROR] Logout API error: {e}")
+            # Even if there's an error, logout should succeed from client perspective
+            return jsonify({
+                'success': True, 
+                'message': 'Logged out successfully'
+            }), 200
+
     @auth_bp.route('/me', methods=['GET'])
     def get_current_user():
         """Get current user information"""

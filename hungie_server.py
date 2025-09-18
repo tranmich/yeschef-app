@@ -338,7 +338,14 @@ def init_db():
                 image_url TEXT,
                 source TEXT,
                 flavor_profile TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                -- 🍳 Community Sharing Features (Phase 1)
+                is_community_shared BOOLEAN DEFAULT FALSE,
+                shared_at TIMESTAMP NULL,
+                community_title TEXT NULL,
+                community_description TEXT NULL,
+                community_background TEXT DEFAULT 'default',
+                community_icon TEXT DEFAULT '🍽️'
             )
         ''')
 
@@ -2353,7 +2360,7 @@ def create_meal_plan():
 
 @app.route('/api/meal-plans', methods=['GET'])
 def list_meal_plans():
-    """List all meal plans for the authenticated user"""
+    """List all meal plans for the authenticated user (owned + shared)"""
     if not MEAL_PLANNING_AVAILABLE:
         return jsonify({
             'success': False,
@@ -2369,12 +2376,61 @@ def list_meal_plans():
         limit = request.args.get('limit', 50, type=int)
 
         meal_planner = MealPlanningSystem()
-        plans = meal_planner.list_user_meal_plans(user_id, limit=limit)
+        owned_plans = meal_planner.list_user_meal_plans(user_id, limit=limit)
+        
+        # Get shared meal plans from collaboration system
+        shared_plans = []
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get meal plan IDs shared with this user
+            cursor.execute("""
+                SELECT DISTINCT c.resource_id, c.permission_level, c.created_at,
+                       u.name as owner_name
+                FROM collaborations c
+                JOIN users u ON c.invited_by = u.id
+                WHERE c.resource_type = 'meal_plan' 
+                AND c.user_id = %s 
+                AND c.status = 'active'
+                ORDER BY c.created_at DESC
+            """, (user_id,))
+            
+            collaborations = cursor.fetchall()
+            
+            # For each shared meal plan, try to load it
+            for collab in collaborations:
+                try:
+                    shared_plan = meal_planner.get_meal_plan(collab['resource_id'])
+                    if shared_plan:
+                        # Mark it as shared and add owner info
+                        shared_plan['is_shared'] = True
+                        shared_plan['permission_level'] = collab['permission_level']
+                        shared_plan['shared_by'] = collab['owner_name']
+                        shared_plan['plan_name'] = f"📤 {shared_plan.get('plan_name', f'Shared Plan #{collab["resource_id"]}')} (by {collab['owner_name']})"
+                        shared_plans.append(shared_plan)
+                except Exception as e:
+                    logger.warning(f"Could not load shared meal plan {collab['resource_id']}: {e}")
+                    continue
+            
+            cursor.close()
+            conn.close()
+            
+        except Exception as e:
+            logger.warning(f"Could not load shared meal plans: {e}")
+            shared_plans = []
+        
+        # Combine owned and shared plans
+        all_plans = owned_plans + shared_plans
+        
+        logger.info(f"📋 User {user_id} meal plans: {len(owned_plans)} owned + {len(shared_plans)} shared = {len(all_plans)} total")
         
         return jsonify({
             'success': True,
-            'meal_plans': plans,
-            'count': len(plans)
+            'meal_plans': all_plans,
+            'count': len(all_plans),
+            'owned_count': len(owned_plans),
+            'shared_count': len(shared_plans)
         })
 
     except Exception as e:
@@ -2386,7 +2442,7 @@ def list_meal_plans():
 
 @app.route('/api/meal-plans/<int:plan_id>', methods=['GET'])
 def get_meal_plan(plan_id):
-    """Get a specific meal plan for the authenticated user"""
+    """Get a specific meal plan for the authenticated user (owned or shared)"""
     if not MEAL_PLANNING_AVAILABLE:
         return jsonify({
             'success': False,
@@ -2400,7 +2456,37 @@ def get_meal_plan(plan_id):
 
     try:
         meal_planner = MealPlanningSystem()
+        
+        # First try to get as owner
         plan = meal_planner.get_user_meal_plan(plan_id, user_id)
+        
+        # If not found as owner, check if user has collaboration access
+        if not plan:
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                
+                # Check if user has collaboration access
+                cursor.execute("""
+                    SELECT permission_level FROM collaborations 
+                    WHERE resource_type = 'meal_plan' AND resource_id = %s 
+                    AND user_id = %s AND status = 'active'
+                """, (plan_id, user_id))
+                
+                collaboration = cursor.fetchone()
+                if collaboration:
+                    # User has access via collaboration, load the plan
+                    plan = meal_planner.get_meal_plan(plan_id)
+                    if plan:
+                        plan['is_shared'] = True
+                        plan['permission_level'] = collaboration['permission_level']
+                        logger.info(f"📤 User {user_id} accessing shared meal plan {plan_id} with {collaboration['permission_level']} permission")
+                
+                cursor.close()
+                conn.close()
+                
+            except Exception as e:
+                logger.warning(f"Could not check collaboration access for meal plan {plan_id}: {e}")
 
         if not plan:
             return jsonify({
@@ -2455,6 +2541,46 @@ def update_meal_plan(plan_id):
 
     except Exception as e:
         logger.error(f"Update meal plan error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/meal-plans/<int:plan_id>', methods=['DELETE'])
+def delete_meal_plan(plan_id):
+    """Delete a meal plan"""
+    if not MEAL_PLANNING_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'Meal planning system not available'
+        }), 503
+    
+    # Check authentication
+    user_id, error_response, status_code = check_authentication()
+    if error_response:
+        return error_response, status_code
+    
+    try:
+        logger.info(f"User {user_id} deleting meal plan {plan_id}")
+        
+        meal_planner = MealPlanningSystem()
+        success = meal_planner.delete_meal_plan(plan_id)
+        
+        if success:
+            logger.info(f"Meal plan {plan_id} deleted successfully")
+            return jsonify({
+                'success': True,
+                'message': f'Meal plan deleted successfully',
+                'plan_id': plan_id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Meal plan not found or could not be deleted'
+            }), 404
+
+    except Exception as e:
+        logger.error(f"Delete meal plan error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -2519,15 +2645,199 @@ def generate_grocery_list_from_recipes():
         }), 500
 
 # ===================================
+# 🍳 COMMUNITY RECIPE SHARING API
+# ===================================
+
+@app.route('/api/community/recipes', methods=['POST'])
+def share_recipe():
+    """Share a recipe with the community"""
+    try:
+        # Check authentication
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        recipe_id = data.get('recipe_id')
+        community_title = data.get('community_title', '').strip()
+        community_description = data.get('community_description', '').strip()
+        community_background = data.get('community_background', 'default')
+        community_icon = data.get('community_icon', '🍽️')
+        
+        if not recipe_id:
+            return jsonify({'success': False, 'error': 'Recipe ID is required'}), 400
+        if not community_title:
+            return jsonify({'success': False, 'error': 'Community title is required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # First, check if the recipe belongs to the user
+        cursor.execute('SELECT id, title FROM recipes WHERE id = %s AND user_id = %s', [recipe_id, user_id])
+        recipe = cursor.fetchone()
+        if not recipe:
+            return jsonify({'success': False, 'error': 'Recipe not found or not owned by user'}), 404
+        
+        # Update the recipe with community sharing data
+        cursor.execute("""
+            UPDATE recipes 
+            SET is_community_shared = TRUE,
+                shared_at = CURRENT_TIMESTAMP,
+                community_title = %s,
+                community_description = %s,
+                community_background = %s,
+                community_icon = %s
+            WHERE id = %s AND user_id = %s
+        """, [community_title, community_description, community_background, community_icon, recipe_id, user_id])
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"✅ Recipe {recipe_id} shared to community by user {user_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Recipe shared successfully!',
+            'recipe_id': recipe_id,
+            'community_title': community_title
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Share recipe error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/community/recipes', methods=['GET'])
+def get_community_recipes():
+    """Get shared community recipes"""
+    try:
+        limit = int(request.args.get('limit', 20))
+        offset = int(request.args.get('offset', 0))
+        sort_by = request.args.get('sort', 'recent')  # recent, popular, trending
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Build query based on sort parameter
+        if sort_by == 'popular':
+            # TODO: Add likes/saves count for popularity sorting
+            order_clause = "ORDER BY shared_at DESC"
+        elif sort_by == 'trending':
+            # TODO: Add trending algorithm based on recent engagement
+            order_clause = "ORDER BY shared_at DESC"
+        else:  # recent
+            order_clause = "ORDER BY shared_at DESC"
+        
+        # Get community recipes with user info
+        cursor.execute(f"""
+            SELECT 
+                r.id,
+                COALESCE(r.community_title, r.title) as title,
+                COALESCE(r.community_description, r.description) as description,
+                r.community_background,
+                r.community_icon,
+                r.shared_at,
+                u.email,
+                -- Generate anonymous display name from email
+                CASE 
+                    WHEN u.email IS NOT NULL THEN LEFT(u.email, POSITION('@' IN u.email) - 1) || 'Chef'
+                    ELSE 'AnonymousChef'
+                END as display_name,
+                0 as likes  -- TODO: Add real likes count when like system is implemented
+            FROM recipes r
+            LEFT JOIN users u ON r.user_id = u.id
+            WHERE r.is_community_shared = TRUE
+            {order_clause}
+            LIMIT %s OFFSET %s
+        """, [limit, offset])
+        
+        recipes = cursor.fetchall()
+        
+        # Convert to list of dicts for JSON serialization
+        community_recipes = []
+        for recipe in recipes:
+            community_recipes.append({
+                'id': recipe['id'],
+                'title': recipe['title'],
+                'description': recipe['description'],
+                'community_background': recipe['community_background'],
+                'community_icon': recipe['community_icon'],
+                'shared_at': recipe['shared_at'].isoformat() if recipe['shared_at'] else None,
+                'user': recipe['display_name'],
+                'likes': recipe['likes'],
+                'image': recipe['community_icon']  # For compatibility with existing frontend
+            })
+        
+        conn.close()
+        
+        logger.info(f"📱 Served {len(community_recipes)} community recipes (sort: {sort_by})")
+        
+        return jsonify({
+            'success': True,
+            'recipes': community_recipes,
+            'total': len(community_recipes),
+            'has_more': len(community_recipes) == limit
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get community recipes error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/community/recipes/<int:recipe_id>', methods=['GET'])
+def get_community_recipe_detail(recipe_id):
+    """Get detailed view of a community recipe"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Get full recipe details for community viewing
+        cursor.execute("""
+            SELECT 
+                r.*,
+                u.email,
+                CASE 
+                    WHEN u.email IS NOT NULL THEN LEFT(u.email, POSITION('@' IN u.email) - 1) || 'Chef'
+                    ELSE 'AnonymousChef'
+                END as display_name
+            FROM recipes r
+            LEFT JOIN users u ON r.user_id = u.id
+            WHERE r.id = %s AND r.is_community_shared = TRUE
+        """, [recipe_id])
+        
+        recipe = cursor.fetchone()
+        if not recipe:
+            return jsonify({'success': False, 'error': 'Community recipe not found'}), 404
+        
+        # Convert to dict for JSON response
+        recipe_data = dict(recipe)
+        recipe_data['shared_at'] = recipe_data['shared_at'].isoformat() if recipe_data['shared_at'] else None
+        recipe_data['created_at'] = recipe_data['created_at'].isoformat() if recipe_data['created_at'] else None
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'recipe': recipe_data
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get community recipe detail error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ===================================
 # GROCERY LIST MANAGEMENT API
 # ===================================
 
 @app.route('/api/grocery-lists', methods=['GET'])
 def get_user_grocery_lists():
-    """Get user's saved grocery lists"""
+    """Get user's saved grocery lists (owned + shared)"""
     try:
-        # Get user from session/auth (for now, we'll use a default user)
-        user_id = 1  # TODO: Get from authentication system
+        # Check authentication
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
         
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -2545,14 +2855,70 @@ def get_user_grocery_lists():
             )
         """)
         
-        # Get user's grocery lists
+        # Get user's owned grocery lists
         cursor.execute("""
             SELECT id, list_name, recipe_ids, created_at, updated_at,
-                   (list_data->>'ingredient_count')::int as item_count
+                   (list_data->>'ingredient_count')::int as item_count,
+                   false as is_shared
             FROM grocery_lists 
             WHERE user_id = %s 
             ORDER BY updated_at DESC
         """, (user_id,))
+        
+        owned_lists = cursor.fetchall()
+        
+        # Get shared grocery lists from collaboration system
+        cursor.execute("""
+            SELECT DISTINCT c.resource_id, c.permission_level, c.created_at as shared_at,
+                   u.name as owner_name,
+                   gl.list_name, gl.recipe_ids, gl.created_at, gl.updated_at,
+                   (gl.list_data->>'ingredient_count')::int as item_count
+            FROM collaborations c
+            JOIN users u ON c.invited_by = u.id
+            JOIN grocery_lists gl ON c.resource_id = gl.id
+            WHERE c.resource_type = 'grocery_list' 
+            AND c.user_id = %s 
+            AND c.status = 'active'
+            ORDER BY c.created_at DESC
+        """, (user_id,))
+        
+        shared_lists_raw = cursor.fetchall()
+        
+        logger.info(f"🛒 GROCERY COLLABORATION DEBUG: User {user_id} has {len(shared_lists_raw)} shared grocery lists")
+        for shared in shared_lists_raw:
+            logger.info(f"🛒 GROCERY COLLABORATION DEBUG: Shared list - ID: {shared['resource_id']}, Name: {shared['list_name']}, Owner: {shared['owner_name']}")
+        
+        # Format shared lists with sharing indicators
+        shared_lists = []
+        for shared in shared_lists_raw:
+            shared_list = dict(shared)
+            # CRITICAL: Ensure the ID field matches what frontend expects
+            shared_list['id'] = shared['resource_id']  # Map resource_id to id
+            shared_list['is_shared'] = True
+            shared_list['permission_level'] = shared['permission_level']
+            shared_list['shared_by'] = shared['owner_name']
+            shared_list['list_name'] = f"📤 {shared['list_name']} (by {shared['owner_name']})"
+            shared_lists.append(shared_list)
+            logger.info(f"🛒 GROCERY COLLABORATION DEBUG: Formatted shared list - ID: {shared_list['id']}, Name: {shared_list['list_name']}")
+        
+        # Combine owned and shared lists
+        all_lists = list(owned_lists) + shared_lists
+        
+        logger.info(f"🛒 User {user_id} grocery lists: {len(owned_lists)} owned + {len(shared_lists)} shared = {len(all_lists)} total")
+        logger.info(f"🛒 GROCERY LIST DEBUG: Final response will contain {len(all_lists)} lists")
+        for i, lst in enumerate(all_lists):
+            logger.info(f"🛒 GROCERY LIST DEBUG: List {i+1} - ID: {lst.get('id')}, Name: {lst.get('list_name')}, Shared: {lst.get('is_shared', False)}")
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'grocery_lists': all_lists,
+            'count': len(all_lists),
+            'owned_count': len(owned_lists),
+            'shared_count': len(shared_lists)
+        })
         
         lists = cursor.fetchall()
         
@@ -2575,6 +2941,11 @@ def get_user_grocery_lists():
 def save_grocery_list():
     """Save a grocery list"""
     try:
+        # Check authentication
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+            
         data = request.get_json()
         if not data:
             return jsonify({
@@ -2591,9 +2962,6 @@ def save_grocery_list():
                 'success': False,
                 'error': 'List name and data are required'
             }), 400
-        
-        # Get user from session/auth (for now, we'll use a default user)
-        user_id = 1  # TODO: Get from authentication system
         
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -2639,28 +3007,59 @@ def save_grocery_list():
 
 @app.route('/api/grocery-lists/<int:list_id>', methods=['GET'])
 def get_grocery_list_details(list_id):
-    """Get detailed grocery list data"""
+    """Get detailed grocery list data (owned or shared)"""
     try:
-        # Get user from session/auth (for now, we'll use a default user)
-        user_id = 1  # TODO: Get from authentication system
+        # Check authentication
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
         
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
+        # First try to get as owner
         cursor.execute("""
-            SELECT id, list_name, list_data, recipe_ids, created_at, updated_at
+            SELECT id, list_name, list_data, recipe_ids, created_at, updated_at,
+                   false as is_shared
             FROM grocery_lists 
             WHERE id = %s AND user_id = %s
         """, (list_id, user_id))
         
         grocery_list = cursor.fetchone()
         
+        # If not found as owner, check if user has collaboration access
         if not grocery_list:
+            cursor.execute("""
+                SELECT permission_level FROM collaborations 
+                WHERE resource_type = 'grocery_list' AND resource_id = %s 
+                AND user_id = %s AND status = 'active'
+            """, (list_id, user_id))
+            
+            collaboration = cursor.fetchone()
+            if collaboration:
+                # User has access via collaboration, load the list
+                cursor.execute("""
+                    SELECT id, list_name, list_data, recipe_ids, created_at, updated_at
+                    FROM grocery_lists 
+                    WHERE id = %s
+                """, (list_id,))
+                
+                grocery_list = cursor.fetchone()
+                if grocery_list:
+                    grocery_list = dict(grocery_list)
+                    grocery_list['is_shared'] = True
+                    grocery_list['permission_level'] = collaboration['permission_level']
+                    logger.info(f"🛒 User {user_id} accessing shared grocery list {list_id} with {collaboration['permission_level']} permission")
+        
+        if not grocery_list:
+            cursor.close()
+            conn.close()
             return jsonify({
                 'success': False,
-                'error': 'Grocery list not found'
+                'error': 'Grocery list not found or access denied'
             }), 404
         
+        cursor.close()
         conn.close()
         
         return jsonify({
@@ -2677,8 +3076,13 @@ def get_grocery_list_details(list_id):
 
 @app.route('/api/grocery-lists/<int:list_id>', methods=['PUT'])
 def update_grocery_list(list_id):
-    """Update an existing grocery list"""
+    """Update an existing grocery list (with collaboration support)"""
     try:
+        # Check authentication
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+            
         data = request.get_json()
         if not data:
             return jsonify({
@@ -2690,11 +3094,38 @@ def update_grocery_list(list_id):
         list_data = data.get('list_data')
         recipe_ids = data.get('recipe_ids', [])
         
-        # Get user from session/auth (for now, we'll use a default user)
-        user_id = 1  # TODO: Get from authentication system
-        
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Check if user owns the list
+        cursor.execute("""
+            SELECT id FROM grocery_lists 
+            WHERE id = %s AND user_id = %s
+        """, (list_id, user_id))
+        
+        owned_list = cursor.fetchone()
+        can_edit = bool(owned_list)
+        
+        # If not owner, check collaboration access
+        if not can_edit:
+            cursor.execute("""
+                SELECT permission_level FROM collaborations 
+                WHERE resource_type = 'grocery_list' AND resource_id = %s 
+                AND user_id = %s AND status = 'active'
+            """, (list_id, user_id))
+            
+            collaboration = cursor.fetchone()
+            if collaboration and collaboration['permission_level'] == 'editor':
+                can_edit = True
+                logger.info(f"🛒 User {user_id} editing shared grocery list {list_id} with editor permission")
+        
+        if not can_edit:
+            cursor.close()
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Grocery list not found or insufficient permissions'
+            }), 403
         
         # Update the grocery list
         cursor.execute("""
@@ -2703,9 +3134,9 @@ def update_grocery_list(list_id):
                 list_data = COALESCE(%s, list_data),
                 recipe_ids = COALESCE(%s, recipe_ids),
                 updated_at = NOW()
-            WHERE id = %s AND user_id = %s
+            WHERE id = %s
             RETURNING id, updated_at
-        """, (list_name, json.dumps(list_data) if list_data else None, recipe_ids, list_id, user_id))
+        """, (list_name, json.dumps(list_data) if list_data else None, recipe_ids, list_id))
         
         result = cursor.fetchone()
         
@@ -3790,6 +4221,1002 @@ if __name__ == "__main__":
         logger.info("🔍 Universal search engine ready - ALL search functions consolidated")
     else:
         logger.warning("⚠️ Universal search engine not available - some features may be limited")
+
+    # ===================================================================
+    # FRIENDS & COLLABORATION API ENDPOINTS
+    # ===================================================================
+    
+    def get_authenticated_user():
+        """Extract and validate user from JWT token"""
+        try:
+            import jwt
+            import json
+            import base64
+            import hashlib
+            
+            # Get Authorization header
+            auth_header = request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer '):
+                return None
+            
+            token = auth_header.split(' ')[1]
+            
+            # Use same JWT secret generation as AuthenticationSystem
+            jwt_secret = os.getenv('JWT_SECRET_KEY')
+            if not jwt_secret:
+                database_url = os.getenv('DATABASE_URL', '')
+                if database_url:
+                    jwt_secret = hashlib.sha256(database_url.encode()).hexdigest()
+                else:
+                    jwt_secret = 'dev-secret-key-for-local-testing-only'
+            
+            # Manual decode without strict subject validation
+            payload_part = token.split('.')[1]
+            padding_needed = len(payload_part) % 4
+            if padding_needed:
+                payload_part += '=' * (4 - padding_needed)
+                
+            payload_bytes = base64.urlsafe_b64decode(payload_part)
+            payload = json.loads(payload_bytes)
+            
+            user_id = payload.get('sub')
+            if isinstance(user_id, str) and user_id.isdigit():
+                user_id = int(user_id)
+            
+            # Verify signature
+            jwt.decode(token, jwt_secret, algorithms=['HS256'], options={"verify_sub": False})
+            
+            # Get user from database
+            user = auth_system.get_user_by_id(user_id)
+            return user
+            
+        except Exception as e:
+            logger.error(f"❌ Authentication error: {e}")
+            return None
+
+    @app.route('/api/friends/list', methods=['GET'])
+    def get_friends_list():
+        """Get user's friends list with status and metadata"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get all accepted friendships for the current user
+            cursor.execute("""
+                SELECT 
+                    u.id, u.name, u.email,
+                    f.created_at as friend_since,
+                    f.updated_at as last_activity
+                FROM friendships f
+                JOIN users u ON f.friend_id = u.id
+                WHERE f.user_id = %s AND f.status = 'accepted'
+                ORDER BY u.name
+            """, (current_user['id'],))
+            
+            friends = []
+            for row in cursor.fetchall():
+                # Get initials from name
+                name_parts = row['name'].split()
+                initials = ''.join([part[0].upper() for part in name_parts[:2]])
+                
+                # Calculate shared lists (placeholder for now)
+                shared_lists = 0  # TODO: Implement shared lists count
+                
+                # Format last active
+                from datetime import datetime
+                last_activity = row['last_activity'] or row['friend_since']
+                now = datetime.now()
+                time_diff = now - last_activity.replace(tzinfo=None)
+                
+                if time_diff.days > 0:
+                    last_active = f"{time_diff.days}d ago"
+                elif time_diff.seconds > 3600:
+                    hours = time_diff.seconds // 3600
+                    last_active = f"{hours}h ago"
+                else:
+                    minutes = max(1, time_diff.seconds // 60)
+                    last_active = f"{minutes}m ago"
+                
+                friends.append({
+                    'id': row['id'],
+                    'name': row['name'],
+                    'email': row['email'],
+                    'initials': initials,
+                    'status': 'Active',  # TODO: Implement real status
+                    'sharedLists': shared_lists,
+                    'lastActive': last_active
+                })
+            
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'friends': friends,
+                'count': len(friends)
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Get friends list error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/friends/requests', methods=['GET'])
+    def get_friend_requests():
+        """Get incoming and outgoing friend requests"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get incoming requests
+            cursor.execute("""
+                SELECT 
+                    fr.id, fr.message, fr.created_at,
+                    u.id as user_id, u.name, u.email
+                FROM friend_requests fr
+                JOIN users u ON fr.requester_id = u.id
+                WHERE fr.recipient_id = %s AND fr.status = 'pending'
+                ORDER BY fr.created_at DESC
+            """, (current_user['id'],))
+            
+            incoming_requests = []
+            for row in cursor.fetchall():
+                name_parts = row['name'].split()
+                initials = ''.join([part[0].upper() for part in name_parts[:2]])
+                
+                # Format time
+                from datetime import datetime
+                created_at = row['created_at']
+                now = datetime.now()
+                time_diff = now - created_at.replace(tzinfo=None)
+                
+                if time_diff.days > 0:
+                    sent_at = f"{time_diff.days} days ago"
+                elif time_diff.seconds > 3600:
+                    hours = time_diff.seconds // 3600
+                    sent_at = f"{hours} hours ago"
+                else:
+                    minutes = max(1, time_diff.seconds // 60)
+                    sent_at = f"{minutes} minutes ago"
+                
+                incoming_requests.append({
+                    'id': row['id'],
+                    'name': row['name'],
+                    'email': row['email'],
+                    'initials': initials,
+                    'type': 'incoming',
+                    'message': row['message'] or 'Would like to connect!',
+                    'sentAt': sent_at
+                })
+            
+            # Get outgoing requests
+            cursor.execute("""
+                SELECT 
+                    fr.id, fr.message, fr.created_at,
+                    u.id as user_id, u.name, u.email
+                FROM friend_requests fr
+                JOIN users u ON fr.recipient_id = u.id
+                WHERE fr.requester_id = %s AND fr.status = 'pending'
+                ORDER BY fr.created_at DESC
+            """, (current_user['id'],))
+            
+            outgoing_requests = []
+            for row in cursor.fetchall():
+                name_parts = row['name'].split()
+                initials = ''.join([part[0].upper() for part in name_parts[:2]])
+                
+                # Format time
+                from datetime import datetime
+                created_at = row['created_at']
+                now = datetime.now()
+                time_diff = now - created_at.replace(tzinfo=None)
+                
+                if time_diff.days > 0:
+                    sent_at = f"{time_diff.days} days ago"
+                elif time_diff.seconds > 3600:
+                    hours = time_diff.seconds // 3600
+                    sent_at = f"{hours} hours ago"
+                else:
+                    minutes = max(1, time_diff.seconds // 60)
+                    sent_at = f"{minutes} minutes ago"
+                
+                outgoing_requests.append({
+                    'id': row['id'],
+                    'name': row['name'],
+                    'email': row['email'],
+                    'initials': initials,
+                    'type': 'outgoing',
+                    'message': row['message'] or 'Sent a friend request',
+                    'sentAt': sent_at
+                })
+            
+            cursor.close()
+            conn.close()
+            
+            # Combine all requests
+            all_requests = incoming_requests + outgoing_requests
+            
+            return jsonify({
+                'success': True,
+                'requests': all_requests,
+                'incoming_count': len(incoming_requests),
+                'outgoing_count': len(outgoing_requests)
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Get friend requests error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/friends/request', methods=['POST'])
+    def send_friend_request():
+        """Send a friend request by email"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+                
+            data = request.get_json()
+            recipient_email = data.get('email', '').strip().lower()
+            message = data.get('message', '').strip()
+            
+            if not recipient_email:
+                return jsonify({'error': 'Email address is required'}), 400
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check if recipient exists
+            cursor.execute("SELECT id, name FROM users WHERE LOWER(email) = %s", (recipient_email,))
+            recipient = cursor.fetchone()
+            
+            if not recipient:
+                return jsonify({'error': 'User not found'}), 404
+            
+            if recipient['id'] == current_user['id']:
+                return jsonify({'error': 'Cannot send friend request to yourself'}), 400
+            
+            # Check if already friends
+            cursor.execute("""
+                SELECT status FROM friendships 
+                WHERE user_id = %s AND friend_id = %s
+            """, (current_user['id'], recipient['id']))
+            
+            existing_friendship = cursor.fetchone()
+            if existing_friendship:
+                if existing_friendship['status'] == 'accepted':
+                    return jsonify({'error': 'Already friends'}), 400
+                elif existing_friendship['status'] == 'blocked':
+                    return jsonify({'error': 'Cannot send request'}), 400
+            
+            # Check if request already exists
+            cursor.execute("""
+                SELECT status FROM friend_requests 
+                WHERE requester_id = %s AND recipient_id = %s
+            """, (current_user['id'], recipient['id']))
+            
+            existing_request = cursor.fetchone()
+            if existing_request and existing_request['status'] == 'pending':
+                return jsonify({'error': 'Friend request already sent'}), 400
+            
+            # Create friend request
+            cursor.execute("""
+                INSERT INTO friend_requests (requester_id, recipient_id, message, status)
+                VALUES (%s, %s, %s, 'pending')
+                RETURNING id
+            """, (current_user['id'], recipient['id'], message))
+            
+            request_id = cursor.fetchone()['id']
+            conn.commit()
+            
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Friend request sent to {recipient["name"]}',
+                'request_id': request_id
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Send friend request error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/friends/request/<int:request_id>/accept', methods=['POST'])
+    def accept_friend_request(request_id):
+        """Accept a friend request"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Verify the request exists and is for this user
+            cursor.execute("""
+                SELECT requester_id, recipient_id 
+                FROM friend_requests 
+                WHERE id = %s AND recipient_id = %s AND status = 'pending'
+            """, (request_id, current_user['id']))
+            
+            request_data = cursor.fetchone()
+            if not request_data:
+                return jsonify({'error': 'Friend request not found'}), 404
+            
+            requester_id = request_data['requester_id']
+            
+            # Update request status
+            cursor.execute("""
+                UPDATE friend_requests 
+                SET status = 'accepted', responded_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (request_id,))
+            
+            # Create mutual friendship using the function
+            cursor.execute("SELECT create_mutual_friendship(%s, %s)", (current_user['id'], requester_id))
+            
+            conn.commit()
+            
+            # Get friend info
+            cursor.execute("SELECT name FROM users WHERE id = %s", (requester_id,))
+            friend_name = cursor.fetchone()['name']
+            
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'You are now friends with {friend_name}!'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Accept friend request error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/friends/request/<int:request_id>/decline', methods=['POST'])
+    def decline_friend_request(request_id):
+        """Decline a friend request"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Verify and update request
+            cursor.execute("""
+                UPDATE friend_requests 
+                SET status = 'declined', responded_at = CURRENT_TIMESTAMP
+                WHERE id = %s AND recipient_id = %s AND status = 'pending'
+                RETURNING requester_id
+            """, (request_id, current_user['id']))
+            
+            result = cursor.fetchone()
+            if not result:
+                return jsonify({'error': 'Friend request not found'}), 404
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Friend request declined'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Decline friend request error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/friends/<int:friend_id>/remove', methods=['DELETE'])
+    def remove_friend(friend_id):
+        """Remove a friend"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get friend name first
+            cursor.execute("SELECT name FROM users WHERE id = %s", (friend_id,))
+            friend = cursor.fetchone()
+            
+            if not friend:
+                return jsonify({'error': 'User not found'}), 404
+            
+            # Remove both directions of friendship
+            cursor.execute("""
+                DELETE FROM friendships 
+                WHERE (user_id = %s AND friend_id = %s) OR (user_id = %s AND friend_id = %s)
+            """, (current_user['id'], friend_id, friend_id, current_user['id']))
+            
+            if cursor.rowcount == 0:
+                return jsonify({'error': 'Friendship not found'}), 404
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'{friend["name"]} has been removed from your friends'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Remove friend error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/households/list', methods=['GET'])
+    def get_households_list():
+        """Get user's households"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    h.id, h.name, h.description, h.created_at,
+                    hm.role,
+                    COUNT(hm2.id) as member_count
+                FROM households h
+                JOIN household_members hm ON h.id = hm.household_id
+                LEFT JOIN household_members hm2 ON h.id = hm2.household_id
+                WHERE hm.user_id = %s AND h.is_active = TRUE
+                GROUP BY h.id, h.name, h.description, h.created_at, hm.role
+                ORDER BY h.name
+            """, (current_user['id'],))
+            
+            households = []
+            for row in cursor.fetchall():
+                # Format created date
+                from datetime import datetime
+                created_at = row['created_at']
+                created_date = created_at.strftime('%b %Y')
+                
+                households.append({
+                    'id': row['id'],
+                    'name': row['name'],
+                    'role': row['role'],
+                    'members': row['member_count'],
+                    'sharedLists': 0,  # TODO: Implement shared lists count
+                    'sharedPlans': 0,  # TODO: Implement shared plans count
+                    'createdAt': created_date
+                })
+            
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'households': households,
+                'count': len(households)
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Get households error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/households/create', methods=['POST'])
+    def create_household():
+        """Create a new household"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+                
+            data = request.get_json()
+            name = data.get('name', '').strip()
+            description = data.get('description', '').strip()
+            
+            if not name:
+                return jsonify({'error': 'Household name is required'}), 400
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Create household
+            cursor.execute("""
+                INSERT INTO households (name, description, owner_user_id)
+                VALUES (%s, %s, %s)
+                RETURNING id, invite_code
+            """, (name, description, current_user['id']))
+            
+            household = cursor.fetchone()
+            household_id = household['id']
+            invite_code = household['invite_code']
+            
+            # Add creator as owner
+            cursor.execute("""
+                INSERT INTO household_members (household_id, user_id, role)
+                VALUES (%s, %s, 'owner')
+            """, (household_id, current_user['id']))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Household "{name}" created successfully!',
+                'household': {
+                    'id': household_id,
+                    'name': name,
+                    'invite_code': invite_code
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Create household error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/households/<int:household_id>/delete', methods=['DELETE'])
+    def delete_household(household_id):
+        """Delete a household"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check if user is owner of the household
+            cursor.execute("""
+                SELECT name FROM households 
+                WHERE id = %s AND owner_user_id = %s
+            """, (household_id, current_user['id']))
+            
+            household = cursor.fetchone()
+            if not household:
+                return jsonify({'error': 'Household not found or you are not the owner'}), 404
+            
+            # Delete household (cascade will handle members)
+            cursor.execute("DELETE FROM households WHERE id = %s", (household_id,))
+            
+            if cursor.rowcount == 0:
+                return jsonify({'error': 'Household not found'}), 404
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Household "{household["name"]}" has been deleted'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Delete household error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/households/<int:household_id>/members/add', methods=['POST'])
+    def add_household_member(household_id):
+        """Add a member to household"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            data = request.get_json()
+            new_member_id = data.get('user_id')
+            
+            if not new_member_id:
+                return jsonify({'error': 'User ID is required'}), 400
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check if current user has permission (owner or admin)
+            cursor.execute("""
+                SELECT hm.role, h.name as household_name
+                FROM household_members hm
+                JOIN households h ON hm.household_id = h.id
+                WHERE hm.household_id = %s AND hm.user_id = %s
+            """, (household_id, current_user['id']))
+            
+            user_role = cursor.fetchone()
+            if not user_role or user_role['role'] not in ['owner', 'admin']:
+                return jsonify({'error': 'Permission denied'}), 403
+            
+            # Check if users are friends
+            cursor.execute("""
+                SELECT 1 FROM friendships 
+                WHERE user_id = %s AND friend_id = %s AND status = 'accepted'
+            """, (current_user['id'], new_member_id))
+            
+            if not cursor.fetchone():
+                return jsonify({'error': 'Can only add friends to household'}), 400
+            
+            # Check if user is already a member
+            cursor.execute("""
+                SELECT 1 FROM household_members 
+                WHERE household_id = %s AND user_id = %s
+            """, (household_id, new_member_id))
+            
+            if cursor.fetchone():
+                return jsonify({'error': 'User is already a member of this household'}), 400
+            
+            # Add member
+            cursor.execute("""
+                INSERT INTO household_members (household_id, user_id, role, invited_by)
+                VALUES (%s, %s, 'member', %s)
+            """, (household_id, new_member_id, current_user['id']))
+            
+            # Get member name
+            cursor.execute("SELECT name FROM users WHERE id = %s", (new_member_id,))
+            member_name = cursor.fetchone()['name']
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'{member_name} has been added to {user_role["household_name"]}'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Add household member error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/households/<int:household_id>/members/<int:member_id>/remove', methods=['DELETE'])
+    def remove_household_member(household_id, member_id):
+        """Remove a member from household"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check if current user has permission (owner or admin)
+            cursor.execute("""
+                SELECT hm.role, h.name as household_name
+                FROM household_members hm
+                JOIN households h ON hm.household_id = h.id
+                WHERE hm.household_id = %s AND hm.user_id = %s
+            """, (household_id, current_user['id']))
+            
+            user_role = cursor.fetchone()
+            if not user_role or user_role['role'] not in ['owner', 'admin']:
+                return jsonify({'error': 'Permission denied'}), 403
+            
+            # Get member info before removing
+            cursor.execute("""
+                SELECT u.name, hm.role 
+                FROM household_members hm
+                JOIN users u ON hm.user_id = u.id
+                WHERE hm.household_id = %s AND hm.user_id = %s
+            """, (household_id, member_id))
+            
+            member_info = cursor.fetchone()
+            if not member_info:
+                return jsonify({'error': 'Member not found in household'}), 404
+            
+            # Prevent removing the owner
+            if member_info['role'] == 'owner':
+                return jsonify({'error': 'Cannot remove the household owner'}), 400
+            
+            # Remove member
+            cursor.execute("""
+                DELETE FROM household_members 
+                WHERE household_id = %s AND user_id = %s
+            """, (household_id, member_id))
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'{member_info["name"]} has been removed from the household'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Remove household member error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/households/<int:household_id>/members', methods=['GET'])
+    def get_household_members(household_id):
+        """Get household members"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check if current user is a member
+            cursor.execute("""
+                SELECT 1 FROM household_members 
+                WHERE household_id = %s AND user_id = %s
+            """, (household_id, current_user['id']))
+            
+            if not cursor.fetchone():
+                return jsonify({'error': 'Access denied'}), 403
+            
+            # Get all members
+            cursor.execute("""
+                SELECT 
+                    u.id, u.name, u.email,
+                    hm.role, hm.joined_at
+                FROM household_members hm
+                JOIN users u ON hm.user_id = u.id
+                WHERE hm.household_id = %s
+                ORDER BY 
+                    CASE hm.role 
+                        WHEN 'owner' THEN 1 
+                        WHEN 'admin' THEN 2 
+                        ELSE 3 
+                    END,
+                    u.name
+            """, (household_id,))
+            
+            members = []
+            for row in cursor.fetchall():
+                # Get initials
+                name_parts = row['name'].split()
+                initials = ''.join([part[0].upper() for part in name_parts[:2]])
+                
+                members.append({
+                    'id': row['id'],
+                    'name': row['name'],
+                    'email': row['email'],
+                    'initials': initials,
+                    'role': row['role'],
+                    'joined_at': row['joined_at'].strftime('%b %Y') if row['joined_at'] else 'Unknown'
+                })
+            
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'members': members
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Get household members error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    # ==================================================
+    # 🤝 COLLABORATION SYSTEM ENDPOINTS
+    # ==================================================
+    
+    @app.route('/api/collaboration/invite', methods=['POST'])
+    def invite_to_collaborate():
+        """Invite household members to collaborate on a meal plan or grocery list"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            data = request.get_json()
+            resource_type = data.get('resource_type')  # 'meal_plan' or 'grocery_list'
+            resource_id = data.get('resource_id')
+            household_id = data.get('household_id')
+            permission_level = data.get('permission_level', 'editor')  # 'editor' or 'viewer'
+            
+            if not all([resource_type, resource_id, household_id]):
+                return jsonify({'error': 'Missing required fields'}), 400
+            
+            if resource_type not in ['meal_plan', 'grocery_list']:
+                return jsonify({'error': 'Invalid resource type'}), 400
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            logger.info(f"🎯 COLLABORATION DEBUG: Starting invite process")
+            logger.info(f"🎯 COLLABORATION DEBUG: resource_type={resource_type}, resource_id={resource_id}, household_id={household_id}")
+            
+            # For now, simulate success since we don't have proper meal_plans/grocery_lists tables
+            # Get household info for response
+            try:
+                cursor.execute("""
+                    SELECT name FROM households 
+                    WHERE id = %s
+                """, (household_id,))
+                
+                household = cursor.fetchone()
+                logger.info(f"🎯 COLLABORATION DEBUG: Household query result: {household}")
+                
+                if not household:
+                    return jsonify({'error': 'Household not found'}), 404
+                
+                # Get household members (except the current user)
+                cursor.execute("""
+                    SELECT u.id, u.name, u.email
+                    FROM household_members hm
+                    JOIN users u ON hm.user_id = u.id
+                    WHERE hm.household_id = %s AND u.id != %s
+                """, (household_id, current_user['id']))
+                
+                members = cursor.fetchall()
+                logger.info(f"🎯 COLLABORATION DEBUG: Found {len(members)} members to invite")
+                
+            except Exception as query_error:
+                logger.error(f"❌ COLLABORATION DEBUG: Query error: {query_error}")
+                cursor.close()
+                conn.close()
+                return jsonify({'error': f'Database query error: {str(query_error)}'}), 500
+            
+            # Create collaboration records for each member
+            invitations_created = 0
+            try:
+                for member in members:
+                    logger.info(f"🎯 COLLABORATION DEBUG: Processing member: {member['name']} (ID: {member['id']})")
+                    
+                    # Check if collaboration already exists
+                    cursor.execute("""
+                        SELECT 1 FROM collaborations 
+                        WHERE resource_type = %s AND resource_id = %s AND user_id = %s
+                    """, (resource_type, resource_id, member['id']))
+                    
+                    existing = cursor.fetchone()
+                    if not existing:
+                        logger.info(f"🎯 COLLABORATION DEBUG: Creating collaboration for {member['name']}")
+                        cursor.execute("""
+                            INSERT INTO collaborations 
+                            (resource_type, resource_id, user_id, invited_by, permission_level, status)
+                            VALUES (%s, %s, %s, %s, %s, 'active')
+                        """, (resource_type, resource_id, member['id'], current_user['id'], permission_level))
+                        invitations_created += 1
+                    else:
+                        logger.info(f"🎯 COLLABORATION DEBUG: Collaboration already exists for {member['name']}")
+                
+                conn.commit()
+                logger.info(f"🎯 COLLABORATION DEBUG: Successfully created {invitations_created} invitations")
+                
+            except Exception as insert_error:
+                logger.error(f"❌ COLLABORATION DEBUG: Insert error: {insert_error}")
+                conn.rollback()
+                cursor.close()
+                conn.close()
+                return jsonify({'error': f'Failed to create collaborations: {str(insert_error)}'}), 500
+            cursor.close()
+            conn.close()
+            
+            resource_name = f"{resource_type.replace('_', ' ').title()} #{resource_id}"
+            
+            return jsonify({
+                'success': True,
+                'message': f'Invited household members to collaborate on "{resource_name}"',
+                'invitations_created': invitations_created,
+                'total_members': len(members),
+                'household_name': household['name']
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Collaboration invite error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/collaboration/my-shared', methods=['GET'])
+    def get_my_shared_resources():
+        """Get all meal plans and grocery lists shared with the current user"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get shared meal plans (simplified for PostgreSQL)
+            cursor.execute("""
+                SELECT DISTINCT c.resource_id, c.permission_level, c.created_at,
+                       u.name as owner_name
+                FROM collaborations c
+                JOIN users u ON c.invited_by = u.id
+                WHERE c.resource_type = 'meal_plan' 
+                AND c.user_id = %s 
+                AND c.status = 'active'
+                ORDER BY c.created_at DESC
+            """, (current_user['id'],))
+            
+            shared_meal_plans_raw = cursor.fetchall()
+            
+            # Format meal plans for response
+            shared_meal_plans = []
+            for plan in shared_meal_plans_raw:
+                shared_meal_plans.append({
+                    'id': plan['resource_id'],
+                    'plan_name': f'Shared Meal Plan #{plan["resource_id"]}',
+                    'owner_name': plan['owner_name'],
+                    'permission_level': plan['permission_level'],
+                    'shared_date': plan['created_at']
+                })
+            
+            # Get shared grocery lists (simplified for PostgreSQL)
+            cursor.execute("""
+                SELECT DISTINCT c.resource_id, c.permission_level, c.created_at,
+                       u.name as owner_name
+                FROM collaborations c
+                JOIN users u ON c.invited_by = u.id
+                WHERE c.resource_type = 'grocery_list' 
+                AND c.user_id = %s 
+                AND c.status = 'active'
+                ORDER BY c.created_at DESC
+            """, (current_user['id'],))
+            
+            shared_grocery_lists_raw = cursor.fetchall()
+            
+            # Format grocery lists for response
+            shared_grocery_lists = []
+            for list_item in shared_grocery_lists_raw:
+                shared_grocery_lists.append({
+                    'id': list_item['resource_id'],
+                    'list_name': f'Shared Grocery List #{list_item["resource_id"]}',
+                    'owner_name': list_item['owner_name'],
+                    'permission_level': list_item['permission_level'],
+                    'shared_date': list_item['created_at']
+                })
+            
+            cursor.close()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'shared_meal_plans': shared_meal_plans,
+                'shared_grocery_lists': shared_grocery_lists
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Get shared resources error: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/collaboration/check-access/<resource_type>/<int:resource_id>', methods=['GET'])
+    def check_collaboration_access(resource_type, resource_id):
+        """Check if current user has access to a resource"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # For now, assume the user has access if they're logged in (simplified)
+            # In the future, this would check actual ownership and collaboration records
+            
+            # Check collaboration access
+            cursor.execute("""
+                SELECT permission_level FROM collaborations 
+                WHERE resource_type = %s AND resource_id = %s 
+                AND user_id = %s AND status = 'active'
+            """, (resource_type, resource_id, current_user['id']))
+            
+            collaboration = cursor.fetchone()
+            if collaboration:
+                cursor.close()
+                conn.close()
+                return jsonify({
+                    'has_access': True, 
+                    'role': collaboration['permission_level']
+                })
+            
+            cursor.close()
+            conn.close()
+            return jsonify({'has_access': False, 'role': None})
+            
+        except Exception as e:
+            logger.error(f"❌ Check collaboration access error: {e}")
+            return jsonify({'error': str(e)}), 500
 
     # Production hosting configuration (Railway/Heroku compatible)
     port = int(os.environ.get("PORT", 5000))

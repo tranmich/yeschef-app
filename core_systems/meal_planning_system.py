@@ -380,25 +380,71 @@ class MealPlanningSystem:
         Returns:
             List[int]: List of unique recipe IDs
         """
+        print(f"🍽️ DEBUG: Getting recipes for meal plan ID: {plan_id}")
         meal_plan = self.get_meal_plan(plan_id)
-        if not meal_plan:
-            return []
+        print(f"🍽️ DEBUG: Retrieved meal plan: {meal_plan}")
         
+        if not meal_plan:
+            print(f"🍽️ DEBUG: No meal plan found for ID: {plan_id}")
+            return []
+
         recipe_ids = set()
         meal_data = meal_plan['meal_data']
+        print(f"🍽️ DEBUG: Meal data structure: {meal_data}")
         
-        # Extract recipe IDs from meal plan structure
-        for day_name, day_meals in meal_data.items():
-            if isinstance(day_meals, dict):
-                for meal_type, recipes in day_meals.items():
-                    if isinstance(recipes, list):
-                        for recipe_id in recipes:
-                            if isinstance(recipe_id, (int, str)):
+        # Handle Notion-style meal plan data structure (new format)
+        if isinstance(meal_data, dict) and 'data' in meal_data:
+            print("🍽️ DEBUG: Processing Notion-style data structure")
+            actual_data = meal_data['data']
+            
+            # Extract recipe IDs from Notion format
+            for day_name, day_meals in actual_data.items():
+                print(f"🍽️ DEBUG: Processing day '{day_name}': {day_meals}")
+                if isinstance(day_meals, dict):
+                    for meal_type, recipes in day_meals.items():
+                        print(f"🍽️ DEBUG: Processing meal '{meal_type}': {recipes}")
+                        if isinstance(recipes, list):
+                            for recipe_item in recipes:
+                                print(f"🍽️ DEBUG: Processing recipe item: {recipe_item}")
+                                
+                                # Handle both old object format and new integer format
+                                if isinstance(recipe_item, dict) and 'id' in recipe_item:
+                                    # Object format: {'id': 2571, 'title': '...', 'source': 'backend'}
+                                    recipe_id = recipe_item['id']
+                                    print(f"🍽️ DEBUG: Found recipe ID from object: {recipe_id}")
+                                elif isinstance(recipe_item, (int, str)):
+                                    # Simple format: 2571 (backwards compatibility)
+                                    recipe_id = recipe_item
+                                    print(f"🍽️ DEBUG: Found recipe ID directly: {recipe_id}")
+                                else:
+                                    print(f"🍽️ DEBUG: Unknown recipe format: {recipe_item}")
+                                    continue
+                                
                                 try:
                                     recipe_ids.add(int(recipe_id))
+                                    print(f"🍽️ DEBUG: Added recipe ID: {int(recipe_id)}")
                                 except ValueError:
+                                    print(f"🍽️ DEBUG: Could not convert recipe_id to int: {recipe_id}")
                                     continue
+        else:
+            # Handle legacy format (direct day structure)
+            print("🍽️ DEBUG: Processing legacy data structure")
+            for day_name, day_meals in meal_data.items():
+                print(f"🍽️ DEBUG: Processing day '{day_name}': {day_meals}")
+                if isinstance(day_meals, dict):
+                    for meal_type, recipes in day_meals.items():
+                        print(f"🍽️ DEBUG: Processing meal '{meal_type}': {recipes}")
+                        if isinstance(recipes, list):
+                            for recipe_id in recipes:
+                                print(f"🍽️ DEBUG: Processing recipe: {recipe_id}")
+                                if isinstance(recipe_id, (int, str)):
+                                    try:
+                                        recipe_ids.add(int(recipe_id))
+                                    except ValueError:
+                                        print(f"🍽️ DEBUG: Could not convert recipe_id to int: {recipe_id}")
+                                        continue
         
+        print(f"🍽️ DEBUG: Final recipe IDs: {list(recipe_ids)}")
         return list(recipe_ids)
     
     def _validate_meal_data(self, meal_data: Dict) -> bool:
