@@ -359,6 +359,41 @@ def init_db():
             )
         ''')
 
+        # 📰 Latest Updates Feature - Evergreen Content & Friend Activity
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS content_pieces (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                content TEXT NOT NULL,
+                category VARCHAR(50) DEFAULT 'tip',
+                is_active BOOLEAN DEFAULT true,
+                sort_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_follows (
+                id SERIAL PRIMARY KEY,
+                follower_id INTEGER REFERENCES users(id),
+                following_id INTEGER REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(follower_id, following_id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS activity_feed (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
+                activity_type VARCHAR(50),
+                reference_id INTEGER,
+                title TEXT,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
         logger.info("? Database tables initialized successfully")
@@ -834,6 +869,231 @@ def get_user_recipes():
             'success': False,
             'error': str(e)
         }), 500
+
+# =====================================================
+# 👤 PROFILE API ENDPOINTS
+# =====================================================
+
+@app.route('/api/profile', methods=['GET'])
+def get_user_profile():
+    """Get complete user profile information"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            logger.error(f"❌ Authentication failed for profile request: {error_response}")
+            return error_response, status_code
+        
+        logger.info(f"👤 Getting profile for user {user_id}")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Get user basic information
+        cursor.execute("""
+            SELECT id, name, email, created_at
+            FROM users 
+            WHERE id = %s
+        """, (user_id,))
+        
+        user_data = cursor.fetchone()
+        if not user_data:
+            logger.error(f"❌ User {user_id} not found in database")
+            return jsonify({
+                'success': False,
+                'error': 'User not found'
+            }), 404
+        
+        logger.info(f"✅ Found user data for {user_data['email']}")
+        
+        # Get user statistics (with safe table checks)
+        try:
+            cursor.execute("""
+                SELECT 
+                    (SELECT COUNT(*) FROM recipes WHERE user_id = %s) as recipes_saved,
+                    (SELECT COUNT(*) FROM recipes WHERE user_id = %s AND COALESCE(is_community_shared, false) = true) as recipes_shared
+            """, (user_id, user_id))
+            
+            basic_stats = cursor.fetchone()
+            
+            # Try to get grocery list count (table might not exist)
+            grocery_count = 0
+            try:
+                cursor.execute("SELECT COUNT(*) FROM grocery_lists WHERE user_id = %s", (user_id,))
+                grocery_result = cursor.fetchone()
+                grocery_count = grocery_result[0] if grocery_result else 0
+            except psycopg2.Error:
+                logger.info("grocery_lists table not found, using 0")
+                grocery_count = 0
+            
+            # Try to get friends count (table might not exist)
+            friends_count = 0
+            try:
+                cursor.execute("SELECT COUNT(*) FROM friends WHERE (user_id = %s OR friend_user_id = %s) AND status = 'accepted'", (user_id, user_id))
+                friends_result = cursor.fetchone()
+                friends_count = friends_result[0] if friends_result else 0
+            except psycopg2.Error:
+                logger.info("friends table not found, using 0")
+                friends_count = 0
+            
+            stats_data = {
+                'recipes_saved': basic_stats['recipes_saved'] if basic_stats else 0,
+                'recipes_shared': basic_stats['recipes_shared'] if basic_stats else 0,
+                'grocery_lists_created': grocery_count,
+                'friends_count': friends_count
+            }
+            
+        except Exception as stats_error:
+            logger.error(f"Stats query error: {stats_error}")
+            stats_data = {
+                'recipes_saved': 0,
+                'recipes_shared': 0,
+                'grocery_lists_created': 0,
+                'friends_count': 0
+            }
+        
+        # Create username from email (like the mobile app expects)
+        email = user_data['email']
+        username = email.split('@')[0] + 'Chef' if email else 'YesChef User'
+        
+        # Build profile response
+        profile = {
+            'id': user_data['id'],
+            'username': username,
+            'firstName': 'Not Set',  # TODO: Add to database schema
+            'lastName': 'Not Set',   # TODO: Add to database schema
+            'email': user_data['email'],
+            'name': user_data.get('name', 'User'),
+            'cookingLevel': 'Beginner',      # TODO: Add to database schema
+            'householdSize': 2,              # TODO: Add to database schema
+            'measurementUnits': 'Imperial',  # TODO: Add to database schema
+            'profilePhotoUrl': None,         # TODO: Add to database schema
+            'created_at': user_data.get('created_at'),
+            'stats': {
+                'recipesSaved': stats_data['recipes_saved'] if stats_data else 0,
+                'recipesShared': stats_data['recipes_shared'] if stats_data else 0,
+                'groceryListsCreated': stats_data['grocery_lists_created'] if stats_data else 0,
+                'friendsCount': stats_data['friends_count'] if stats_data else 0
+            }
+        }
+        
+        logger.info(f"✅ Profile retrieved for {email} with {profile['stats']['recipesSaved']} recipes")
+        
+        return jsonify({
+            'success': True,
+            'profile': profile
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get profile error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+@app.route('/api/profile', methods=['PUT'])
+def update_user_profile():
+    """Update user profile information"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        logger.info(f"👤 Updating profile for user {user_id} with data: {list(data.keys())}")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # For now, we can only update the name field (which exists in current schema)
+        # TODO: Add other fields to database schema later
+        updatable_fields = []
+        values = []
+        
+        if 'name' in data:
+            updatable_fields.append('name = %s')
+            values.append(data['name'])
+        
+        if updatable_fields:
+            values.append(user_id)  # For WHERE clause
+            update_query = f"""
+                UPDATE users 
+                SET {', '.join(updatable_fields)}
+                WHERE id = %s
+            """
+            cursor.execute(update_query, values)
+            conn.commit()
+        
+        logger.info(f"✅ Profile updated for user {user_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Profile updated successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Update profile error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+@app.route('/api/profile/stats', methods=['GET'])
+def get_user_stats():
+    """Get user statistics for dashboard"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        logger.info(f"📊 Getting stats for user {user_id}")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Get comprehensive user statistics
+        cursor.execute("""
+            SELECT 
+                (SELECT COUNT(*) FROM recipes WHERE user_id = %s) as recipes_saved,
+                (SELECT COUNT(*) FROM recipes WHERE user_id = %s AND is_community_shared = true) as recipes_shared,
+                (SELECT COUNT(*) FROM grocery_lists WHERE user_id = %s) as grocery_lists_created,
+                (SELECT COUNT(*) FROM friends WHERE (user_id = %s OR friend_user_id = %s) AND status = 'accepted') as friends_count,
+                (SELECT COUNT(*) FROM meal_plans WHERE user_id = %s) as meal_plans_created
+        """, (user_id, user_id, user_id, user_id, user_id, user_id))
+        
+        stats = cursor.fetchone()
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'recipesSaved': stats['recipes_saved'] if stats else 0,
+                'recipesShared': stats['recipes_shared'] if stats else 0,
+                'groceryListsCreated': stats['grocery_lists_created'] if stats else 0,
+                'friendsCount': stats['friends_count'] if stats else 0,
+                'mealPlansCreated': stats['meal_plans_created'] if stats else 0
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get stats error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 @app.route('/api/recipes/<recipe_id>/edit', methods=['POST'])
 def edit_recipe_copy_on_write(recipe_id):
@@ -2730,15 +2990,24 @@ def get_community_recipes():
         else:  # recent
             order_clause = "ORDER BY shared_at DESC"
         
-        # Get community recipes with user info
+        # Get community recipes with user info AND existing recipe content only
         cursor.execute(f"""
             SELECT 
                 r.id,
                 COALESCE(r.community_title, r.title) as title,
+                r.community_title,
                 COALESCE(r.community_description, r.description) as description,
+                r.community_description,
                 r.community_background,
                 r.community_icon,
                 r.shared_at,
+                -- 🔧 FIX: Only include columns that definitely exist
+                r.ingredients,
+                r.instructions,
+                r.servings,
+                r.prep_time,
+                r.cook_time,
+                r.source,
                 u.email,
                 -- Generate anonymous display name from email
                 CASE 
@@ -2761,13 +3030,26 @@ def get_community_recipes():
             community_recipes.append({
                 'id': recipe['id'],
                 'title': recipe['title'],
+                'community_title': recipe['community_title'],
                 'description': recipe['description'],
+                'community_description': recipe['community_description'],
                 'community_background': recipe['community_background'],
                 'community_icon': recipe['community_icon'],
                 'shared_at': recipe['shared_at'].isoformat() if recipe['shared_at'] else None,
                 'user': recipe['display_name'],
+                'shared_by': recipe['display_name'],
                 'likes': recipe['likes'],
-                'image': recipe['community_icon']  # For compatibility with existing frontend
+                'image': recipe['community_icon'],  # For compatibility with existing frontend
+                # 🔧 FIX: Only include existing recipe content columns
+                'ingredients': recipe['ingredients'],
+                'instructions': recipe['instructions'],
+                'servings': recipe['servings'],
+                'prep_time': recipe['prep_time'],
+                'cook_time': recipe['cook_time'],
+                'source': recipe['source'],
+                # Default values for missing columns
+                'tags': [],  # Default empty array since column doesn't exist
+                'difficulty': 'medium'  # Default value since column doesn't exist
             })
         
         conn.close()
@@ -5217,6 +5499,178 @@ if __name__ == "__main__":
         except Exception as e:
             logger.error(f"❌ Check collaboration access error: {e}")
             return jsonify({'error': str(e)}), 500
+
+    # 📰 Latest Updates API - Evergreen Content + Friend Activity
+    def populate_content_pieces():
+        """Populate the content_pieces table with evergreen cooking tips"""
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Check if content already exists
+            try:
+                cursor.execute("SELECT COUNT(*) FROM content_pieces")
+                count = cursor.fetchone()[0]
+                
+                if count > 0:
+                    logger.info(f"📰 Content pieces already populated ({count} pieces)")
+                    conn.close()
+                    return
+            except Exception as table_error:
+                logger.warning(f"📰 Content table may not exist yet: {table_error}")
+                # Continue to populate since table might be newly created
+            
+            # Evergreen content pieces with categories
+            content_pieces = [
+                ("Sheet pan formula", "When you don't feel like cooking, throw some protein, a veggie, and your favorite spice on a sheet pan. The oven does the rest, and you've got dinner without the fuss.", "tip"),
+                ("The fastest sauce in the world", "A little garlic in olive oil and a splash of pasta water is all it takes. It turns plain noodles into something cozy and flavorful in minutes.", "technique"),
+                ("Leftovers to tacos", "Got leftover chicken? Shred it, toss it on a tortilla, squeeze some lime, and boom — a brand-new meal that doesn't feel like leftovers.", "tip"),
+                ("One-pot wonders", "Soup, curry, stew — they all start the same way. One pot, everything goes in, and you end up with something warm, flavorful, and way less cleanup.", "tip"),
+                ("15-minute fried rice", "Cold rice, an egg, soy sauce, and whatever vegetables you've got sitting around. In 15 minutes, you've got fried rice that tastes like you planned it.", "tip"),
+                ("Pasta + pantry = dinner", "Tomato paste, garlic, and chili flakes — three pantry staples that can turn plain pasta into something you'll actually look forward to eating.", "tip"),
+                ("The power of toast", "Toast isn't just for breakfast. Top it with beans, avocado, or ricotta — whatever's around — and suddenly it feels like a whole meal.", "tip"),
+                ("Soup starter pack", "Start with onion, carrot, and celery. Add stock, then whatever else you've got in the fridge, and you've just built yourself a soup base.", "technique"),
+                ("Microwave heroics", "Want quick vegetables? Toss them in a bowl with a splash of water, microwave for a few minutes, and finish with olive oil and salt. Done.", "tip"),
+                ("Wrap it up", "Grab a tortilla, spread some hummus, add leftover protein, and roll it up. That's lunch in two minutes.", "tip"),
+                ("Eggs for dinner", "When in doubt, crack an egg. Omelets, frittatas, even shakshuka — eggs can save dinner faster than you think.", "tip"),
+                ("Pantry pasta sauce", "A can of tomatoes, a knob of butter, and half an onion simmered together. It tastes like magic and barely takes any effort.", "technique"),
+                ("Quesadilla magic", "A tortilla with cheese in a hot pan is good enough. Add beans or veggies and suddenly it's a full meal.", "tip"),
+                ("Salad = meal", "Greens get serious when you top them with a fried egg, a can of tuna, or yesterday's chicken. That's how you turn a side into dinner.", "tip"),
+                ("Double once, eat twice", "Make extra rice or beans today. Tomorrow they'll become burritos, bowls, or soup without any extra work.", "tip"),
+                ("A sharp knife saves time", "A sharp knife makes cooking easier. Dull blades slip, fight back, and slow you down. Keep it sharp and everything feels smoother.", "equipment"),
+                ("One good pan beats three cheap ones", "You don't need a full set of pots and pans. One heavy skillet can sear, sauté, bake, and even go straight to the table.", "equipment"),
+                ("Tongs are your best friend", "Tongs are basically an extra set of hands. Flip, toss, serve — once you get used to them, you'll wonder how you cooked without them.", "equipment"),
+                ("The underrated bench scraper", "A bench scraper clears your cutting board in one swipe and moves chopped veggies without juggling your knife. Total game-changer.", "equipment"),
+                ("The lid does half the work", "Want food to cook faster? Just cover the pan. Steam gets trapped, and dinner comes together way quicker.", "technique"),
+                ("Keep a scrap bowl nearby", "Keep a little bowl on the counter for peels, cores, and scraps. You'll be amazed how much cleaner and easier cooking feels.", "tip"),
+                ("Salt in layers", "Don't just salt at the end. A pinch while you're cooking brings out flavor at every step.", "technique"),
+                ("Heat is an ingredient", "High heat gives you sear and smoke, low heat brings out sweetness. Knowing when to use each makes a huge difference.", "technique"),
+                ("Rest is cooking, too", "Take that steak off the heat and let it sit. Resting keeps the juices in and makes it taste so much better.", "technique"),
+                ("Acid balances fat", "Rich and creamy dishes need a squeeze of lemon or a splash of vinegar. It makes everything taste brighter.", "technique"),
+                ("Use your hands", "Your hands tell you more than gadgets. Dough feels alive, and you can check a steak's doneness with just a touch.", "technique"),
+                ("Cook in odd numbers", "Here's a chef trick: three scallops look better than two, five dumplings look better than four. Odd numbers just please the eye.", "technique"),
+                ("Smell tells the truth", "You don't always need a timer. When garlic smells fragrant or bread smells toasted — that's when it's ready.", "technique"),
+                ("Chill the bowl, whip the cream", "Pop your bowl and whisk in the freezer before you whip cream. It makes the job faster and fluffier.", "technique"),
+                ("Knives, not gadgets", "One good knife will outwork half the gadgets in your drawer. Learn the knife, lose the clutter.", "equipment"),
+                ("Taste twice, serve once", "Always taste before you serve. That last spoonful is your chance to adjust salt, acid, or seasoning before it hits the plate.", "technique")
+            ]
+            
+            # Insert content pieces
+            for i, (title, content, category) in enumerate(content_pieces):
+                cursor.execute("""
+                    INSERT INTO content_pieces (title, content, category, sort_order)
+                    VALUES (%s, %s, %s, %s)
+                """, (title, content, category, i + 1))
+            
+            conn.commit()
+            conn.close()
+            logger.info(f"📰 Successfully populated {len(content_pieces)} content pieces")
+            
+        except Exception as e:
+            logger.error(f"📰 Error populating content pieces: {e}")
+            if 'conn' in locals():
+                conn.close()
+
+    @app.route('/api/latest-updates', methods=['GET'])
+    def get_latest_updates():
+        """Get mixed feed of evergreen content and friend activity"""
+        try:
+            current_user = get_authenticated_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Get weekly rotation seed (same content for same week)
+            import datetime
+            week_of_year = datetime.datetime.now().isocalendar()[1]
+            user_seed = current_user['id']
+            rotation_seed = (week_of_year + user_seed) % 1000
+            
+            # Get evergreen content (70% of feed) - Use seeded selection to avoid duplicates
+            # Create a deterministic but varied selection based on week + user
+            cursor.execute("""
+                SELECT id, title, content, category, created_at
+                FROM content_pieces 
+                WHERE is_active = true
+                ORDER BY ((id * 13 + %s * 7) %% 10007)
+                LIMIT 4
+            """, (rotation_seed,))
+            
+            content_pieces = cursor.fetchall()
+            
+            # Get friend activity (30% of feed) - for now, get recent community shares
+            cursor.execute("""
+                SELECT r.id, r.community_title as title,
+                       CASE 
+                           WHEN u.email IS NOT NULL THEN LEFT(u.email, POSITION('@' IN u.email) - 1) || 'Chef'
+                           ELSE 'AnonymousChef'
+                       END as user_name,
+                       'recipe_shared' as activity_type, r.shared_at as created_at
+                FROM recipes r
+                LEFT JOIN users u ON r.user_id = u.id
+                WHERE r.is_community_shared = true 
+                AND r.shared_at IS NOT NULL
+                ORDER BY r.shared_at DESC
+                LIMIT 2
+            """)
+            
+            friend_activity = cursor.fetchall()
+            
+            # Mix the content
+            updates = []
+            
+            # Add evergreen content
+            for piece in content_pieces:
+                updates.append({
+                    'id': f"content_{piece['id']}",
+                    'type': 'content',
+                    'title': piece['title'],
+                    'content': piece['content'],
+                    'category': piece['category'],
+                    'created_at': piece['created_at'].isoformat() if piece['created_at'] else None,
+                    'icon': ''  # No emoji icons
+                })
+            
+            # Add friend activity
+            for activity in friend_activity:
+                updates.append({
+                    'id': f"activity_{activity['id']}",
+                    'type': 'activity',
+                    'title': f"{activity['user_name']} shared a recipe",
+                    'content': f"Check out their latest recipe: {activity['title']}",
+                    'category': 'social',
+                    'created_at': activity['created_at'].isoformat() if activity['created_at'] else None,
+                    'icon': '',  # No emoji icons
+                    'reference_id': activity['id'],
+                    'activity_type': activity['activity_type']
+                })
+            
+            # Shuffle the mixed content for variety
+            import random
+            random.Random(rotation_seed).shuffle(updates)
+            
+            conn.close()
+            
+            logger.info(f"📰 Served {len(updates)} latest updates (rotation seed: {rotation_seed})")
+            return jsonify({
+                'success': True,
+                'updates': updates,
+                'rotation_week': week_of_year
+            })
+            
+        except Exception as e:
+            logger.error(f"📰 Error getting latest updates: {e}")
+            if 'conn' in locals():
+                conn.close()
+            return jsonify({'error': 'Failed to get latest updates'}), 500
+
+    # Initialize content pieces on startup
+    try:
+        populate_content_pieces()
+    except Exception as e:
+        logger.error(f"📰 Failed to initialize content pieces: {e}")
 
     # Production hosting configuration (Railway/Heroku compatible)
     port = int(os.environ.get("PORT", 5000))
