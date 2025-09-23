@@ -45,28 +45,22 @@ except ImportError as e:
     ADMIN_SYSTEM_AVAILABLE = False
     logger.warning(f"⚠️ Admin system not available: {e}")
 
-# Import database migrations (extracted for cleaner code) - with fallback
-try:
-    from database_migrations import (
-        run_intelligence_migration,
-        run_schema_migration_endpoint,
-        add_sample_recipes,
-        check_database_info
-    )
-    DATABASE_MIGRATIONS_AVAILABLE = True
-    logger.info("✅ Database migrations module loaded")
-except ImportError as e:
-    DATABASE_MIGRATIONS_AVAILABLE = False
-    logger.warning(f"⚠️ Database migrations not available: {e}")
-    # Define fallback functions
-    def run_intelligence_migration():
-        return {"error": "Database migrations module not available"}
-    def run_schema_migration_endpoint():
-        return {"error": "Database migrations module not available"}
-    def add_sample_recipes():
-        return {"error": "Database migrations module not available"}
-    def check_database_info():
-        return {"error": "Database migrations module not available"}
+# Database migrations module not available - using fallback functions for admin endpoints
+DATABASE_MIGRATIONS_AVAILABLE = False
+logger.info("ℹ️ Database migrations module not available - using fallback functions")
+
+# Define fallback functions for admin endpoints
+def run_intelligence_migration():
+    return {"success": False, "error": "Database migrations module not available"}
+
+def run_schema_migration_endpoint(action=None):
+    return {"success": False, "error": "Database migrations module not available"}
+
+def add_sample_recipes():
+    return {"success": False, "error": "Database migrations module not available"}
+
+def check_database_info():
+    return {"success": False, "error": "Database migrations module not available"}
 
 # Import unified search system (Day 4 Enhancement - Full Integration)
 from core_systems.universal_search import UniversalSearchEngine
@@ -581,12 +575,14 @@ def get_recipes():
             where_clause = "WHERE " + " AND ".join(where_conditions)
             
         query = f"""
-            SELECT id, title, description, ingredients, instructions, 
-                   category, source, confidence, prep_time, cook_time, 
-                   servings, created_at
-            FROM recipes 
+            SELECT r.id, r.title, r.description, r.ingredients, r.instructions, 
+                   r.category, r.source, r.confidence, r.prep_time, r.cook_time, 
+                   r.servings, r.created_at, r.user_id,
+                   u.name as author_name, u.email as author_email
+            FROM recipes r
+            LEFT JOIN users u ON r.user_id = u.id
             {where_clause}
-            ORDER BY created_at DESC 
+            ORDER BY r.created_at DESC 
             LIMIT %s
         """
         params.append(limit)
@@ -3009,11 +3005,8 @@ def get_community_recipes():
                 r.cook_time,
                 r.source,
                 u.email,
-                -- Generate anonymous display name from email
-                CASE 
-                    WHEN u.email IS NOT NULL THEN LEFT(u.email, POSITION('@' IN u.email) - 1) || 'Chef'
-                    ELSE 'AnonymousChef'
-                END as display_name,
+                -- Use actual user name/username instead of generating from email
+                COALESCE(u.name, LEFT(u.email, POSITION('@' IN u.email) - 1) || 'Chef', 'AnonymousChef') as display_name,
                 0 as likes  -- TODO: Add real likes count when like system is implemented
             FROM recipes r
             LEFT JOIN users u ON r.user_id = u.id
@@ -3107,6 +3100,89 @@ def get_community_recipe_detail(recipe_id):
     except Exception as e:
         logger.error(f"❌ Get community recipe detail error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/community/recipes/<int:recipe_id>', methods=['DELETE'])
+def delete_community_recipe(recipe_id):
+    """Remove a recipe from community sharing (unshare, don't delete)"""
+    try:
+        # Check authentication
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        logger.info(f"🗑️ User {user_id} attempting to unshare community recipe {recipe_id}")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # First, verify the recipe exists and is owned by the user
+        cursor.execute("""
+            SELECT id, title, user_id, is_community_shared
+            FROM recipes 
+            WHERE id = %s
+        """, (recipe_id,))
+        
+        recipe = cursor.fetchone()
+        if not recipe:
+            logger.warning(f"❌ Recipe {recipe_id} not found for deletion")
+            return jsonify({
+                'success': False,
+                'error': 'Recipe not found'
+            }), 404
+        
+        # Check ownership - users can only unshare their own recipes
+        if recipe['user_id'] != user_id:
+            logger.warning(f"❌ User {user_id} tried to unshare recipe {recipe_id} owned by user {recipe['user_id']}")
+            return jsonify({
+                'success': False,
+                'error': 'You can only unshare your own recipes'
+            }), 403
+        
+        # Check if it's actually shared
+        if not recipe.get('is_community_shared', False):
+            logger.info(f"ℹ️ Recipe {recipe_id} is not currently shared")
+            return jsonify({
+                'success': True,
+                'message': 'Recipe was not shared in the community'
+            })
+        
+        # Unshare the recipe (set is_community_shared to FALSE)
+        cursor.execute("""
+            UPDATE recipes 
+            SET is_community_shared = FALSE,
+                community_title = NULL,
+                community_description = NULL,
+                shared_at = NULL
+            WHERE id = %s AND user_id = %s
+        """, (recipe_id, user_id))
+        
+        # Check if the update was successful
+        if cursor.rowcount == 0:
+            logger.warning(f"❌ Failed to unshare recipe {recipe_id} for user {user_id}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to unshare recipe - recipe may not belong to you'
+            }), 400
+        
+        conn.commit()
+        
+        logger.info(f"✅ User {user_id} unshared recipe {recipe_id}: {recipe['title']}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Recipe "{recipe["title"]}" has been removed from community sharing',
+            'recipe_id': recipe_id
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Delete community recipe error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 # ===================================
 # GROCERY LIST MANAGEMENT API

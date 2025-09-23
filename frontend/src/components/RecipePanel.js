@@ -13,6 +13,55 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
   // Refs for auto-focus
   const inputRefs = useRef({});
 
+  // 🔧 Enhanced OCR text repair (from mobile app)
+  const repairOCRText = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    
+    return text
+      .replace(/extr a-virgin/g, 'extra-virgin')
+      .replace(/ol ive oil/g, 'olive oil') 
+      .replace(/unsal ted but ter/g, 'unsalted butter')
+      .replace(/gr ated/g, 'grated')
+      .replace(/sea son/g, 'season')
+      .replace(/tem perature/g, 'temperature')
+      .replace(/refrig erate/g, 'refrigerate');
+  };
+
+  // 📋 Enhanced Recipe Field Parsing (from mobile app)
+  const formatRecipeField = (field) => {
+    if (!field) return [];
+    
+    let text = field;
+    if (typeof field === 'object') {
+      try {
+        text = typeof field === 'string' ? field : JSON.stringify(field);
+      } catch (e) {
+        console.warn('Failed to parse recipe field:', e);
+        return ['Unable to parse recipe data'];
+      }
+    }
+
+    // Clean up the text
+    text = repairOCRText(text.toString());
+    
+    // Convert various formats to array
+    if (text.includes('\n')) {
+      return text.split('\n')
+        .map(item => item.trim())
+        .filter(item => item && item !== '\\n' && item !== 'null');
+    } else if (text.includes('•')) {
+      return text.split('•')
+        .map(item => item.trim())
+        .filter(item => item && item !== '\\n' && item !== 'null');
+    } else if (text.includes('. ')) {
+      return text.split('. ')
+        .map(item => item.trim())
+        .filter(item => item && item !== '\\n' && item !== 'null');
+    } else {
+      return [text];
+    }
+  };
+
   // Handle keyboard shortcuts (moved before early return)
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -74,33 +123,19 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
     console.log('🎨 RecipePanel - Ingredient keys:', Object.keys(recipe.ingredients[0] || {}));
   }
 
-  // Pre-process recipe data to handle JSON strings
+  // Pre-process recipe data to handle JSON strings and format properly
   const processedRecipe = {
     ...recipe,
     ingredients: parseRecipeField(recipe.ingredients),
     instructions: parseRecipeField(recipe.instructions)
   };
 
-  console.log('🎨 RecipePanel - Processed ingredients:', processedRecipe.ingredients);
-  console.log('🎨 RecipePanel - Processed instructions:', processedRecipe.instructions);
+  // 📋 Enhanced formatting using mobile app logic
+  const ingredients = formatRecipeField(processedRecipe.ingredients);
+  const instructions = formatRecipeField(processedRecipe.instructions);
 
-  // Additional debugging for ingredients
-  if (Array.isArray(processedRecipe.ingredients)) {
-    console.log('🎨 RecipePanel - Ingredients array length:', processedRecipe.ingredients.length);
-    console.log('🎨 RecipePanel - First ingredient object:', processedRecipe.ingredients[0]);
-  }
-
-  // Use consistent formatting utilities
-  const formattedIngredients = formatRecipeText.formatIngredients(processedRecipe.ingredients);
-  const formattedInstructions = formatRecipeText.formatInstructions(processedRecipe.instructions);
-  const formattedTime = formatRecipeText.formatTime(recipe.cooking_time || recipe.time_min || recipe.prep_time);
-  const formattedServings = formatRecipeText.formatServings(recipe.servings);
-  const formattedDifficulty = formatRecipeText.formatDifficulty(recipe.difficulty);
-
-  // Debug the formatting results
-  console.log('🎨 RecipePanel - Formatted ingredients result:', formattedIngredients);
-  console.log('🎨 RecipePanel - Formatted instructions result:', formattedInstructions);
-  console.log('🎨 RecipePanel - Formatted ingredients length:', formattedIngredients ? formattedIngredients.length : 'null/undefined');
+  console.log('🎨 RecipePanel - Processed ingredients:', ingredients);
+  console.log('🎨 RecipePanel - Processed instructions:', instructions);
 
   // Helper function to clean text for editing (remove formatting characters)
   const cleanTextForEditing = (text) => {
@@ -418,7 +453,7 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
           <div className="recipe-block ingredients-block">
             <EditableText
               fieldName="ingredients-title"
-              value="🛒 Ingredients"
+              value={`🛒 Ingredients${ingredients && ingredients.length > 0 ? ` (${ingredients.length})` : ''}`}
               className="block-title"
             />
             <div className="block-content">
@@ -427,7 +462,7 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
                 value={typeof processedRecipe.ingredients === 'string' ? processedRecipe.ingredients : JSON.stringify(processedRecipe.ingredients)}
                 placeholder="Add ingredients..."
                 className="formatted-recipe-text"
-                displayValue={formattedIngredients}
+                displayValue={ingredients && ingredients.length > 0 ? ingredients.map(ing => `• ${ing}`).join('\n') : ''}
                 multiline={true}
               />
             </div>
@@ -437,7 +472,7 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
           <div className="recipe-block instructions-block">
             <EditableText
               fieldName="instructions-title"
-              value="👨‍🍳 Instructions"
+              value={`👨‍🍳 Instructions${instructions && instructions.length > 0 ? ` (${instructions.length} steps)` : ''}`}
               className="block-title"
             />
             <div className="block-content">
@@ -446,7 +481,7 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
                 value={typeof processedRecipe.instructions === 'string' ? processedRecipe.instructions : JSON.stringify(processedRecipe.instructions)}
                 placeholder="Add cooking instructions..."
                 className="formatted-recipe-text"
-                displayValue={formattedInstructions}
+                displayValue={instructions && instructions.length > 0 ? instructions.map((inst, idx) => `${idx + 1}. ${inst}`).join('\n') : ''}
                 multiline={true}
               />
             </div>

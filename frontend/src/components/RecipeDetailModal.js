@@ -5,6 +5,55 @@ import './RecipeDetailModal.css';
 const RecipeDetailModal = ({ recipe, isOpen, onClose, onEdit }) => {
   if (!isOpen || !recipe) return null;
 
+  // 🔧 Enhanced OCR text repair (from mobile app)
+  const repairOCRText = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    
+    return text
+      .replace(/extr a-virgin/g, 'extra-virgin')
+      .replace(/ol ive oil/g, 'olive oil') 
+      .replace(/unsal ted but ter/g, 'unsalted butter')
+      .replace(/gr ated/g, 'grated')
+      .replace(/sea son/g, 'season')
+      .replace(/tem perature/g, 'temperature')
+      .replace(/refrig erate/g, 'refrigerate');
+  };
+
+  // 📋 Enhanced Recipe Field Parsing (from mobile app)
+  const formatRecipeField = (field) => {
+    if (!field) return [];
+    
+    let text = field;
+    if (typeof field === 'object') {
+      try {
+        text = typeof field === 'string' ? field : JSON.stringify(field);
+      } catch (e) {
+        console.warn('Failed to parse recipe field:', e);
+        return ['Unable to parse recipe data'];
+      }
+    }
+
+    // Clean up the text
+    text = repairOCRText(text.toString());
+    
+    // Convert various formats to array
+    if (text.includes('\n')) {
+      return text.split('\n')
+        .map(item => item.trim())
+        .filter(item => item && item !== '\\n' && item !== 'null');
+    } else if (text.includes('•')) {
+      return text.split('•')
+        .map(item => item.trim())
+        .filter(item => item && item !== '\\n' && item !== 'null');
+    } else if (text.includes('. ')) {
+      return text.split('. ')
+        .map(item => item.trim())
+        .filter(item => item && item !== '\\n' && item !== 'null');
+    } else {
+      return [text];
+    }
+  };
+
   // Helper function to parse recipe fields that might be JSON strings
   function parseRecipeField(field) {
     if (!field) return field;
@@ -43,33 +92,24 @@ const RecipeDetailModal = ({ recipe, isOpen, onClose, onEdit }) => {
     console.log('Ingredient keys:', Object.keys(recipe.ingredients[0] || {}));
   }
 
-  // Pre-process recipe data to handle JSON strings
+  // Pre-process recipe data to handle JSON strings and format properly
   const processedRecipe = {
     ...recipe,
     ingredients: parseRecipeField(recipe.ingredients),
     instructions: parseRecipeField(recipe.instructions)
   };
 
-  console.log('Processed ingredients:', processedRecipe.ingredients);
-  console.log('Processed instructions:', processedRecipe.instructions);
+  // 📋 Enhanced formatting using mobile app logic
+  const ingredients = formatRecipeField(processedRecipe.ingredients);
+  const instructions = formatRecipeField(processedRecipe.instructions);
 
-  // Additional debugging for ingredients
-  if (Array.isArray(processedRecipe.ingredients)) {
-    console.log('Ingredients array length:', processedRecipe.ingredients.length);
-    console.log('First ingredient object:', processedRecipe.ingredients[0]);
-  }
+  // Enhanced metadata formatting
+  const formattedServings = recipe.servings ? `Serves ${recipe.servings}` : null;
+  const formattedTime = [recipe.prep_time, recipe.cook_time].filter(Boolean).join(' + ') || null;
+  const formattedDifficulty = recipe.difficulty;
 
-  // Use consistent formatting utilities
-  const formattedIngredients = formatRecipeText.formatIngredients(processedRecipe.ingredients);
-  const formattedInstructions = formatRecipeText.formatInstructions(processedRecipe.instructions);
-  const formattedTime = formatRecipeText.formatTime(recipe.cooking_time || recipe.time_min || recipe.prep_time);
-  const formattedServings = formatRecipeText.formatServings(recipe.servings);
-  const formattedDifficulty = formatRecipeText.formatDifficulty(recipe.difficulty);
-
-  // Debug the formatting results
-  console.log('Formatted ingredients result:', formattedIngredients);
-  console.log('Formatted instructions result:', formattedInstructions);
-  console.log('Formatted ingredients length:', formattedIngredients ? formattedIngredients.length : 'null/undefined');
+  console.log('🍳 Processed ingredients:', ingredients);
+  console.log('📝 Processed instructions:', instructions);
 
   return (
     <div className="recipe-detail-overlay" onClick={onClose}>
@@ -134,21 +174,35 @@ const RecipeDetailModal = ({ recipe, isOpen, onClose, onEdit }) => {
           )}
           
           {/* Ingredients Section */}
-          {formattedIngredients && (
+          {ingredients && ingredients.length > 0 && (
             <div className="recipe-section">
-              <h2 className="section-title">🛒 Ingredients</h2>
+              <h2 className="section-title">🛒 Ingredients ({ingredients.length})</h2>
               <div className="section-content">
-                <pre className="formatted-recipe-text">{formattedIngredients}</pre>
+                <ul className="ingredients-list">
+                  {ingredients.map((ingredient, index) => (
+                    <li key={index} className="ingredient-item">
+                      {ingredient.startsWith('•') ? ingredient.substring(1).trim() : ingredient}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           )}
 
           {/* Instructions Section */}
-          {formattedInstructions && (
+          {instructions && instructions.length > 0 && (
             <div className="recipe-section">
-              <h2 className="section-title">👨‍🍳 Instructions</h2>
+              <h2 className="section-title">👨‍🍳 Instructions ({instructions.length} steps)</h2>
               <div className="section-content">
-                <pre className="formatted-recipe-text">{formattedInstructions}</pre>
+                <ol className="instructions-list">
+                  {instructions.map((instruction, index) => (
+                    <li key={index} className="instruction-step">
+                      <div className="step-content">
+                        <span className="step-text">{instruction}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
               </div>
             </div>
           )}
