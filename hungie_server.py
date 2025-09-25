@@ -3524,8 +3524,10 @@ def update_grocery_list(list_id):
 def delete_grocery_list(list_id):
     """Delete a grocery list"""
     try:
-        # Get user from session/auth (for now, we'll use a default user)
-        user_id = 1  # TODO: Get from authentication system
+        # Check authentication
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
         
         conn = get_db_connection()
         cursor = conn.cursor()
