@@ -246,6 +246,190 @@ def create_auth_routes(auth_system):
             logger.error(f"[ERROR] Google callback error: {e}")
             return redirect('http://localhost:3000/auth/error')
 
+    @auth_bp.route('/google', methods=['POST'])
+    def google_mobile_signin():
+        """Handle Google Sign-In from mobile app"""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
+            google_id = data.get('google_id')
+            email = data.get('email')
+            name = data.get('name')
+            photo = data.get('photo')
+            
+            if not google_id or not email:
+                return jsonify({'success': False, 'error': 'Missing required Google data'}), 400
+            
+            logger.info(f"🔐 Google Sign-In attempt for: {email}")
+            
+            # Check if user exists with this Google ID or email
+            conn = auth_system.get_db_connection()
+            cursor = conn.cursor()
+            
+            try:
+                # First check for existing Google OAuth user
+                cursor.execute("""
+                    SELECT id, email, name, oauth_provider, oauth_id 
+                    FROM users 
+                    WHERE oauth_provider = 'google' AND oauth_id = %s
+                """, (google_id,))
+                user = cursor.fetchone()
+                
+                if not user:
+                    # Check for existing user with same email
+                    cursor.execute("SELECT id, email, name FROM users WHERE email = %s", (email,))
+                    existing_user = cursor.fetchone()
+                    
+                    if existing_user:
+                        # Link Google account to existing user
+                        cursor.execute("""
+                            UPDATE users 
+                            SET oauth_provider = 'google', oauth_id = %s 
+                            WHERE id = %s
+                        """, (google_id, existing_user['id']))
+                        conn.commit()
+                        user = existing_user
+                    else:
+                        # Create new user with Google account
+                        cursor.execute("""
+                            INSERT INTO users (name, email, oauth_provider, oauth_id, created_at) 
+                            VALUES (%s, %s, 'google', %s, NOW()) 
+                            RETURNING id, name, email
+                        """, (name, email, google_id))
+                        user = cursor.fetchone()
+                        conn.commit()
+                
+                # Create access token
+                from flask_jwt_extended import create_access_token
+                access_token = create_access_token(identity=str(user['id']))
+                
+                logger.info(f"✅ Google Sign-In successful for: {email}")
+                
+                return jsonify({
+                    'success': True,
+                    'access_token': access_token,
+                    'user': {
+                        'id': user['id'],
+                        'name': user['name'],
+                        'email': user['email']
+                    }
+                }), 200
+                
+            except Exception as db_error:
+                conn.rollback()
+                logger.error(f"❌ Database error in Google Sign-In: {db_error}")
+                return jsonify({'success': False, 'error': 'Database error'}), 500
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            logger.error(f"❌ Google Sign-In error: {e}")
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+    @auth_bp.route('/google-mobile', methods=['GET'])
+    def google_mobile_auth():
+        """Initiate Google OAuth for mobile with proper redirect"""
+        try:
+            # Get the redirect URI from query params
+            redirect_uri = request.args.get('redirect_uri', 'yeschef://google-auth')
+            
+            # Store the mobile redirect URI in session for later use
+            session['mobile_redirect'] = redirect_uri
+            
+            # Initiate Google OAuth with our web callback
+            web_redirect_uri = url_for('auth.google_mobile_callback', _external=True)
+            return auth_system.google.authorize_redirect(web_redirect_uri)
+            
+        except Exception as e:
+            logger.error(f"❌ Google mobile auth error: {e}")
+            return redirect(f"{redirect_uri}-error")
+
+    @auth_bp.route('/google-mobile/callback', methods=['GET'])
+    def google_mobile_callback():
+        """Handle Google OAuth callback for mobile"""
+        try:
+            # Get the mobile redirect URI from session
+            mobile_redirect = session.get('mobile_redirect', 'yeschef://google-auth')
+            
+            token = auth_system.google.authorize_access_token()
+            user_info = token.get('userinfo')
+
+            if user_info:
+                google_id = user_info.get('sub')
+                email = user_info.get('email')
+                name = user_info.get('name')
+                photo = user_info.get('picture')
+
+                # Check if user exists or create new one
+                conn = auth_system.get_db_connection()
+                cursor = conn.cursor()
+                
+                try:
+                    # First check for existing Google OAuth user
+                    cursor.execute("""
+                        SELECT id, email, name FROM users 
+                        WHERE oauth_provider = 'google' AND oauth_id = %s
+                    """, (google_id,))
+                    user = cursor.fetchone()
+                    
+                    if not user:
+                        # Check for existing user with same email
+                        cursor.execute("SELECT id, email, name FROM users WHERE email = %s", (email,))
+                        existing_user = cursor.fetchone()
+                        
+                        if existing_user:
+                            # Link Google account to existing user
+                            cursor.execute("""
+                                UPDATE users 
+                                SET oauth_provider = 'google', oauth_id = %s 
+                                WHERE id = %s
+                            """, (google_id, existing_user['id']))
+                            conn.commit()
+                            user = existing_user
+                        else:
+                            # Create new user with Google account
+                            cursor.execute("""
+                                INSERT INTO users (name, email, oauth_provider, oauth_id, created_at) 
+                                VALUES (%s, %s, 'google', %s, NOW()) 
+                                RETURNING id, name, email
+                            """, (name, email, google_id))
+                            user = cursor.fetchone()
+                            conn.commit()
+                    
+                    # Create access token
+                    from flask_jwt_extended import create_access_token
+                    access_token = create_access_token(identity=str(user['id']))
+                    
+                    # Prepare user data for mobile
+                    user_data = {
+                        'id': user['id'],
+                        'name': user['name'],
+                        'email': user['email']
+                    }
+                    
+                    logger.info(f"✅ Mobile Google Sign-In successful for: {email}")
+                    
+                    # Redirect back to mobile app with success data
+                    import urllib.parse
+                    user_encoded = urllib.parse.quote(str(user_data).replace("'", '"'))
+                    return redirect(f"{mobile_redirect}-success?token={access_token}&user={user_encoded}")
+                    
+                except Exception as db_error:
+                    conn.rollback()
+                    logger.error(f"❌ Database error in mobile Google callback: {db_error}")
+                    return redirect(f"{mobile_redirect}-error")
+                finally:
+                    conn.close()
+            
+            return redirect(f"{mobile_redirect}-error")
+
+        except Exception as e:
+            logger.error(f"❌ Google mobile callback error: {e}")
+            mobile_redirect = session.get('mobile_redirect', 'yeschef://google-auth')
+            return redirect(f"{mobile_redirect}-error")
+
     @auth_bp.route('/facebook', methods=['GET'])
     def facebook_login():
         """Initiate Facebook OAuth login"""
@@ -372,62 +556,5 @@ def create_auth_routes(auth_system):
                 
         except Exception as error:
             return jsonify({'success': False, 'error': 'Server error'}), 500
-
-    return auth_bp,
-                'delete_account': '/api/auth/delete-account'
-            }
-        }), 200
-
-    @auth_bp.route('/delete-account', methods=['DELETE'])
-    @jwt_required()
-    def delete_account():
-        """Delete user account permanently"""
-        try:
-            user_id = get_jwt_identity()
-            
-            if not user_id:
-                return jsonify({'success': False, 'error': 'Invalid session'}), 401
-            
-            # Convert to int for database query
-            user_id_int = int(user_id)
-            
-            conn = auth_system.get_db_connection()
-            cursor = conn.cursor()
-            
-            try:
-                # Delete dependent records first (foreign keys)
-                cursor.execute("DELETE FROM user_preferences WHERE user_id = %s", (user_id_int,))
-                prefs_deleted = cursor.rowcount
-                
-                # Delete other user data if tables exist
-                cursor.execute("DELETE FROM saved_recipes WHERE user_id = %s", (user_id_int,))
-                cursor.execute("DELETE FROM saved_meal_plans WHERE user_id = %s", (user_id_int,))
-                cursor.execute("DELETE FROM user_pantry WHERE user_id = %s", (user_id_int,))
-                cursor.execute("DELETE FROM recipes WHERE user_id = %s", (user_id_int,))
-                cursor.execute("DELETE FROM grocery_lists WHERE user_id = %s", (user_id_int,))
-                cursor.execute("DELETE FROM meal_plans WHERE user_id = %s", (user_id_int,))
-                
-                # Finally delete the user account
-                cursor.execute("DELETE FROM users WHERE id = %s", (user_id_int,))
-                deleted = cursor.rowcount
-                conn.commit()
-                
-                logger.info(f"Account deleted: User {user_id_int} and associated data removed")
-                
-                return jsonify({
-                    'success': True,
-                    'message': 'Account permanently deleted'
-                }), 200
-                
-            except Exception as db_error:
-                conn.rollback()
-                logger.error(f"❌ Database error: {db_error}")
-                return jsonify({'success': False, 'error': str(db_error)}), 500
-            finally:
-                conn.close()
-                
-        except Exception as error:
-            logger.error(f"❌ Delete account error: {error}")
-            return jsonify({'success': False, 'error': str(error)}), 500
 
     return auth_bp

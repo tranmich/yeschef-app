@@ -102,6 +102,7 @@ CHEF_PERSONALITY = """You are Hungie, an enthusiastic and knowledgeable personal
 
 # Initialize Flask app
 app = Flask(__name__)
+app.secret_key = os.getenv('JWT_SECRET_KEY', 'your-secret-key-for-sessions-' + str(os.urandom(24).hex()))
 
 # Add a simple direct test endpoint (not through blueprints) - for debugging
 @app.route('/api/direct-test', methods=['GET'])
@@ -550,6 +551,11 @@ def api_root():
 def get_recipes():
     """Get recipes with optional filtering"""
     try:
+        # Check authentication first
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
         # Get query parameters
         category = request.args.get('category')
         search = request.args.get('search')
@@ -558,21 +564,19 @@ def get_recipes():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Build query with filters
-        where_conditions = []
-        params = []
+        # Build query with filters (always filter by user_id for user's own recipes)
+        where_conditions = ["r.user_id = %s"]
+        params = [user_id]
         
         if category:
-            where_conditions.append("category ILIKE %s")
+            where_conditions.append("r.category ILIKE %s")
             params.append(f"%{category}%")
             
         if search:
-            where_conditions.append("(title ILIKE %s OR description ILIKE %s)")
+            where_conditions.append("(r.title ILIKE %s OR r.description ILIKE %s)")
             params.extend([f"%{search}%", f"%{search}%"])
         
-        where_clause = ""
-        if where_conditions:
-            where_clause = "WHERE " + " AND ".join(where_conditions)
+        where_clause = "WHERE " + " AND ".join(where_conditions)
             
         query = f"""
             SELECT r.id, r.title, r.description, r.ingredients, r.instructions, 
@@ -910,40 +914,84 @@ def get_user_profile():
             """, (user_id, user_id))
             
             basic_stats = cursor.fetchone()
+            logger.info(f"🔍 DEBUG: Basic stats query result: {basic_stats}")
+            logger.info(f"🔍 DEBUG: Basic stats type: {type(basic_stats)}")
             
             # Try to get grocery list count (table might not exist)
             grocery_count = 0
             try:
-                cursor.execute("SELECT COUNT(*) FROM grocery_lists WHERE user_id = %s", (user_id,))
+                cursor.execute("SELECT COUNT(*) as grocery_count FROM grocery_lists WHERE user_id = %s", (user_id,))
                 grocery_result = cursor.fetchone()
-                grocery_count = grocery_result[0] if grocery_result else 0
-            except psycopg2.Error:
+                grocery_count = grocery_result['grocery_count'] if grocery_result else 0
+                logger.info(f"🛒 DEBUG: Found {grocery_count} grocery lists for user {user_id}")
+                
+                # Additional debugging - show the actual lists
+                cursor.execute("SELECT id, list_name, user_id, created_at FROM grocery_lists WHERE user_id = %s ORDER BY created_at DESC LIMIT 5", (user_id,))
+                debug_lists = cursor.fetchall()
+                logger.info(f"🛒 DEBUG: Recent grocery lists for user {user_id}: {[dict(row) for row in debug_lists]}")
+                
+            except psycopg2.Error as e:
+                logger.error(f"grocery_lists table error: {e}")
                 logger.info("grocery_lists table not found, using 0")
                 grocery_count = 0
             
             # Try to get friends count (table might not exist)
             friends_count = 0
             try:
-                cursor.execute("SELECT COUNT(*) FROM friends WHERE (user_id = %s OR friend_user_id = %s) AND status = 'accepted'", (user_id, user_id))
+                cursor.execute("SELECT COUNT(*) as friends_count FROM friends WHERE (user_id = %s OR friend_user_id = %s) AND status = 'accepted'", (user_id, user_id))
                 friends_result = cursor.fetchone()
-                friends_count = friends_result[0] if friends_result else 0
+                friends_count = friends_result['friends_count'] if friends_result else 0
             except psycopg2.Error:
                 logger.info("friends table not found, using 0")
                 friends_count = 0
+
+            # Try to get meal plans count (table might not exist)  
+            meal_plans_count = 0
+            try:
+                cursor.execute("SELECT COUNT(*) as meal_plans_count FROM meal_plans WHERE user_id = %s", (user_id,))
+                meal_plans_result = cursor.fetchone()
+                meal_plans_count = meal_plans_result['meal_plans_count'] if meal_plans_result else 0
+                logger.info(f"📅 DEBUG: Found {meal_plans_count} meal plans for user {user_id}")
+            except psycopg2.Error:
+                logger.info("meal_plans table not found, using 0")
+                meal_plans_count = 0
+            
+            # Try to get meal plans count (table might not exist)
+            meal_plans_count = 0
+            try:
+                cursor.execute("SELECT COUNT(*) FROM meal_plans WHERE user_id = %s", (user_id,))
+                meal_plans_result = cursor.fetchone()
+                meal_plans_count = meal_plans_result[0] if meal_plans_result else 0
+            except psycopg2.Error:
+                logger.info("meal_plans table not found, using 0")
+                meal_plans_count = 0
             
             stats_data = {
-                'recipes_saved': basic_stats['recipes_saved'] if basic_stats else 0,
-                'recipes_shared': basic_stats['recipes_shared'] if basic_stats else 0,
+                'recipes_saved': basic_stats['recipes_saved'] if basic_stats and basic_stats['recipes_saved'] is not None else 0,
+                'recipes_shared': basic_stats['recipes_shared'] if basic_stats and basic_stats['recipes_shared'] is not None else 0,
                 'grocery_lists_created': grocery_count,
+                'meal_plans_created': meal_plans_count,
                 'friends_count': friends_count
             }
             
         except Exception as stats_error:
             logger.error(f"Stats query error: {stats_error}")
+            logger.error(f"Stats query error details: {type(stats_error).__name__}: {str(stats_error)}")
+            
+            # Still provide detailed debug info even with error
+            try:
+                cursor.execute("SELECT COUNT(*) as grocery_count FROM grocery_lists WHERE user_id = %s", (user_id,))
+                grocery_result = cursor.fetchone()
+                grocery_debug_count = grocery_result['grocery_count'] if grocery_result else 0
+                logger.error(f"🛒 DEBUG FALLBACK: Found {grocery_debug_count} grocery lists for user {user_id}")
+            except Exception as debug_error:
+                logger.error(f"🛒 DEBUG FALLBACK ERROR: {debug_error}")
+                
             stats_data = {
                 'recipes_saved': 0,
                 'recipes_shared': 0,
                 'grocery_lists_created': 0,
+                'meal_plans_created': 0,
                 'friends_count': 0
             }
         
@@ -968,7 +1016,8 @@ def get_user_profile():
                 'recipesSaved': stats_data['recipes_saved'] if stats_data else 0,
                 'recipesShared': stats_data['recipes_shared'] if stats_data else 0,
                 'groceryListsCreated': stats_data['grocery_lists_created'] if stats_data else 0,
-                'friendsCount': stats_data['friends_count'] if stats_data else 0
+                'friendsCount': stats_data['friends_count'] if stats_data else 0,
+                'mealPlansCreated': stats_data['meal_plans_created'] if stats_data else 0
             }
         }
         
@@ -1017,6 +1066,11 @@ def update_user_profile():
         if 'name' in data:
             updatable_fields.append('name = %s')
             values.append(data['name'])
+            
+        # Also update email if provided (email column exists in users table)
+        if 'email' in data:
+            updatable_fields.append('email = %s')
+            values.append(data['email'])
         
         if updatable_fields:
             values.append(user_id)  # For WHERE clause
@@ -1027,8 +1081,12 @@ def update_user_profile():
             """
             cursor.execute(update_query, values)
             conn.commit()
+            
+            logger.info(f"✅ Profile updated for user {user_id} - fields: {updatable_fields}")
+        else:
+            logger.warning(f"⚠️ No updatable fields provided for user {user_id}")
         
-        logger.info(f"✅ Profile updated for user {user_id}")
+        logger.info(f"✅ Profile update completed for user {user_id}")
         
         return jsonify({
             'success': True,
@@ -4434,6 +4492,14 @@ if __name__ == "__main__":
         auth_system = AuthenticationSystem(app, get_db_connection)
         auth_routes = create_auth_routes(auth_system)
         app.register_blueprint(auth_routes)
+        
+        # Debug: List auth routes
+        auth_route_list = []
+        for rule in app.url_map.iter_rules():
+            if rule.rule.startswith('/api/auth/'):
+                auth_route_list.append(rule.rule)
+        logger.info(f"🔧 Registered auth routes: {auth_route_list}")
+        
         logger.info("✅ Authentication system initialized and routes registered")
     except Exception as e:
         logger.error(f"❌ Failed to initialize authentication system: {e}")
