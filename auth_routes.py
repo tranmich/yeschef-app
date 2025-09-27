@@ -332,8 +332,102 @@ def create_auth_routes(auth_system):
                 'me': '/api/auth/me',
                 'google': '/api/auth/google',
                 'facebook': '/api/auth/facebook',
-                'wipe_data': '/api/auth/wipe-data'
+                'wipe_data': '/api/auth/wipe-data',
+                'delete_account': '/api/auth/delete-account'
             }
         }), 200
+
+    @auth_bp.route('/delete-account', methods=['DELETE'])
+    @jwt_required()
+    def delete_account():
+        """Delete user account permanently"""
+        try:
+            user_id = get_jwt_identity()
+            if not user_id:
+                return jsonify({'success': False, 'error': 'Invalid session'}), 401
+            
+            user_id_int = int(user_id)
+            conn = auth_system.get_db_connection()
+            cursor = conn.cursor()
+            
+            try:
+                # Delete dependent records first (foreign keys)
+                cursor.execute("DELETE FROM user_preferences WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM saved_recipes WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM saved_meal_plans WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM user_pantry WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM recipes WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM grocery_lists WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM meal_plans WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM users WHERE id = %s", (user_id_int,))
+                
+                conn.commit()
+                return jsonify({'success': True, 'message': 'Account permanently deleted'}), 200
+                
+            except Exception as db_error:
+                conn.rollback()
+                return jsonify({'success': False, 'error': 'Database error'}), 500
+            finally:
+                conn.close()
+                
+        except Exception as error:
+            return jsonify({'success': False, 'error': 'Server error'}), 500
+
+    return auth_bp,
+                'delete_account': '/api/auth/delete-account'
+            }
+        }), 200
+
+    @auth_bp.route('/delete-account', methods=['DELETE'])
+    @jwt_required()
+    def delete_account():
+        """Delete user account permanently"""
+        try:
+            user_id = get_jwt_identity()
+            
+            if not user_id:
+                return jsonify({'success': False, 'error': 'Invalid session'}), 401
+            
+            # Convert to int for database query
+            user_id_int = int(user_id)
+            
+            conn = auth_system.get_db_connection()
+            cursor = conn.cursor()
+            
+            try:
+                # Delete dependent records first (foreign keys)
+                cursor.execute("DELETE FROM user_preferences WHERE user_id = %s", (user_id_int,))
+                prefs_deleted = cursor.rowcount
+                
+                # Delete other user data if tables exist
+                cursor.execute("DELETE FROM saved_recipes WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM saved_meal_plans WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM user_pantry WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM recipes WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM grocery_lists WHERE user_id = %s", (user_id_int,))
+                cursor.execute("DELETE FROM meal_plans WHERE user_id = %s", (user_id_int,))
+                
+                # Finally delete the user account
+                cursor.execute("DELETE FROM users WHERE id = %s", (user_id_int,))
+                deleted = cursor.rowcount
+                conn.commit()
+                
+                logger.info(f"Account deleted: User {user_id_int} and associated data removed")
+                
+                return jsonify({
+                    'success': True,
+                    'message': 'Account permanently deleted'
+                }), 200
+                
+            except Exception as db_error:
+                conn.rollback()
+                logger.error(f"❌ Database error: {db_error}")
+                return jsonify({'success': False, 'error': str(db_error)}), 500
+            finally:
+                conn.close()
+                
+        except Exception as error:
+            logger.error(f"❌ Delete account error: {error}")
+            return jsonify({'success': False, 'error': str(error)}), 500
 
     return auth_bp

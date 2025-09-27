@@ -333,7 +333,7 @@ class AuthenticationSystem:
                 logger.warning(f"⚠️ Failed to copy templates for new user: {e}")
 
             # Generate JWT token
-            access_token = create_access_token(identity=user_id)
+            access_token = create_access_token(identity=str(user_id))
 
             logger.info(f"[OK] User registered successfully: {email}")
             return {
@@ -380,7 +380,7 @@ class AuthenticationSystem:
 
             # Check password
             if self.bcrypt.check_password_hash(user['password_hash'], password):
-                access_token = create_access_token(identity=user['id'])
+                access_token = create_access_token(identity=str(user['id']))
 
                 logger.info(f"[OK] User authenticated: {email}")
                 return {
