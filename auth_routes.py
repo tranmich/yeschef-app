@@ -7,6 +7,7 @@ API endpoints for user registration, login, OAuth, and user management
 from flask import Blueprint, request, jsonify, session, redirect, url_for
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from auth_system import AuthenticationSystem
+from datetime import datetime
 import logging
 import json
 
@@ -327,6 +328,173 @@ def create_auth_routes(auth_system):
         except Exception as e:
             logger.error(f"❌ Google Sign-In error: {e}")
             return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+    @auth_bp.route('/forgot-password', methods=['POST'])
+    def forgot_password():
+        """Send password reset email"""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
+            email = data.get('email', '').strip().lower()
+            if not email:
+                return jsonify({'success': False, 'error': 'Email is required'}), 400
+            
+            conn = auth_system.get_db_connection()
+            cursor = conn.cursor()
+            
+            try:
+                # Check if user exists
+                cursor.execute("SELECT id, email, name FROM users WHERE email = %s", (email,))
+                user = cursor.fetchone()
+                
+                if not user:
+                    # Don't reveal if email exists or not for security
+                    return jsonify({
+                        'success': True, 
+                        'message': 'If an account with that email exists, a password reset link has been sent.'
+                    }), 200
+                
+                # Generate secure reset token
+                import uuid
+                from datetime import datetime, timedelta
+                
+                reset_token = str(uuid.uuid4())
+                expires_at = datetime.utcnow() + timedelta(minutes=30)  # 30 min expiry
+                
+                # Store reset token
+                cursor.execute("""
+                    INSERT INTO password_reset_tokens (user_id, token, expires_at, created_at) 
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (user_id) DO UPDATE SET 
+                    token = EXCLUDED.token, 
+                    expires_at = EXCLUDED.expires_at,
+                    created_at = EXCLUDED.created_at
+                """, (user['id'], reset_token, expires_at, datetime.utcnow()))
+                
+                conn.commit()
+                
+                # TODO: Send email with reset link
+                reset_link = f"https://yeschefapp-production.up.railway.app/api/auth/reset-password?token={reset_token}"
+                logger.info(f"🔑 Password reset link generated for {email}: {reset_link}")
+                
+                # For now, return the link in response (in production, only send email)
+                return jsonify({
+                    'success': True,
+                    'message': 'Password reset link sent to your email.',
+                    'reset_link': reset_link  # Remove this in production
+                }), 200
+                
+            except Exception as db_error:
+                conn.rollback()
+                logger.error(f"❌ Database error in forgot password: {db_error}")
+                return jsonify({'success': False, 'error': 'Database error'}), 500
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            logger.error(f"❌ Forgot password error: {e}")
+            return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+    @auth_bp.route('/reset-password', methods=['GET', 'POST'])
+    def reset_password():
+        """Handle password reset - GET shows form, POST processes new password"""
+        if request.method == 'GET':
+            token = request.args.get('token')
+            if not token:
+                return '<h1>Invalid Reset Link</h1><p>The password reset link is missing or invalid.</p>', 400
+            
+            # Return a simple HTML form for password reset
+            return f'''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Reset Your Password - YesChef</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }}
+                    .form-group {{ margin-bottom: 15px; }}
+                    input {{ width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }}
+                    button {{ background: #AAC6AD; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; width: 100%; }}
+                    button:hover {{ background: #95B1A0; }}
+                    .error {{ color: red; margin-top: 10px; }}
+                </style>
+            </head>
+            <body>
+                <h2>Reset Your Password</h2>
+                <form method="POST">
+                    <input type="hidden" name="token" value="{token}">
+                    <div class="form-group">
+                        <input type="password" name="password" placeholder="New Password" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <input type="password" name="confirm_password" placeholder="Confirm New Password" required minlength="6">
+                    </div>
+                    <button type="submit">Reset Password</button>
+                </form>
+            </body>
+            </html>
+            '''
+        
+        else:  # POST
+            try:
+                token = request.form.get('token')
+                password = request.form.get('password')
+                confirm_password = request.form.get('confirm_password')
+                
+                if not token or not password or not confirm_password:
+                    return '<h1>Error</h1><p>All fields are required.</p>', 400
+                
+                if password != confirm_password:
+                    return '<h1>Error</h1><p>Passwords do not match.</p>', 400
+                
+                if len(password) < 6:
+                    return '<h1>Error</h1><p>Password must be at least 6 characters.</p>', 400
+                
+                conn = auth_system.get_db_connection()
+                cursor = conn.cursor()
+                
+                try:
+                    # Find and validate reset token
+                    cursor.execute("""
+                        SELECT user_id, expires_at FROM password_reset_tokens 
+                        WHERE token = %s AND expires_at > %s
+                    """, (token, datetime.utcnow()))
+                    
+                    reset_record = cursor.fetchone()
+                    if not reset_record:
+                        return '<h1>Invalid or Expired Link</h1><p>The password reset link is invalid or has expired.</p>', 400
+                    
+                    # Hash new password
+                    password_hash = auth_system.bcrypt.generate_password_hash(password).decode('utf-8')
+                    
+                    # Update user password
+                    cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", 
+                                 (password_hash, reset_record['user_id']))
+                    
+                    # Delete used reset token
+                    cursor.execute("DELETE FROM password_reset_tokens WHERE token = %s", (token,))
+                    
+                    conn.commit()
+                    
+                    logger.info(f"✅ Password reset successful for user {reset_record['user_id']}")
+                    
+                    return '''
+                    <h1>Password Reset Successful!</h1>
+                    <p>Your password has been updated successfully.</p>
+                    <p>You can now close this window and log in with your new password.</p>
+                    '''
+                    
+                except Exception as db_error:
+                    conn.rollback()
+                    logger.error(f"❌ Database error in reset password: {db_error}")
+                    return '<h1>Error</h1><p>Database error occurred.</p>', 500
+                finally:
+                    conn.close()
+                    
+            except Exception as e:
+                logger.error(f"❌ Reset password error: {e}")
+                return '<h1>Error</h1><p>An error occurred.</p>', 500
 
     @auth_bp.route('/google-mobile', methods=['GET'])
     def google_mobile_auth():

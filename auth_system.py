@@ -187,6 +187,17 @@ class AuthenticationSystem:
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
+
+                # Password reset tokens table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                        user_id INTEGER PRIMARY KEY,
+                        token TEXT NOT NULL,
+                        expires_at TIMESTAMP NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                    )
+                ''')
             else:
                 # SQLite schema for local development
                 cursor.execute('''
