@@ -888,9 +888,9 @@ def get_user_profile():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
-        # Get user basic information
+        # Get user basic information including avatar
         cursor.execute("""
-            SELECT id, name, email, created_at
+            SELECT id, name, email, created_at, avatar_background, avatar_icon
             FROM users 
             WHERE id = %s
         """, (user_id,))
@@ -1012,6 +1012,10 @@ def get_user_profile():
             'measurementUnits': 'Imperial',  # TODO: Add to database schema
             'profilePhotoUrl': None,         # TODO: Add to database schema
             'created_at': user_data.get('created_at'),
+            'avatar': {
+                'background': user_data.get('avatar_background', 'default'),
+                'icon': user_data.get('avatar_icon', '🍎')
+            },
             'stats': {
                 'recipesSaved': stats_data['recipes_saved'] if stats_data else 0,
                 'recipesShared': stats_data['recipes_shared'] if stats_data else 0,
@@ -1103,6 +1107,132 @@ def update_user_profile():
         if 'conn' in locals():
             conn.close()
 
+@app.route('/api/profile/avatar', methods=['PUT'])
+def update_user_avatar():
+    """Update user profile avatar (background and icon)"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No avatar data provided'
+            }), 400
+        
+        # Validate required fields
+        if 'background' not in data or 'icon' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Both background and icon are required'
+            }), 400
+        
+        background = data['background']
+        icon = data['icon']
+        
+        logger.info(f"🎨 Updating avatar for user {user_id}: background={background}, icon={icon}")
+        
+        # Validate background options
+        valid_backgrounds = [
+            'default', 'warm', 'fresh', 'elegant', 'sunset', 'ocean', 
+            'earth', 'lavender', 'mint', 'peach', 'sky', 'rose'
+        ]
+        
+        if background not in valid_backgrounds:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid background. Must be one of: {", ".join(valid_backgrounds)}'
+            }), 400
+        
+        # Basic validation for icon (should be emoji character)
+        if len(icon) > 10:  # Emojis can be multiple bytes but shouldn't be extremely long
+            return jsonify({
+                'success': False,
+                'error': 'Icon must be a valid emoji character'
+            }), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Update avatar fields
+        cursor.execute("""
+            UPDATE users 
+            SET avatar_background = %s, avatar_icon = %s
+            WHERE id = %s
+        """, (background, icon, user_id))
+        
+        conn.commit()
+        
+        logger.info(f"✅ Avatar updated successfully for user {user_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Avatar updated successfully',
+            'avatar': {
+                'background': background,
+                'icon': icon
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Update avatar error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+@app.route('/api/profile/avatar', methods=['GET'])
+def get_user_avatar():
+    """Get user profile avatar"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Get avatar data
+        cursor.execute("""
+            SELECT avatar_background, avatar_icon
+            FROM users 
+            WHERE id = %s
+        """, (user_id,))
+        
+        user_data = cursor.fetchone()
+        if not user_data:
+            return jsonify({
+                'success': False,
+                'error': 'User not found'
+            }), 404
+        
+        avatar = {
+            'background': user_data.get('avatar_background', 'default'),
+            'icon': user_data.get('avatar_icon', '🍎')
+        }
+        
+        logger.info(f"🎨 Retrieved avatar for user {user_id}: {avatar}")
+        
+        return jsonify({
+            'success': True,
+            'avatar': avatar
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get avatar error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
 @app.route('/api/profile/stats', methods=['GET'])
 def get_user_stats():
     """Get user statistics for dashboard"""
@@ -1141,6 +1271,114 @@ def get_user_stats():
         
     except Exception as e:
         logger.error(f"❌ Get stats error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+# 🎨 Profile Avatar Endpoints
+@app.route('/api/profile/avatar', methods=['GET'])
+def get_profile_avatar():
+    """Get user's profile avatar configuration"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        logger.info(f"🎨 Getting avatar for user {user_id}")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        cursor.execute("""
+            SELECT avatar_background, avatar_icon 
+            FROM users 
+            WHERE id = %s
+        """, (user_id,))
+        
+        user = cursor.fetchone()
+        
+        if not user:
+            return jsonify({
+                'success': False,
+                'error': 'User not found'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'avatar': {
+                'background': user['avatar_background'] or 'default',
+                'icon': user['avatar_icon'] or '🍎'
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Get avatar error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
+@app.route('/api/profile/avatar', methods=['PUT'])
+def save_profile_avatar():
+    """Save user's profile avatar configuration"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        background = data.get('background', 'default')
+        icon = data.get('icon', '🍎')
+        
+        logger.info(f"🎨 Saving avatar for user {user_id}: {background} + {icon}")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Update user's avatar fields
+        cursor.execute("""
+            UPDATE users 
+            SET avatar_background = %s, 
+                avatar_icon = %s, 
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (background, icon, user_id))
+        
+        if cursor.rowcount == 0:
+            return jsonify({
+                'success': False,
+                'error': 'User not found'
+            }), 404
+        
+        conn.commit()
+        
+        logger.info(f"✅ Avatar saved successfully for user {user_id}")
+        
+        return jsonify({
+            'success': True,
+            'avatar': {
+                'background': background,
+                'icon': icon
+            },
+            'message': 'Avatar saved successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Save avatar error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -3065,6 +3303,8 @@ def get_community_recipes():
                 u.email,
                 -- Use actual user name/username instead of generating from email
                 COALESCE(u.name, LEFT(u.email, POSITION('@' IN u.email) - 1) || 'Chef', 'AnonymousChef') as display_name,
+                u.avatar_background,
+                u.avatar_icon,
                 0 as likes  -- TODO: Add real likes count when like system is implemented
             FROM recipes r
             LEFT JOIN users u ON r.user_id = u.id
@@ -3089,6 +3329,10 @@ def get_community_recipes():
                 'shared_at': recipe['shared_at'].isoformat() if recipe['shared_at'] else None,
                 'user': recipe['display_name'],
                 'shared_by': recipe['display_name'],
+                'author_avatar': {
+                    'background': recipe['avatar_background'] or 'default',
+                    'icon': recipe['avatar_icon'] or '🍎'
+                },
                 'likes': recipe['likes'],
                 'image': recipe['community_icon'],  # For compatibility with existing frontend
                 # 🔧 FIX: Only include existing recipe content columns
