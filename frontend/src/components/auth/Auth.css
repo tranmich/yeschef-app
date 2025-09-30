@@ -244,3 +244,22 @@
     flex-direction: column;
   }
 }
+
+/* Privacy Policy Link */
+.privacy-policy-link {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.privacy-link {
+  color: #6b7280;
+  font-size: 14px;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.privacy-link:hover {
+  color: #374151;
+}

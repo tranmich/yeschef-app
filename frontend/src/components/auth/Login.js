@@ -115,6 +115,18 @@ const Login = () => {
             </button>
           </div>
         </div>
+
+        {/* Privacy Policy Link */}
+        <div className="privacy-policy-link">
+          <a 
+            href="https://raw.githubusercontent.com/tranmich/yeschef-app/gh-pages/index.html" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="privacy-link"
+          >
+            Privacy Policy
+          </a>
+        </div>
       </div>
     </div>
   );
