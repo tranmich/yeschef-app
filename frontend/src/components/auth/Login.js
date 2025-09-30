@@ -119,7 +119,7 @@ const Login = () => {
         {/* Privacy Policy Link */}
         <div className="privacy-policy-link">
           <a 
-            href="https://raw.githubusercontent.com/tranmich/yeschef-app/gh-pages/index.html" 
+            href="/privacypolicy.html" 
             target="_blank" 
             rel="noopener noreferrer"
             className="privacy-link"
