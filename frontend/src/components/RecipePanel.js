@@ -134,6 +134,12 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
   const ingredients = formatRecipeField(processedRecipe.ingredients);
   const instructions = formatRecipeField(processedRecipe.instructions);
 
+  // Format metadata fields for display
+  const formattedServings = recipe.servings ? `${recipe.servings} servings` : null;
+  const formattedTime = recipe.cookTime || recipe.totalTime || recipe.prepTime ? 
+    `${recipe.cookTime || recipe.totalTime || recipe.prepTime} min` : null;
+  const formattedDifficulty = recipe.difficulty ? recipe.difficulty.charAt(0).toUpperCase() + recipe.difficulty.slice(1) : null;
+
   console.log('🎨 RecipePanel - Processed ingredients:', ingredients);
   console.log('🎨 RecipePanel - Processed instructions:', instructions);
 
