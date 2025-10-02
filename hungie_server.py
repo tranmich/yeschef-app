@@ -639,6 +639,11 @@ def get_recipes():
 def create_recipe():
     """Create a new recipe"""
     try:
+        # Check authentication to get user_id
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
         data = request.get_json()
         if not data or not data.get('title'):
             return jsonify({
@@ -646,14 +651,14 @@ def create_recipe():
                 'error': 'Recipe title is required'
             }), 400
 
-        # Insert recipe into database
+        # Insert recipe into database WITH user_id
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # PostgreSQL syntax with RETURNING
+        # PostgreSQL syntax with RETURNING - NOW includes user_id
         cursor.execute('''
-            INSERT INTO recipes (title, description, ingredients, instructions, image_url, source, category, flavor_profile)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO recipes (title, description, ingredients, instructions, image_url, source, category, flavor_profile, user_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         ''', (
             data.get('title', ''),
@@ -663,14 +668,15 @@ def create_recipe():
             data.get('image_url', ''),
             data.get('source', ''),
             data.get('category', ''),
-            data.get('flavor_profile', '')
+            data.get('flavor_profile', ''),
+            user_id  # ✅ NOW includes user_id from authentication
         ))
         recipe_id = cursor.fetchone()['id']
 
         conn.commit()
         conn.close()
 
-        logger.info(f"? Recipe created: {data.get('title')} (ID: {recipe_id})")
+        logger.info(f"✅ Recipe created: {data.get('title')} (ID: {recipe_id}) for user {user_id}")
 
         return jsonify({
             'success': True,
