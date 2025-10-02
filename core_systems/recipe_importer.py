@@ -799,17 +799,13 @@ class UniversalRecipeImporter:
             if isinstance(processed_recipe.get('instructions'), list):
                 logger.info(f"   Instructions is a list with {len(processed_recipe['instructions'])} items")
             
-            # Save to database
-            try:
-                recipe_id = self._save_recipe_to_database(processed_recipe, user_id)
-                logger.info(f"✅ Saved YouTube recipe with ID: {recipe_id}")
-            except Exception as e:
-                logger.error(f"❌ Failed to save YouTube recipe: {e}")
-                recipe_id = None
+            # 🆕 DON'T auto-save YouTube imports - let user review first
+            # Mobile app will save after user confirms in RecipeImportReviewScreen
+            logger.info(f"✅ YouTube recipe extracted successfully (not saved yet - waiting for user review)")
             
             return ImportResult(
                 success=True,
-                recipe_id=recipe_id,
+                recipe_id=None,  # No ID yet - will be created when user saves
                 recipe_data=processed_recipe,
                 confidence=0.85,  # YouTube videos with transcripts generally have good structure
                 needs_review=True,  # Always review AI-extracted recipes
