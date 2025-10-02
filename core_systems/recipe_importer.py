@@ -93,6 +93,7 @@ class UniversalRecipeImporter:
         self.ingredient_engine = None
         self.search_engine = None
         self.web_extractor = None
+        self.youtube_extractor = None  # 🆕 YouTube support
         
         # Initialize existing systems if available
         try:
@@ -118,6 +119,15 @@ class UniversalRecipeImporter:
             logger.info("✅ WebRecipeExtractor initialized")
         except Exception as e:
             logger.warning(f"⚠️ Could not initialize WebRecipeExtractor: {e}")
+        
+        # 🆕 Initialize YouTube extractor
+        try:
+            from core_systems.youtube_recipe_extractor import YouTubeRecipeExtractor
+            self.youtube_extractor = YouTubeRecipeExtractor()
+            logger.info("✅ YouTubeRecipeExtractor initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not initialize YouTubeRecipeExtractor: {e}")
+            logger.warning("   YouTube video imports will not be available")
         
         # Configuration
         self.confidence_threshold = 0.7
@@ -242,6 +252,7 @@ class UniversalRecipeImporter:
     def import_from_url(self, url: str, user_id: int, metadata: Dict = None) -> ImportResult:
         """
         Import recipe from website URL using advanced web extraction
+        Supports regular recipe websites and YouTube cooking videos
         """
         try:
             logger.info(f"🌐 Processing URL import: {url}")
@@ -253,7 +264,12 @@ class UniversalRecipeImporter:
                     extraction_method="url_validation_failed"
                 )
             
-            # Use WebRecipeExtractor if available
+            # 🆕 Check if this is a YouTube URL
+            if self._is_youtube_url(url):
+                logger.info("🎥 Detected YouTube URL - using YouTube extractor")
+                return self._import_from_youtube(url, user_id, metadata)
+            
+            # Use WebRecipeExtractor for regular websites
             if self.web_extractor:
                 # Extract recipe using advanced web extraction
                 web_recipe_data = self.web_extractor.extract_from_url(url)
@@ -562,6 +578,19 @@ class UniversalRecipeImporter:
             conn = self.get_database_connection()
             cursor = conn.cursor()
             
+            # 🔧 Convert arrays to strings for database if needed
+            ingredients = recipe_data.get('ingredients', '')
+            if isinstance(ingredients, list):
+                # Keep as JSON array for proper parsing in mobile app
+                ingredients = json.dumps(ingredients)
+                logger.info(f"📝 Converted ingredients list to JSON string")
+            
+            instructions = recipe_data.get('instructions', '')
+            if isinstance(instructions, list):
+                # Keep as JSON array for proper parsing in mobile app
+                instructions = json.dumps(instructions)
+                logger.info(f"📝 Converted instructions list to JSON string")
+            
             # Insert recipe using enhanced schema for imported recipes
             insert_query = """
                 INSERT INTO recipes (title, ingredients, instructions, category, 
@@ -597,8 +626,8 @@ class UniversalRecipeImporter:
             
             cursor.execute(insert_query, (
                 recipe_data.get('title', 'Imported Recipe'),
-                recipe_data.get('ingredients', ''),
-                recipe_data.get('instructions', ''),
+                ingredients,  # Now properly formatted as JSON string
+                instructions,  # Now properly formatted as JSON string
                 'imported',  # Always mark as 'imported' category for easy filtering
                 time_min,  # hands_on_time
                 time_min,  # total_time (same as hands_on for imported)
@@ -667,6 +696,246 @@ class UniversalRecipeImporter:
         """
         from difflib import SequenceMatcher
         return SequenceMatcher(None, text1.lower(), text2.lower()).ratio()
+    
+    # 🎥 YouTube Integration Methods
+    
+    def _is_youtube_url(self, url: str) -> bool:
+        """Check if URL is from YouTube"""
+        youtube_domains = ['youtube.com', 'youtu.be', 'm.youtube.com']
+        url_lower = url.lower()
+        return any(domain in url_lower for domain in youtube_domains)
+    
+    def _import_from_youtube(self, url: str, user_id: int, metadata: Dict = None) -> ImportResult:
+        """
+        Import recipe from YouTube video
+        
+        Flow:
+        1. Extract video content (metadata + transcript) using YouTubeRecipeExtractor
+        2. Send combined text to OpenAI for recipe parsing
+        3. Process ingredients with IngredientIntelligenceEngine
+        4. Save to database
+        
+        Args:
+            url: YouTube video URL
+            user_id: User ID for recipe ownership
+            metadata: Optional metadata
+            
+        Returns:
+            ImportResult with recipe data
+        """
+        if not self.youtube_extractor:
+            return ImportResult(
+                success=False,
+                errors=['YouTube extraction not available - missing API key or dependencies'],
+                extraction_method='youtube_unavailable'
+            )
+        
+        try:
+            # Extract video content
+            logger.info(f"🎥 Extracting YouTube video content from: {url}")
+            extraction_result = self.youtube_extractor.extract_recipe_content(url)
+            
+            if not extraction_result['success']:
+                return ImportResult(
+                    success=False,
+                    errors=[extraction_result.get('error', 'YouTube extraction failed')],
+                    extraction_method='youtube_extraction_failed'
+                )
+            
+            video_data = extraction_result['video_data']
+            combined_text = extraction_result['combined_text']
+            
+            logger.info(f"✅ Extracted YouTube content:")
+            logger.info(f"   Title: {video_data.title}")
+            logger.info(f"   Channel: {video_data.channel}")
+            logger.info(f"   Has Transcript: {video_data.captions_available}")
+            logger.info(f"   Text Length: {len(combined_text)} chars")
+            
+            # Parse recipe using OpenAI
+            logger.info(f"🤖 Parsing recipe with OpenAI...")
+            recipe_data = self._parse_youtube_recipe_with_ai(combined_text, video_data, url)
+            
+            if not recipe_data:
+                return ImportResult(
+                    success=False,
+                    errors=['AI recipe parsing failed - could not extract recipe from video content'],
+                    warnings=['Video may not contain a complete recipe'],
+                    extraction_method='youtube_ai_parsing_failed'
+                )
+            
+            # 🔍 DEBUG: Log what AI returned
+            logger.info(f"🔍 AI Parser returned recipe_data:")
+            logger.info(f"   Title: {recipe_data.get('title', 'MISSING')}")
+            logger.info(f"   Ingredients type: {type(recipe_data.get('ingredients'))}")
+            logger.info(f"   Ingredients count: {len(recipe_data.get('ingredients', []))}")
+            logger.info(f"   Ingredients sample: {recipe_data.get('ingredients', [])[:2]}")
+            logger.info(f"   Instructions type: {type(recipe_data.get('instructions'))}")
+            logger.info(f"   Instructions count: {len(recipe_data.get('instructions', []))}")
+            logger.info(f"   Instructions sample: {recipe_data.get('instructions', [])[:2]}")
+            logger.info(f"   All keys in recipe_data: {list(recipe_data.keys())}")
+            
+            # Enhance with video metadata
+            recipe_data['source'] = 'YouTube'
+            recipe_data['source_url'] = url
+            recipe_data['source_title'] = video_data.title
+            recipe_data['source_channel'] = video_data.channel
+            if video_data.thumbnail_url:
+                recipe_data['image_url'] = video_data.thumbnail_url
+            
+            # Process ingredients with existing intelligence
+            if self.ingredient_engine and recipe_data.get('ingredients'):
+                logger.info(f"🧠 Processing ingredients with IngredientIntelligenceEngine...")
+                processed_recipe = self._process_with_intelligence(recipe_data, user_id)
+            else:
+                processed_recipe = recipe_data
+            
+            # 🔍 DEBUG: Log processed recipe before save
+            logger.info(f"🔍 Processed recipe before database save:")
+            logger.info(f"   Title: {processed_recipe.get('title')}")
+            logger.info(f"   Ingredients type: {type(processed_recipe.get('ingredients'))}")
+            if isinstance(processed_recipe.get('ingredients'), list):
+                logger.info(f"   Ingredients is a list with {len(processed_recipe['ingredients'])} items")
+            logger.info(f"   Instructions type: {type(processed_recipe.get('instructions'))}")
+            if isinstance(processed_recipe.get('instructions'), list):
+                logger.info(f"   Instructions is a list with {len(processed_recipe['instructions'])} items")
+            
+            # Save to database
+            try:
+                recipe_id = self._save_recipe_to_database(processed_recipe, user_id)
+                logger.info(f"✅ Saved YouTube recipe with ID: {recipe_id}")
+            except Exception as e:
+                logger.error(f"❌ Failed to save YouTube recipe: {e}")
+                recipe_id = None
+            
+            return ImportResult(
+                success=True,
+                recipe_id=recipe_id,
+                recipe_data=processed_recipe,
+                confidence=0.85,  # YouTube videos with transcripts generally have good structure
+                needs_review=True,  # Always review AI-extracted recipes
+                extraction_method='youtube_ai',
+                warnings=['Please review AI-extracted recipe for accuracy']
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ YouTube import failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return ImportResult(
+                success=False,
+                errors=[f'YouTube import error: {str(e)}'],
+                extraction_method='youtube_exception'
+            )
+    
+    def _parse_youtube_recipe_with_ai(self, text: str, video_data, url: str) -> Optional[Dict]:
+        """
+        Use OpenAI to parse recipe from YouTube video content
+        
+        This is where the magic happens: converts raw video text → structured recipe
+        
+        Args:
+            text: Combined text from video (title + description + transcript)
+            video_data: YouTubeVideoData object with metadata
+            url: Original video URL
+            
+        Returns:
+            Dict with recipe data or None if parsing fails
+        """
+        import openai
+        
+        # Get API key from environment
+        openai_key = os.getenv('OPENAI_API_KEY')
+        
+        if not openai_key:
+            logger.error("❌ OpenAI API key not configured")
+            return None
+        
+        try:
+            client = openai.OpenAI(api_key=openai_key)
+            
+            prompt = f"""
+You are a recipe extraction expert. Extract recipe information from this YouTube cooking video content and format it as JSON.
+
+VIDEO INFORMATION:
+- Title: {video_data.title}
+- Channel: {video_data.channel}
+- Duration: {video_data.duration_seconds} seconds
+- Source URL: {url}
+
+VIDEO CONTENT:
+{text[:15000]}  
+
+INSTRUCTIONS:
+Extract and return a complete recipe in this EXACT JSON format:
+{{
+  "title": "Recipe name (extract from video title)",
+  "servings": "number or range (e.g., '4' or '4-6')",
+  "prep_time": "preparation time in minutes (number only, estimate if not mentioned)",
+  "cook_time": "cooking time in minutes (number only, estimate if not mentioned)",
+  "total_time": "total time in minutes (number only)",
+  "difficulty": "easy, medium, or hard (estimate based on recipe complexity)",
+  "ingredients": [
+    "ingredient with quantity (e.g., '2 cups all-purpose flour')",
+    "ingredient with quantity",
+    ...
+  ],
+  "instructions": [
+    "Step 1: Detailed instruction with specific actions",
+    "Step 2: Detailed instruction",
+    ...
+  ],
+  "tips": [
+    "Optional cooking tip or variation",
+    ...
+  ],
+  "description": "Brief 1-2 sentence description of what this recipe is",
+  "tags": ["tag1", "tag2", "tag3"]
+}}
+
+CRITICAL RULES:
+1. Extract ALL ingredients mentioned with their exact quantities
+2. Preserve measurements (cups, tablespoons, grams, teaspoons, etc.)
+3. Keep instruction steps in chronological order
+4. Break long instructions into clear numbered steps
+5. If times aren't explicitly mentioned, estimate based on recipe type
+6. Include any special techniques, equipment, or temperature settings
+7. Make the description appealing and informative
+8. Add relevant tags (e.g., "quick", "vegetarian", "dessert", "italian")
+9. If servings aren't mentioned, estimate based on ingredient quantities
+10. Return ONLY valid JSON - no markdown, no explanations, just the JSON object
+
+Focus on creating a complete, accurate, and user-friendly recipe. The user will review it before saving.
+"""
+            
+            logger.info(f"🤖 Sending {len(prompt)} chars to OpenAI GPT-4...")
+            
+            response = client.chat.completions.create(
+                model="gpt-4-turbo-preview",
+                messages=[
+                    {"role": "system", "content": "You are a recipe extraction expert. Return only valid JSON with complete recipe information."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.3,  # Lower temperature for more consistent/accurate results
+                max_tokens=2000
+            )
+            
+            recipe_json = response.choices[0].message.content
+            recipe_data = json.loads(recipe_json)
+            
+            logger.info(f"✅ OpenAI successfully parsed recipe:")
+            logger.info(f"   Title: {recipe_data.get('title', 'Unknown')}")
+            logger.info(f"   Ingredients: {len(recipe_data.get('ingredients', []))} items")
+            logger.info(f"   Instructions: {len(recipe_data.get('instructions', []))} steps")
+            
+            return recipe_data
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Failed to parse OpenAI response as JSON: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ OpenAI API error: {e}")
+            return None
 
 # Export main class
 __all__ = ['UniversalRecipeImporter', 'ImportRequest', 'ImportResult']

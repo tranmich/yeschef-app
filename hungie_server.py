@@ -4623,7 +4623,18 @@ def import_recipe_from_url():
             'warnings': result.warnings
         }
         
-        logger.info(f"📤 Sending response: {response_data}")
+        # 🔍 DEBUG: Log what we're sending to mobile
+        logger.info(f"📤 Sending response to mobile:")
+        logger.info(f"   Success: {response_data['success']}")
+        logger.info(f"   Recipe ID: {response_data['recipe_id']}")
+        if response_data['recipe_data']:
+            logger.info(f"   Recipe title: {response_data['recipe_data'].get('title', 'MISSING')}")
+            logger.info(f"   Ingredients type: {type(response_data['recipe_data'].get('ingredients'))}")
+            logger.info(f"   Ingredients count: {len(response_data['recipe_data'].get('ingredients', []))}")
+            logger.info(f"   Instructions type: {type(response_data['recipe_data'].get('instructions'))}")
+            logger.info(f"   Instructions count: {len(response_data['recipe_data'].get('instructions', []))}")
+        
+        logger.info(f"📤 Sending full response data")
         return jsonify(response_data)
         
     except Exception as e:
