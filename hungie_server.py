@@ -651,6 +651,21 @@ def create_recipe():
                 'error': 'Recipe title is required'
             }), 400
 
+        # 🔧 Ensure ingredients and instructions are properly formatted as JSON arrays
+        ingredients = data.get('ingredients', '')
+        if isinstance(ingredients, list):
+            ingredients = json.dumps(ingredients)  # Convert list to JSON string
+        elif isinstance(ingredients, str) and not ingredients.strip().startswith('['):
+            # If it's a plain string, keep it as is
+            pass
+        
+        instructions = data.get('instructions', '')
+        if isinstance(instructions, list):
+            instructions = json.dumps(instructions)  # Convert list to JSON string
+        elif isinstance(instructions, str) and not instructions.strip().startswith('['):
+            # If it's a plain string, keep it as is
+            pass
+
         # Insert recipe into database WITH user_id
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -663,8 +678,8 @@ def create_recipe():
         ''', (
             data.get('title', ''),
             data.get('description', ''),
-            data.get('ingredients', ''),
-            data.get('instructions', ''),
+            ingredients,  # Now properly formatted
+            instructions,  # Now properly formatted
             data.get('image_url', ''),
             data.get('source', ''),
             data.get('category', ''),
