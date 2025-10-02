@@ -876,9 +876,9 @@ Extract and return a complete recipe in this EXACT JSON format:
     ...
   ],
   "instructions": [
-    "Step 1: Detailed instruction with specific actions",
-    "Step 2: Detailed instruction",
-    ...
+    "Detailed instruction with specific actions",
+    "Another detailed instruction",
+    "Continue with remaining instructions"
   ],
   "tips": [
     "Optional cooking tip or variation",
@@ -892,13 +892,14 @@ CRITICAL RULES:
 1. Extract ALL ingredients mentioned with their exact quantities
 2. Preserve measurements (cups, tablespoons, grams, teaspoons, etc.)
 3. Keep instruction steps in chronological order
-4. Break long instructions into clear numbered steps
-5. If times aren't explicitly mentioned, estimate based on recipe type
-6. Include any special techniques, equipment, or temperature settings
-7. Make the description appealing and informative
-8. Add relevant tags (e.g., "quick", "vegetarian", "dessert", "italian")
-9. If servings aren't mentioned, estimate based on ingredient quantities
-10. Return ONLY valid JSON - no markdown, no explanations, just the JSON object
+4. DO NOT include step numbers like "Step 1:", "Step 2:" - just write the instruction
+5. Each instruction should be a complete sentence describing one action or set of related actions
+6. If times aren't explicitly mentioned, estimate based on recipe type
+7. Include any special techniques, equipment, or temperature settings in the relevant instruction
+8. Make the description appealing and informative
+9. Add relevant tags (e.g., "quick", "vegetarian", "dessert", "italian")
+10. If servings aren't mentioned, estimate based on ingredient quantities
+11. Return ONLY valid JSON - no markdown, no explanations, just the JSON object
 
 Focus on creating a complete, accurate, and user-friendly recipe. The user will review it before saving.
 """

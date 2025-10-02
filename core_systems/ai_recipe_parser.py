@@ -157,9 +157,9 @@ Extract and return recipe data in this EXACT JSON format:
     "ingredient with quantity (e.g., '1 teaspoon salt')"
   ],
   "instructions": [
-    "Step 1: Detailed instruction with times/temps if mentioned",
-    "Step 2: Detailed instruction with techniques",
-    "Step 3: Continue in order..."
+    "Detailed instruction with times/temps if mentioned",
+    "Another detailed instruction with techniques",
+    "Continue with remaining instructions in chronological order"
   ],
   "tips": [
     "Optional cooking tip or variation",
@@ -176,13 +176,14 @@ CRITICAL RULES:
 2. Preserve measurements exactly (cups, tablespoons, grams, ounces, etc.)
 3. Keep instruction steps in chronological order
 4. Include cooking times, temperatures, and techniques in instructions
-5. If prep_time, cook_time, or total_time aren't mentioned, set to null
-6. Estimate difficulty: easy (< 5 steps), medium (5-10 steps), hard (10+ steps or complex techniques)
-7. Extract any tips, variations, or serving suggestions mentioned
-8. Add relevant tags (cooking methods, main ingredients, dietary info)
-9. Identify cuisine and category based on recipe characteristics
-10. Return ONLY valid JSON, no markdown formatting or explanations
-11. If information is unclear, use your best judgment based on recipe context
+5. DO NOT include step numbers like "Step 1:", "Step 2:" - just the instruction text
+6. If prep_time, cook_time, or total_time aren't mentioned, set to null
+7. Estimate difficulty: easy (< 5 steps), medium (5-10 steps), hard (10+ steps or complex techniques)
+8. Extract any tips, variations, or serving suggestions mentioned
+9. Add relevant tags (cooking methods, main ingredients, dietary info)
+10. Identify cuisine and category based on recipe characteristics
+11. Return ONLY valid JSON, no markdown formatting or explanations
+12. If information is unclear, use your best judgment based on recipe context
 
 Focus on accuracy and completeness. This recipe will be reviewed by the user before saving.
 """
@@ -223,7 +224,7 @@ Extract and return recipe data in this EXACT JSON format:
   "total_time": "total time in minutes (number only, or null)",
   "difficulty": "easy, medium, or hard",
   "ingredients": ["ingredient with quantity", ...],
-  "instructions": ["Step 1: instruction", "Step 2: instruction", ...],
+  "instructions": ["First instruction without step number", "Second instruction", ...],
   "tips": ["tip 1", ...],
   "tags": ["tag1", "tag2", ...],
   "cuisine": "cuisine type",
