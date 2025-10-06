@@ -319,9 +319,9 @@ class VoiceSessionProcessor:
                 metadata
             )
             
-            # Call GPT-4
+            # Call GPT-4 (using gpt-4o which supports JSON mode)
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o",  # gpt-4o supports json_object response format
                 messages=[
                     {
                         "role": "system",
