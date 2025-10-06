@@ -121,7 +121,7 @@ class VoiceSessionProcessor:
         Transcribe audio file using OpenAI Whisper API
         
         Args:
-            audio_file: Audio file object or path
+            audio_file: Audio file object (Flask FileStorage) or file-like object
             language_code: ISO language code for Whisper
         
         Returns:
@@ -130,13 +130,35 @@ class VoiceSessionProcessor:
         try:
             logger.info(f"🎧 Transcribing audio (language: {language_code})...")
             
-            # Call Whisper API
-            transcript = self.client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                language=language_code,
-                response_format="text"
-            )
+            # Handle Flask FileStorage object - need to read bytes
+            # OpenAI expects a tuple: (filename, file_content, content_type)
+            if hasattr(audio_file, 'read'):
+                # It's a file-like object (FileStorage)
+                filename = getattr(audio_file, 'filename', 'audio.m4a')
+                content_type = getattr(audio_file, 'content_type', 'audio/m4a')
+                file_content = audio_file.read()
+                
+                # Reset stream position if possible
+                if hasattr(audio_file, 'seek'):
+                    audio_file.seek(0)
+                
+                logger.info(f"   File: {filename} ({len(file_content)} bytes)")
+                
+                # Call Whisper API with tuple format
+                transcript = self.client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=(filename, file_content, content_type),
+                    language=language_code,
+                    response_format="text"
+                )
+            else:
+                # It's already a path or proper format
+                transcript = self.client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    language=language_code,
+                    response_format="text"
+                )
             
             logger.info(f"✅ Transcription complete ({len(transcript)} chars)")
             return transcript
