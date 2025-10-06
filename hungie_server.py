@@ -340,7 +340,15 @@ def init_db():
                 community_title TEXT NULL,
                 community_description TEXT NULL,
                 community_background TEXT DEFAULT 'default',
-                community_icon TEXT DEFAULT '🍽️'
+                community_icon TEXT DEFAULT '🍽️',
+                -- 🎤 Voice Recording Features (Phase 1 - Oct 6, 2025)
+                user_id INTEGER,
+                audio_url TEXT,
+                recorded_by VARCHAR(255),
+                recorded_date TIMESTAMP,
+                transcript TEXT,
+                recording_occasion VARCHAR(255),
+                source_attribution VARCHAR(500)
             )
         ''')
 
@@ -389,9 +397,73 @@ def init_db():
             )
         ''')
 
+        # 💡 Community Cooking Tips (Phase 2 - Oct 6, 2025)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS community_cooking_tips (
+                id SERIAL PRIMARY KEY,
+                tip_text TEXT NOT NULL,
+                dish_type VARCHAR(100),
+                technique_category VARCHAR(50),
+                ingredient_related VARCHAR(100),
+                cuisine VARCHAR(50),
+                source_recipe_id INTEGER REFERENCES recipes(id),
+                contributed_by_user_id INTEGER REFERENCES users(id),
+                contributed_date TIMESTAMP DEFAULT NOW(),
+                helpfulness_score FLOAT DEFAULT 0.0,
+                times_shown INTEGER DEFAULT 0,
+                times_marked_helpful INTEGER DEFAULT 0,
+                is_approved BOOLEAN DEFAULT FALSE,
+                is_active BOOLEAN DEFAULT TRUE,
+                tags TEXT[],
+                keywords TEXT[],
+                UNIQUE(tip_text, dish_type)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_tips_dish_type ON community_cooking_tips(dish_type)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_tips_technique ON community_cooking_tips(technique_category)
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_tips_score ON community_cooking_tips(helpfulness_score DESC)
+        ''')
+
+        # 💡 Tip Interactions Tracking
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tip_interactions (
+                id SERIAL PRIMARY KEY,
+                tip_id INTEGER REFERENCES community_cooking_tips(id),
+                user_id INTEGER REFERENCES users(id),
+                recipe_id INTEGER REFERENCES recipes(id),
+                marked_helpful BOOLEAN,
+                interaction_date TIMESTAMP DEFAULT NOW()
+            )
+        ''')
+
+        # 🎤 Migration: Add voice recording columns to existing recipes table
+        try:
+            logger.info("🔄 Checking for voice recording columns migration...")
+            cursor.execute("""
+                ALTER TABLE recipes 
+                ADD COLUMN IF NOT EXISTS user_id INTEGER,
+                ADD COLUMN IF NOT EXISTS audio_url TEXT,
+                ADD COLUMN IF NOT EXISTS recorded_by VARCHAR(255),
+                ADD COLUMN IF NOT EXISTS recorded_date TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS transcript TEXT,
+                ADD COLUMN IF NOT EXISTS recording_occasion VARCHAR(255),
+                ADD COLUMN IF NOT EXISTS source_attribution VARCHAR(500)
+            """)
+            logger.info("✅ Voice recording columns migration complete")
+        except Exception as migration_error:
+            logger.warning(f"⚠️ Voice recording migration skipped (columns may already exist): {migration_error}")
+
         conn.commit()
         conn.close()
-        logger.info("? Database tables initialized successfully")
+        logger.info("✅ Database tables initialized successfully")
 
     except Exception as e:
         logger.error(f"? Database initialization error: {e}")
@@ -4708,6 +4780,233 @@ def check_recipe_duplicates():
         return jsonify({
             'success': False,
             'error': f'Duplicate check failed: {str(e)}'
+        }), 500
+
+# ===================================
+# VOICE RECIPE RECORDING ENDPOINTS (Phase 1 - Oct 6, 2025)
+# ===================================
+
+# Import voice recording systems
+try:
+    from core_systems.voice_session_processor import VoiceSessionProcessor
+    from core_systems.language_matcher import LanguageMatcher
+    
+    voice_processor = VoiceSessionProcessor(client)
+    language_matcher = LanguageMatcher()
+    VOICE_RECORDING_AVAILABLE = True
+    logger.info("🎤 Voice recording system loaded successfully")
+except ImportError as e:
+    voice_processor = None
+    language_matcher = None
+    VOICE_RECORDING_AVAILABLE = False
+    logger.warning(f"⚠️ Voice recording system not available: {e}")
+
+@app.route('/api/recipes/voice/languages/search', methods=['GET'])
+def search_languages():
+    """
+    Search available languages for voice recording
+    Query parameter: ?q=filipino
+    """
+    if not VOICE_RECORDING_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'Voice recording system not available'
+        }), 503
+    
+    try:
+        query = request.args.get('q', '')
+        results = language_matcher.search(query)
+        
+        return jsonify({
+            'success': True,
+            'languages': results,
+            'count': len(results)
+        })
+    except Exception as e:
+        logger.error(f"Language search failed: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/recipes/voice/session/process', methods=['POST'])
+def process_voice_session():
+    """
+    Process complete voice recording session
+    
+    Expects multipart/form-data with:
+    - segment_0, segment_1, segment_2, ... (audio files)
+    - metadata (JSON string with session info)
+    """
+    if not VOICE_RECORDING_AVAILABLE:
+        logger.error("❌ Voice recording system not available")
+        return jsonify({
+            'success': False,
+            'error': 'Voice recording system not available'
+        }), 503
+    
+    # Check authentication
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            logger.error(f"❌ Authentication failed: {error_response}")
+            return error_response, status_code
+        logger.info(f"✅ Authentication successful for user {user_id}")
+    except Exception as e:
+        logger.error(f"❌ Authentication error: {e}")
+        return jsonify({'success': False, 'error': f'Authentication error: {str(e)}'}), 500
+    
+    try:
+        # Parse metadata
+        metadata_str = request.form.get('metadata', '{}')
+        metadata = json.loads(metadata_str)
+        
+        logger.info(f"🎤 Processing voice session for user {user_id}")
+        logger.info(f"   Session ID: {metadata.get('session_id')}")
+        logger.info(f"   Language: {metadata.get('language_config', {}).get('culture', 'Unknown')}")
+        
+        # Extract audio segments from request
+        segments = []
+        segment_index = 0
+        while True:
+            audio_file = request.files.get(f'segment_{segment_index}')
+            if not audio_file:
+                break
+            
+            segment_metadata = metadata.get('segments', [])[segment_index] if segment_index < len(metadata.get('segments', [])) else {}
+            
+            segments.append({
+                'audio_file': audio_file,
+                'label': segment_metadata.get('label'),
+                'duration_ms': segment_metadata.get('duration_ms', 0)
+            })
+            
+            segment_index += 1
+        
+        if not segments:
+            logger.error("❌ No audio segments found in request")
+            return jsonify({
+                'success': False,
+                'error': 'No audio segments provided'
+            }), 400
+        
+        logger.info(f"   Found {len(segments)} audio segments")
+        
+        # Process session
+        session_data = {
+            'session_id': metadata.get('session_id'),
+            'segments': segments,
+            'total_duration_ms': metadata.get('total_duration_ms', 0),
+            'language_config': metadata.get('language_config', {})
+        }
+        
+        result = voice_processor.process_session(session_data, user_id)
+        
+        if result.get('success'):
+            logger.info(f"✅ Session processed successfully")
+            logger.info(f"   Transcript length: {len(result.get('combined_transcript', ''))} chars")
+            logger.info(f"   Confidence: {result.get('confidence', 0):.2f}")
+        else:
+            logger.error(f"❌ Session processing failed: {result.get('error')}")
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"❌ Voice session processing failed: {e}")
+        import traceback
+        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': f'Session processing failed: {str(e)}'
+        }), 500
+
+@app.route('/api/recipes/voice/generate', methods=['POST'])
+def generate_recipe_from_transcript():
+    """
+    Generate structured recipe from approved transcript
+    
+    Expects JSON:
+    {
+        "transcript": "user-approved transcript text",
+        "metadata": {
+            "recorded_by": "Grandma",
+            "culture": "Filipino",
+            "language": "tl",
+            "duration": 120000,
+            "session_id": "uuid"
+        }
+    }
+    """
+    if not VOICE_RECORDING_AVAILABLE:
+        logger.error("❌ Voice recording system not available")
+        return jsonify({
+            'success': False,
+            'error': 'Voice recording system not available'
+        }), 503
+    
+    # Check authentication
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            logger.error(f"❌ Authentication failed: {error_response}")
+            return error_response, status_code
+        logger.info(f"✅ Authentication successful for user {user_id}")
+    except Exception as e:
+        logger.error(f"❌ Authentication error: {e}")
+        return jsonify({'success': False, 'error': f'Authentication error: {str(e)}'}), 500
+    
+    try:
+        data = request.get_json()
+        
+        if not data or 'transcript' not in data:
+            logger.error("❌ Missing transcript in request")
+            return jsonify({
+                'success': False,
+                'error': 'Missing transcript in request body'
+            }), 400
+        
+        transcript = data['transcript']
+        metadata = data.get('metadata', {})
+        
+        logger.info(f"🤖 Generating recipe from transcript for user {user_id}")
+        logger.info(f"   Transcript length: {len(transcript)} chars")
+        logger.info(f"   Culture: {metadata.get('culture', 'Unknown')}")
+        
+        # Generate recipe
+        recipe_data = voice_processor.generate_recipe_from_approved_transcript(
+            transcript, 
+            metadata
+        )
+        
+        # Add user attribution
+        recipe_data['user_id'] = user_id
+        recipe_data['transcript'] = transcript
+        recipe_data['recorded_by'] = metadata.get('recorded_by', 'Family')
+        
+        logger.info(f"✅ Recipe generated: {recipe_data.get('title')}")
+        logger.info(f"   Ingredients: {len(recipe_data.get('ingredients', []))}")
+        logger.info(f"   Instructions: {len(recipe_data.get('instructions', []))}")
+        
+        # Return in same format as URL import (for consistency)
+        response_data = {
+            'success': True,
+            'recipe_id': None,  # Not saved yet
+            'recipe_data': recipe_data,
+            'confidence': 0.85,
+            'needs_review': False,  # User already reviewed transcript
+            'extraction_method': 'voice_session',
+            'processing_time': metadata.get('duration', 0) / 1000.0
+        }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"❌ Recipe generation failed: {e}")
+        import traceback
+        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': f'Recipe generation failed: {str(e)}'
         }), 500
 
 # ===================================
