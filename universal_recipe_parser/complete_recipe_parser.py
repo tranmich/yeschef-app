@@ -1510,6 +1510,154 @@ class TrainingDataGenerator:
         # Overall confidence
         return sum(scores) / len(scores) if scores else 0.0
 
+    def extract_from_text(self, text: str, source: str = 'ocr') -> RecipeData:
+        """
+        Extract recipe from plain text (OCR, pasted text, etc.)
+        
+        Args:
+            text: Plain text containing recipe
+            source: Source type ('ocr', 'text', 'manual')
+            
+        Returns:
+            RecipeData object with extracted recipe
+        """
+        logger.info(f"📝 Extracting recipe from {source} text ({len(text)} characters)...")
+        logger.debug(f"First 500 chars of text:\n{text[:500]}")
+        
+        recipe = RecipeData(
+            title="",
+            ingredients="",
+            instructions="",
+            source=source,
+            extraction_metadata={'source_type': source, 'text_length': len(text)}
+        )
+        
+        # Split into lines for processing
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        
+        # Strategy 1: Look for clear section headers
+        title_found = False
+        ingredients_section = []
+        instructions_section = []
+        current_section = None
+        
+        # Skip common OCR artifacts
+        skip_patterns = ['page', '===', '---', 'www.', 'http']
+        
+        for i, line in enumerate(lines):
+            line_lower = line.lower()
+            
+            # Skip page markers and separators
+            if any(pattern in line_lower for pattern in skip_patterns):
+                continue
+            
+            # Detect title (usually first meaningful line)
+            if not title_found and i < 10 and len(line) > 3:
+                # Skip if it looks like a header marker or page number
+                if 'ingredient' not in line_lower and 'instruction' not in line_lower and 'direction' not in line_lower:
+                    # Check if it's likely a title
+                    # Title should have letters, not just numbers
+                    letter_count = sum(1 for c in line if c.isalpha())
+                    digit_count = sum(1 for c in line if c.isdigit())
+                    
+                    if letter_count > digit_count and len(line) < 150:
+                        # Not a serving size or time indicator
+                        if not any(word in line_lower for word in ['serves', 'serving', 'yield', 'prep', 'cook', 'total']):
+                            recipe.title = line
+                            title_found = True
+                            logger.debug(f"Found title: {line}")
+                            continue
+            
+            # Detect ingredients section
+            if 'ingredient' in line_lower:
+                current_section = 'ingredients'
+                logger.debug("Switched to ingredients section")
+                continue
+            
+            # Detect instructions section
+            if any(marker in line_lower for marker in ['instruction', 'direction', 'method', 'preparation', 'procedure']):
+                current_section = 'instructions'
+                logger.debug("Switched to instructions section")
+                continue
+            
+            # Collect lines based on current section
+            if current_section == 'ingredients':
+                # Check if still in ingredients (look for measurement patterns)
+                has_measurement = any(unit in line_lower for unit in [
+                    'cup', 'tablespoon', 'teaspoon', 'oz', 'ounce', 'lb', 'pound',
+                    'gram', 'kg', 'ml', 'liter', 'tsp', 'tbsp', 'pinch', 'dash'
+                ])
+                has_bullet = line.strip().startswith(('-', '•', '*', '+', '◦'))
+                has_number = any(char.isdigit() for char in line[:5])
+                
+                # Include line if it has measurements, bullets, or numbers at start
+                if has_measurement or has_bullet or has_number:
+                    ingredients_section.append(line)
+                    logger.debug(f"Added ingredient: {line[:50]}")
+                elif line and len(line) > 3:
+                    # Could still be an ingredient (like "Salt" or "Pepper")
+                    # Check if next section hasn't started
+                    if not any(marker in line_lower for marker in ['instruction', 'direction', 'method', 'step']):
+                        ingredients_section.append(line)
+                    else:
+                        current_section = 'instructions'
+                        instructions_section.append(line)
+            
+            elif current_section == 'instructions':
+                instructions_section.append(line)
+                logger.debug(f"Added instruction: {line[:50]}")
+        
+        # Join sections
+        recipe.ingredients = '\n'.join(ingredients_section).strip()
+        recipe.instructions = '\n'.join(instructions_section).strip()
+        
+        # If still no title, try to find the most prominent line
+        if not recipe.title or recipe.title.lower() in ['page 1', 'page 2', 'recipe']:
+            logger.info("⚠️ No good title found, searching for prominent text...")
+            for line in lines[:15]:  # Check first 15 lines
+                line_lower = line.lower()
+                if len(line) > 10 and len(line) < 100:
+                    if not any(skip in line_lower for skip in ['page', 'ingredient', 'instruction', '===']):
+                        if not any(char.isdigit() for char in line[:3]):  # Not starting with number
+                            recipe.title = line
+                            logger.info(f"Found alternate title: {line}")
+                            break
+        
+        # Fallback title
+        if not recipe.title:
+            recipe.title = "Recipe from Scan"
+            logger.warning("⚠️ Could not find title, using default")
+        
+        # Calculate confidence
+        confidence_scores = {}
+        
+        # Title confidence
+        if recipe.title and recipe.title not in ["Recipe from Scan", "=== Page 1 ==="]:
+            confidence_scores['title'] = 0.8
+        else:
+            confidence_scores['title'] = 0.3
+        
+        # Ingredients confidence
+        if recipe.ingredients and len(recipe.ingredients) > 20:
+            confidence_scores['ingredients'] = 0.7
+        else:
+            confidence_scores['ingredients'] = 0.3
+        
+        # Instructions confidence
+        if recipe.instructions and len(recipe.instructions) > 50:
+            confidence_scores['instructions'] = 0.7
+        else:
+            confidence_scores['instructions'] = 0.3
+        
+        overall_confidence = sum(confidence_scores.values()) / len(confidence_scores)
+        recipe.confidence_scores = {'overall': overall_confidence, **confidence_scores}
+        
+        logger.info(f"✅ Extracted recipe: '{recipe.title}' (confidence: {overall_confidence:.2f})")
+        logger.info(f"   📝 Ingredients: {len(recipe.ingredients)} chars, {len(ingredients_section)} items")
+        logger.info(f"   📝 Instructions: {len(recipe.instructions)} chars")
+        
+        return recipe
+
 
 # CLI Interface
 def main():

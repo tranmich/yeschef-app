@@ -1,14 +1,5 @@
 """
-🚀 Universal Recipe Importer - # Import existing Me Hungie systems
-try:
-    from cookbook_processing.adaptive_recipe_extractor import AdaptiveRecipeExtractor, Recipe
-    from core_systems.ingredient_intelligence_engine import IngredientIntelligenceEngine, IngredientMapping
-    from core_systems.universal_search import UniversalSearchEngine
-    from core_systems.web_recipe_extractor import WebRecipeExtractor, WebRecipeData
-    # Import UniversalRecipeParser for OCR text extraction
-    from universal_recipe_parser.complete_recipe_parser import UniversalRecipeParser
-except ImportError as e:
-    print(f"⚠️ Warning: Could not import some systems: {e}")ort Orchestrator
+🚀 Universal Recipe Importer - Import Orchestrator
 =========================================================
 
 This is the main import system that leverages existing Me Hungie intelligence:
@@ -16,11 +7,12 @@ This is the main import system that leverages existing Me Hungie intelligence:
 - IngredientIntelligenceEngine for ingredient processing
 - UniversalSearchEngine for validation and deduplication
 - PostgreSQL database for storage
+- OCRTextParser for OCR text extraction (battle-tested)
 
 Supports multiple import sources:
 - Text recipes (copy/paste)
 - Website URLs
-- Recipe images (future)
+- Recipe images (OCR)
 - CSV files (future)
 
 Author: GitHub Copilot & Team
@@ -41,6 +33,9 @@ from dotenv import load_dotenv
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import OCR text parser
+from core_systems.ocr_text_parser import OCRTextParser
 
 # Import existing Me Hungie systems
 try:
@@ -242,20 +237,11 @@ class UniversalRecipeImporter:
                     extraction_method="text"
                 )
             
-            # Use UniversalRecipeParser for better text extraction
-            if self.universal_parser:
-                logger.info("📖 Using UniversalRecipeParser for text extraction...")
-                extracted_recipe = self.universal_parser.extract_from_text(recipe_text, source='ocr')
-                confidence = extracted_recipe.confidence_scores.get('overall', 0.7)
-            elif self.adaptive_extractor:
-                logger.warning("⚠️ UniversalRecipeParser not available, using fallback")
-                extracted_recipe = self._simple_text_parse(recipe_text)
-                confidence = 0.7
-            else:
-                # Fallback simple parsing
-                logger.warning("⚠️ Using fallback simple parser")
-                extracted_recipe = self._simple_text_parse(recipe_text)
-                confidence = 0.6
+            # Use battle-tested OCR text parser
+            logger.info("📖 Using OCRTextParser for text extraction...")
+            parser = OCRTextParser()
+            extracted_recipe = parser.parse(recipe_text)
+            confidence = extracted_recipe.get('confidence', 0.7)
             
             # Process with ingredient intelligence
             processed_recipe = self._process_with_intelligence(extracted_recipe, user_id)
@@ -535,38 +521,130 @@ class UniversalRecipeImporter:
     
     def _simple_text_parse(self, text: str) -> Dict:
         """
-        Simple fallback text parsing when AdaptiveRecipeExtractor unavailable
+        Enhanced text parsing for OCR and pasted recipes
+        Handles cookbook pages with intelligent section detection
         """
         lines = [line.strip() for line in text.split('\n') if line.strip()]
         
-        # Simple heuristic parsing
-        title = lines[0] if lines else "Imported Recipe"
+        # Skip OCR artifacts
+        skip_patterns = ['page', '===', '---', 'www.', 'http']
         
-        # Look for ingredient section
-        ingredients = []
-        instructions = []
-        current_section = "ingredients"
+        title = None
+        ingredients_section = []
+        instructions_section = []
+        current_section = None
+        found_ingredients_marker = False
+        found_instructions_marker = False
+        skipped_intro = False
         
-        for line in lines[1:]:
+        for i, line in enumerate(lines):
             line_lower = line.lower()
-            if any(word in line_lower for word in ['ingredients:', 'ingredient list:', 'what you need:']):
-                current_section = "ingredients"
+            
+            # Skip page markers
+            if any(pattern in line_lower for pattern in skip_patterns):
                 continue
-            elif any(word in line_lower for word in ['instructions:', 'directions:', 'method:', 'steps:']):
-                current_section = "instructions"
+            
+            # Find title (first meaningful line)
+            if not title and i < 10 and len(line) > 3:
+                letter_count = sum(1 for c in line if c.isalpha())
+                digit_count = sum(1 for c in line if c.isdigit())
+                
+                if letter_count > digit_count and len(line) < 150:
+                    if not any(word in line_lower for word in ['serves', 'serving', 'yield', 'prep', 'cook']):
+                        if 'ingredient' not in line_lower and 'instruction' not in line_lower:
+                            title = line
+                            continue
+            
+            # Skip intro text (after title, before ingredients)
+            # Look for serving size, description lines
+            if title and not skipped_intro:
+                if any(word in line_lower for word in ['serves', 'yield', 'serving']):
+                    continue
+                # Long descriptive lines are probably intro
+                if len(line) > 80 and not any(char.isdigit() for char in line[:10]):
+                    continue
+                # Short descriptive text
+                if len(line) < 80 and not any(char.isdigit() for char in line) and ',' in line:
+                    continue
+                # If we get here and see an ingredient pattern, intro is done
+                has_measurement = any(unit in line_lower for unit in [
+                    'cup', 'tablespoon', 'teaspoon', 'oz', 'ounce', 'lb', 'pound',
+                    'gram', 'kg', 'ml', 'liter', 'tsp', 'tbsp', 'pinch', 'dash'
+                ])
+                has_number = any(char.isdigit() for char in line[:5])
+                if has_measurement or has_number or line_lower in ['salt', 'pepper', 'water', 'oil', 'butter']:
+                    skipped_intro = True
+                    current_section = 'ingredients'
+                    # Don't continue - process this line below
+            
+            # Detect explicit section markers
+            if 'ingredient' in line_lower and len(line) < 30:
+                current_section = 'ingredients'
+                found_ingredients_marker = True
+                skipped_intro = True
                 continue
-            elif line.startswith(('-', '•', '*')) or any(char.isdigit() for char in line[:3]):
-                if current_section == "ingredients":
-                    ingredients.append(line.lstrip('-•* 0123456789.'))
-                else:
-                    instructions.append(line.lstrip('-•* 0123456789.'))
+            elif any(marker in line_lower for marker in ['instruction', 'direction', 'method', 'preparation']) and len(line) < 30:
+                current_section = 'instructions'
+                found_instructions_marker = True
+                continue
+            
+            # Smart detection: If we see action words and have ingredients, switch to instructions
+            action_words = ['heat', 'cook', 'add', 'bring', 'stir', 'mix', 'pour', 'place', 'remove', 'drain', 'serve', 'bake', 'roast', 'sauté', 'boil', 'simmer', 'preheat', 'combine', 'whisk', 'fold']
+            starts_with_action = any(line_lower.startswith(word) for word in action_words)
+            
+            # If line starts with action word and we've collected some ingredients, switch to instructions
+            if starts_with_action and len(ingredients_section) > 2 and not found_instructions_marker:
+                current_section = 'instructions'
+                found_instructions_marker = True
+            
+            # Collect lines based on section
+            if current_section == 'ingredients':
+                # Ingredient patterns
+                has_measurement = any(unit in line_lower for unit in [
+                    'cup', 'tablespoon', 'teaspoon', 'oz', 'ounce', 'lb', 'pound',
+                    'gram', 'kg', 'ml', 'liter', 'tsp', 'tbsp', 'pinch', 'dash', 'clove'
+                ])
+                has_bullet = line.strip().startswith(('-', '•', '*', '+', '◦'))
+                has_number = any(char.isdigit() for char in line[:5])
+                
+                # Common ingredients without measurements
+                simple_ingredients = ['salt', 'pepper', 'water', 'oil', 'butter', 'sugar', 'flour']
+                is_simple_ingredient = any(ing in line_lower for ing in simple_ingredients) and len(line) < 30
+                
+                # Include line if it looks like an ingredient
+                if has_measurement or has_bullet or has_number or is_simple_ingredient:
+                    # Clean the line
+                    cleaned_line = line.lstrip('-•*+ ')
+                    ingredients_section.append(cleaned_line)
+                elif line and len(line) > 3:
+                    # Could still be an ingredient
+                    # But check if it's actually an instruction
+                    if not starts_with_action:
+                        ingredients_section.append(line)
+                    else:
+                        # This is an instruction!
+                        current_section = 'instructions'
+                        instructions_section.append(line)
+                        
+            elif current_section == 'instructions':
+                # Clean and add to instructions
+                cleaned_line = line.lstrip('-•*+ 0123456789.')
+                instructions_section.append(cleaned_line)
+        
+        # Use fallback title if needed
+        if not title or title.lower() in ['page 1', 'page 2']:
+            title = "Imported Recipe"
+        
+        # Join sections
+        ingredients_text = '\n'.join(ingredients_section) if ingredients_section else "No ingredients detected"
+        instructions_text = '\n'.join(instructions_section) if instructions_section else "See ingredients section"
         
         return {
             'title': title,
-            'ingredients': '\n'.join(ingredients) if ingredients else text,
-            'instructions': '\n'.join(instructions) if instructions else "See ingredients section",
+            'ingredients': ingredients_text,
+            'instructions': instructions_text,
             'category': 'imported',
-            'confidence': 0.6
+            'confidence': 0.7
         }
     
     def _process_with_intelligence(self, recipe: Any, user_id: int) -> Dict:
