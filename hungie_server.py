@@ -4781,18 +4781,27 @@ def import_recipe_from_ocr():
         logger.info(f"📸 Processing {len(images)} images...")
         
         # Step 1: OCR Processing
-        from ocr_processor import get_ocr_processor
-        
-        ocr_processor = get_ocr_processor()
-        if not ocr_processor:
+        try:
+            from ocr_processor import get_ocr_processor
+            
+            ocr_processor = get_ocr_processor()
+            if not ocr_processor:
+                logger.error("❌ OCR processor not available")
+                return jsonify({
+                    'success': False,
+                    'error': 'OCR service not available. Please contact support.'
+                }), 503
+        except Exception as e:
+            logger.error(f"❌ Failed to import OCR processor: {e}", exc_info=True)
             return jsonify({
                 'success': False,
-                'error': 'OCR service not available. Please contact support.'
+                'error': f'OCR service initialization failed: {str(e)}'
             }), 503
         
         ocr_result = ocr_processor.process_images(images)
         
         if not ocr_result['success']:
+            logger.error(f"❌ OCR processing failed: {ocr_result.get('error')}")
             return jsonify({
                 'success': False,
                 'error': ocr_result.get('error', 'OCR processing failed')
