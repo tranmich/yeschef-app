@@ -1295,6 +1295,7 @@ class TrainingDataGenerator:
             RecipeData object with extracted recipe
         """
         logger.info(f"📝 Extracting recipe from {source} text ({len(text)} characters)...")
+        logger.debug(f"First 500 chars of text:\n{text[:500]}")
         
         recipe = RecipeData(
             title="",
@@ -1313,40 +1314,71 @@ class TrainingDataGenerator:
         instructions_section = []
         current_section = None
         
+        # Skip common OCR artifacts
+        skip_patterns = ['page', '===', '---', 'www.', 'http']
+        
         for i, line in enumerate(lines):
             line_lower = line.lower()
             
-            # Detect title (usually first non-empty line or before ingredients)
-            if not title_found and i < 5 and len(line) > 5 and not any(marker in line_lower for marker in ['ingredients', 'directions', 'instructions', 'method']):
-                # Check if it's likely a title (not too long, no numbers)
-                if len(line) < 100 and not any(char.isdigit() for char in line[:10]):
-                    recipe.title = line
-                    title_found = True
-                    continue
+            # Skip page markers and separators
+            if any(pattern in line_lower for pattern in skip_patterns):
+                continue
+            
+            # Detect title (usually first meaningful line)
+            if not title_found and i < 10 and len(line) > 3:
+                # Skip if it looks like a header marker or page number
+                if 'ingredient' not in line_lower and 'instruction' not in line_lower and 'direction' not in line_lower:
+                    # Check if it's likely a title
+                    # Title should have letters, not just numbers
+                    letter_count = sum(1 for c in line if c.isalpha())
+                    digit_count = sum(1 for c in line if c.isdigit())
+                    
+                    if letter_count > digit_count and len(line) < 150:
+                        # Not a serving size or time indicator
+                        if not any(word in line_lower for word in ['serves', 'serving', 'yield', 'prep', 'cook', 'total']):
+                            recipe.title = line
+                            title_found = True
+                            logger.debug(f"Found title: {line}")
+                            continue
             
             # Detect ingredients section
             if 'ingredient' in line_lower:
                 current_section = 'ingredients'
+                logger.debug("Switched to ingredients section")
                 continue
             
             # Detect instructions section
-            if any(marker in line_lower for marker in ['instruction', 'direction', 'method', 'preparation', 'step']):
+            if any(marker in line_lower for marker in ['instruction', 'direction', 'method', 'preparation', 'procedure']):
                 current_section = 'instructions'
+                logger.debug("Switched to instructions section")
                 continue
             
             # Collect lines based on current section
             if current_section == 'ingredients':
                 # Check if still in ingredients (look for measurement patterns)
-                if any(unit in line_lower for unit in ['cup', 'tablespoon', 'teaspoon', 'oz', 'lb', 'gram', 'ml', 'tsp', 'tbsp']) or line.strip().startswith(('-', '•', '*', '+')):
+                has_measurement = any(unit in line_lower for unit in [
+                    'cup', 'tablespoon', 'teaspoon', 'oz', 'ounce', 'lb', 'pound',
+                    'gram', 'kg', 'ml', 'liter', 'tsp', 'tbsp', 'pinch', 'dash'
+                ])
+                has_bullet = line.strip().startswith(('-', '•', '*', '+', '◦'))
+                has_number = any(char.isdigit() for char in line[:5])
+                
+                # Include line if it has measurements, bullets, or numbers at start
+                if has_measurement or has_bullet or has_number:
                     ingredients_section.append(line)
-                elif line and not any(marker in line_lower for marker in ['instruction', 'direction', 'method']):
-                    ingredients_section.append(line)
-                else:
-                    current_section = 'instructions'
-                    instructions_section.append(line)
+                    logger.debug(f"Added ingredient: {line[:50]}")
+                elif line and len(line) > 3:
+                    # Could still be an ingredient (like "Salt" or "Pepper")
+                    # Check if next section hasn't started
+                    if not any(marker in line_lower for marker in ['instruction', 'direction', 'method', 'step']):
+                        ingredients_section.append(line)
+                    else:
+                        current_section = 'instructions'
+                        instructions_section.append(line)
             
             elif current_section == 'instructions':
                 instructions_section.append(line)
+                logger.debug(f"Added instruction: {line[:50]}")
         
         # Join sections
         recipe.ingredients = '\n'.join(ingredients_section).strip()
@@ -1354,8 +1386,25 @@ class TrainingDataGenerator:
         
         # Strategy 2: If no clear sections found, use pattern matching
         if not recipe.ingredients or not recipe.instructions:
-            logger.info("Using fallback pattern matching...")
+            logger.info("⚠️ Sections not found, using fallback pattern matching...")
             recipe = self._extract_with_patterns(text, recipe)
+        
+        # If still no title, try to find the most prominent line
+        if not recipe.title or recipe.title.lower() in ['page 1', 'page 2', 'recipe']:
+            logger.info("⚠️ No good title found, searching for prominent text...")
+            for line in lines[:15]:  # Check first 15 lines
+                line_lower = line.lower()
+                if len(line) > 10 and len(line) < 100:
+                    if not any(skip in line_lower for skip in ['page', 'ingredient', 'instruction', '===']):
+                        if not any(char.isdigit() for char in line[:3]):  # Not starting with number
+                            recipe.title = line
+                            logger.info(f"Found alternate title: {line}")
+                            break
+        
+        # Fallback title
+        if not recipe.title:
+            recipe.title = "Recipe from Scan"
+            logger.warning("⚠️ Could not find title, using default")
         
         # Extract metadata
         self._extract_metadata_from_text(text, recipe)
@@ -1365,7 +1414,7 @@ class TrainingDataGenerator:
         recipe.confidence_scores = {'overall': confidence}
         
         logger.info(f"✅ Extracted recipe: '{recipe.title}' (confidence: {confidence:.2f})")
-        logger.info(f"   📝 Ingredients: {len(recipe.ingredients)} chars")
+        logger.info(f"   📝 Ingredients: {len(recipe.ingredients)} chars, {len(ingredients_section)} items")
         logger.info(f"   📝 Instructions: {len(recipe.instructions)} chars")
         
         return recipe

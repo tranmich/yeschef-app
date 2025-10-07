@@ -4812,6 +4812,7 @@ def import_recipe_from_ocr():
         
         logger.info(f"✅ OCR complete: {len(extracted_text)} characters extracted")
         logger.info(f"🎯 OCR confidence: {ocr_confidence:.2%}")
+        logger.info(f"📝 EXTRACTED TEXT (first 1000 chars):\n{extracted_text[:1000]}\n{'='*50}")
         
         # Step 2: Validate extracted text
         validation = ocr_processor.validate_recipe_text(extracted_text)
