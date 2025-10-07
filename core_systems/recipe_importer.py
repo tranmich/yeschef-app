@@ -52,6 +52,17 @@ except ImportError as e:
     print(f"Warning: Could not import existing systems: {e}")
     print("Running in standalone mode...")
 
+# Import UniversalRecipeParser separately (for OCR text extraction)
+try:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from universal_recipe_parser.complete_recipe_parser import UniversalRecipeParser
+    UNIVERSAL_PARSER_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Warning: Could not import UniversalRecipeParser: {e}")
+    print("   OCR text parsing will use fallback method")
+    UNIVERSAL_PARSER_AVAILABLE = False
+    UniversalRecipeParser = None
+
 load_dotenv()
 
 # Setup logging
@@ -113,8 +124,11 @@ class UniversalRecipeImporter:
             logger.warning(f"⚠️ Could not initialize AdaptiveRecipeExtractor: {e}")
         
         try:
-            self.universal_parser = UniversalRecipeParser()
-            logger.info("✅ UniversalRecipeParser initialized")
+            if UNIVERSAL_PARSER_AVAILABLE and UniversalRecipeParser:
+                self.universal_parser = UniversalRecipeParser()
+                logger.info("✅ UniversalRecipeParser initialized")
+            else:
+                logger.warning("⚠️ UniversalRecipeParser not available")
         except Exception as e:
             logger.warning(f"⚠️ Could not initialize UniversalRecipeParser: {e}")
             
