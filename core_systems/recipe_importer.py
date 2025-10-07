@@ -1,5 +1,14 @@
 """
-🚀 Universal Recipe Importer - Core Import Orchestrator
+🚀 Universal Recipe Importer - # Import existing Me Hungie systems
+try:
+    from cookbook_processing.adaptive_recipe_extractor import AdaptiveRecipeExtractor, Recipe
+    from core_systems.ingredient_intelligence_engine import IngredientIntelligenceEngine, IngredientMapping
+    from core_systems.universal_search import UniversalSearchEngine
+    from core_systems.web_recipe_extractor import WebRecipeExtractor, WebRecipeData
+    # Import UniversalRecipeParser for OCR text extraction
+    from universal_recipe_parser.complete_recipe_parser import UniversalRecipeParser
+except ImportError as e:
+    print(f"⚠️ Warning: Could not import some systems: {e}")ort Orchestrator
 =========================================================
 
 This is the main import system that leverages existing Me Hungie intelligence:
@@ -90,6 +99,7 @@ class UniversalRecipeImporter:
     def __init__(self):
         """Initialize with existing Me Hungie systems"""
         self.adaptive_extractor = None
+        self.universal_parser = None  # For OCR text extraction
         self.ingredient_engine = None
         self.search_engine = None
         self.web_extractor = None
@@ -101,6 +111,12 @@ class UniversalRecipeImporter:
             logger.info("✅ AdaptiveRecipeExtractor initialized")
         except Exception as e:
             logger.warning(f"⚠️ Could not initialize AdaptiveRecipeExtractor: {e}")
+        
+        try:
+            self.universal_parser = UniversalRecipeParser()
+            logger.info("✅ UniversalRecipeParser initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not initialize UniversalRecipeParser: {e}")
             
         try:
             self.ingredient_engine = IngredientIntelligenceEngine()
@@ -213,10 +229,14 @@ class UniversalRecipeImporter:
                 )
             
             # Use UniversalRecipeParser for better text extraction
-            if self.adaptive_extractor:
+            if self.universal_parser:
                 logger.info("📖 Using UniversalRecipeParser for text extraction...")
-                extracted_recipe = self.adaptive_extractor.extract_from_text(recipe_text, source='ocr')
+                extracted_recipe = self.universal_parser.extract_from_text(recipe_text, source='ocr')
                 confidence = extracted_recipe.confidence_scores.get('overall', 0.7)
+            elif self.adaptive_extractor:
+                logger.warning("⚠️ UniversalRecipeParser not available, using fallback")
+                extracted_recipe = self._simple_text_parse(recipe_text)
+                confidence = 0.7
             else:
                 # Fallback simple parsing
                 logger.warning("⚠️ Using fallback simple parser")
