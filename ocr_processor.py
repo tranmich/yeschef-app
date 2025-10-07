@@ -15,6 +15,7 @@ Phase 3: OCR Import System
 
 import os
 import io
+import json
 import logging
 from typing import List, Dict, Tuple, Optional
 from PIL import Image
@@ -22,6 +23,7 @@ from PIL import Image
 # Google Vision API
 try:
     from google.cloud import vision
+    from google.oauth2 import service_account
     VISION_AVAILABLE = True
 except ImportError:
     VISION_AVAILABLE = False
@@ -36,10 +38,21 @@ class OCRRecipeProcessor:
         """Initialize OCR processor"""
         if VISION_AVAILABLE:
             # Initialize Vision API client
-            # Uses GOOGLE_APPLICATION_CREDENTIALS environment variable
+            # Supports both file path and JSON credentials
             try:
-                self.client = vision.ImageAnnotatorClient()
-                logger.info("✅ Google Vision API client initialized")
+                # Option 1: Railway/Production - JSON credentials in environment variable
+                credentials_json = os.getenv('GOOGLE_CLOUD_CREDENTIALS')
+                if credentials_json:
+                    logger.info("🔐 Loading Google Cloud credentials from environment variable")
+                    credentials_dict = json.loads(credentials_json)
+                    credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+                    self.client = vision.ImageAnnotatorClient(credentials=credentials)
+                    logger.info("✅ Google Vision API client initialized (from JSON)")
+                else:
+                    # Option 2: Local development - File path in GOOGLE_APPLICATION_CREDENTIALS
+                    logger.info("🔐 Loading Google Cloud credentials from file path")
+                    self.client = vision.ImageAnnotatorClient()
+                    logger.info("✅ Google Vision API client initialized (from file)")
             except Exception as e:
                 logger.error(f"❌ Failed to initialize Vision API: {e}")
                 self.client = None

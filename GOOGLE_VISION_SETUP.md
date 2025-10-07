@@ -42,9 +42,11 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/your-credentials.json
 ### Option C: For Production (Railway)
 1. Go to Railway project settings
 2. Add environment variable:
-   - Key: `GOOGLE_CLOUD_CREDENTIALS_JSON`
-   - Value: Paste entire JSON content
-3. Update code to load from environment variable
+   - Key: `GOOGLE_CLOUD_CREDENTIALS`
+   - Value: Paste entire JSON content (the entire contents of your downloaded JSON file)
+3. The code will automatically detect and use this credential
+
+**✅ You've completed this step! Your Railway is configured.**
 
 ## Step 3: Install Package
 
