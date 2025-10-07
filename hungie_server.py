@@ -4739,6 +4739,145 @@ def import_recipe_from_url():
             'error': f'Import failed: {str(e)}'
         }), 500
 
+@app.route('/api/recipes/import/ocr', methods=['POST'])
+def import_recipe_from_ocr():
+    """
+    Import recipe from scanned images using OCR
+    Phase 3: OCR/Camera Import System (Oct 7, 2025)
+    """
+    logger.info("📸 OCR import request received")
+    
+    # Check authentication
+    user_id, error_response, status_code = check_authentication()
+    if error_response:
+        logger.error(f"❌ Authentication failed: {error_response}")
+        return error_response, status_code
+    
+    try:
+        # Get uploaded images
+        images = []
+        metadata = {}
+        
+        # Parse metadata if present
+        if 'metadata' in request.form:
+            import json
+            metadata = json.loads(request.form['metadata'])
+            logger.info(f"📋 Metadata: {metadata}")
+        
+        # Collect all uploaded images
+        for key in request.files:
+            if key.startswith('image_'):
+                image_file = request.files[key]
+                image_content = image_file.read()
+                images.append(image_content)
+                logger.info(f"📷 Received {key}: {len(image_content)} bytes")
+        
+        if not images:
+            return jsonify({
+                'success': False,
+                'error': 'No images provided'
+            }), 400
+        
+        logger.info(f"📸 Processing {len(images)} images...")
+        
+        # Step 1: OCR Processing
+        from ocr_processor import get_ocr_processor
+        
+        ocr_processor = get_ocr_processor()
+        if not ocr_processor:
+            return jsonify({
+                'success': False,
+                'error': 'OCR service not available. Please contact support.'
+            }), 503
+        
+        ocr_result = ocr_processor.process_images(images)
+        
+        if not ocr_result['success']:
+            return jsonify({
+                'success': False,
+                'error': ocr_result.get('error', 'OCR processing failed')
+            }), 500
+        
+        extracted_text = ocr_result['text']
+        ocr_confidence = ocr_result['confidence']
+        
+        logger.info(f"✅ OCR complete: {len(extracted_text)} characters extracted")
+        logger.info(f"🎯 OCR confidence: {ocr_confidence:.2%}")
+        
+        # Step 2: Validate extracted text
+        validation = ocr_processor.validate_recipe_text(extracted_text)
+        
+        if not validation['is_likely_recipe']:
+            logger.warning("⚠️ Extracted text doesn't look like a recipe")
+            return jsonify({
+                'success': False,
+                'error': 'Could not find recipe content in images. Please ensure images contain recipe text.',
+                'extracted_text': extracted_text[:500],  # First 500 chars for debugging
+                'validation': validation
+            }), 400
+        
+        # Step 3: Parse recipe from text using Universal Parser
+        if not RECIPE_IMPORT_AVAILABLE:
+            return jsonify({
+                'success': False,
+                'error': 'Recipe import system not available'
+            }), 503
+        
+        # Create import request with OCR text
+        import_request = ImportRequest(
+            source_type='ocr',
+            source_data=extracted_text,
+            user_id=user_id,
+            metadata={
+                **metadata,
+                'ocr_confidence': ocr_confidence,
+                'pages_processed': ocr_result['pages_processed'],
+                'validation': validation
+            }
+        )
+        
+        # Initialize importer and process
+        importer = UniversalRecipeImporter()
+        result = importer.import_recipe(import_request)
+        
+        if result.success:
+            logger.info(f"✅ Recipe imported from OCR: {result.recipe_data.get('title')}")
+            
+            # Adjust confidence based on OCR and validation
+            final_confidence = result.confidence * ocr_confidence * validation['confidence_multiplier']
+            
+            return jsonify({
+                'success': True,
+                'recipe': result.recipe_data,
+                'recipe_id': result.recipe_id,
+                'confidence': final_confidence,
+                'extraction_method': 'ocr_scan',
+                'ocr_stats': {
+                    'ocr_confidence': ocr_confidence,
+                    'pages_processed': ocr_result['pages_processed'],
+                    'text_length': len(extracted_text),
+                    'is_likely_recipe': validation['is_likely_recipe']
+                },
+                'needs_review': final_confidence < 0.8,
+                'processing_time': result.processing_time,
+                'warnings': result.warnings
+            })
+        else:
+            logger.error(f"❌ Recipe import failed: {result.errors}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to parse recipe from extracted text',
+                'details': result.errors,
+                'extracted_text': extracted_text[:500]  # For debugging
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"OCR import error: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'OCR import failed: {str(e)}'
+        }), 500
+
 @app.route('/api/recipes/import/check-duplicates', methods=['POST'])
 def check_recipe_duplicates():
     """Check for duplicate recipes before importing"""

@@ -168,7 +168,8 @@ class UniversalRecipeImporter:
             logger.info(f"🚀 Starting import: {request.source_type} for user {request.user_id}")
             
             # Route to appropriate import method
-            if request.source_type == 'text':
+            if request.source_type == 'text' or request.source_type == 'ocr':
+                # OCR and text use same processing path (both are plain text)
                 result = self.import_from_text(request.source_data, request.user_id, request.metadata)
             elif request.source_type == 'url':
                 result = self.import_from_url(request.source_data, request.user_id, request.metadata)

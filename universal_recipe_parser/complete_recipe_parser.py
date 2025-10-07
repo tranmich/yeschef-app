@@ -1283,6 +1283,185 @@ class TrainingDataGenerator:
             }
         }
 
+    def extract_from_text(self, text: str, source: str = 'ocr') -> RecipeData:
+        """
+        Extract recipe from plain text (OCR, pasted text, etc.)
+        
+        Args:
+            text: Plain text containing recipe
+            source: Source type ('ocr', 'text', 'manual')
+            
+        Returns:
+            RecipeData object with extracted recipe
+        """
+        logger.info(f"📝 Extracting recipe from {source} text ({len(text)} characters)...")
+        
+        recipe = RecipeData(
+            title="",
+            ingredients="",
+            instructions="",
+            source=source,
+            extraction_metadata={'source_type': source, 'text_length': len(text)}
+        )
+        
+        # Split into lines for processing
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        
+        # Strategy 1: Look for clear section headers
+        title_found = False
+        ingredients_section = []
+        instructions_section = []
+        current_section = None
+        
+        for i, line in enumerate(lines):
+            line_lower = line.lower()
+            
+            # Detect title (usually first non-empty line or before ingredients)
+            if not title_found and i < 5 and len(line) > 5 and not any(marker in line_lower for marker in ['ingredients', 'directions', 'instructions', 'method']):
+                # Check if it's likely a title (not too long, no numbers)
+                if len(line) < 100 and not any(char.isdigit() for char in line[:10]):
+                    recipe.title = line
+                    title_found = True
+                    continue
+            
+            # Detect ingredients section
+            if 'ingredient' in line_lower:
+                current_section = 'ingredients'
+                continue
+            
+            # Detect instructions section
+            if any(marker in line_lower for marker in ['instruction', 'direction', 'method', 'preparation', 'step']):
+                current_section = 'instructions'
+                continue
+            
+            # Collect lines based on current section
+            if current_section == 'ingredients':
+                # Check if still in ingredients (look for measurement patterns)
+                if any(unit in line_lower for unit in ['cup', 'tablespoon', 'teaspoon', 'oz', 'lb', 'gram', 'ml', 'tsp', 'tbsp']) or line.strip().startswith(('-', '•', '*', '+')):
+                    ingredients_section.append(line)
+                elif line and not any(marker in line_lower for marker in ['instruction', 'direction', 'method']):
+                    ingredients_section.append(line)
+                else:
+                    current_section = 'instructions'
+                    instructions_section.append(line)
+            
+            elif current_section == 'instructions':
+                instructions_section.append(line)
+        
+        # Join sections
+        recipe.ingredients = '\n'.join(ingredients_section).strip()
+        recipe.instructions = '\n'.join(instructions_section).strip()
+        
+        # Strategy 2: If no clear sections found, use pattern matching
+        if not recipe.ingredients or not recipe.instructions:
+            logger.info("Using fallback pattern matching...")
+            recipe = self._extract_with_patterns(text, recipe)
+        
+        # Extract metadata
+        self._extract_metadata_from_text(text, recipe)
+        
+        # Calculate confidence
+        confidence = self._calculate_text_extraction_confidence(recipe)
+        recipe.confidence_scores = {'overall': confidence}
+        
+        logger.info(f"✅ Extracted recipe: '{recipe.title}' (confidence: {confidence:.2f})")
+        logger.info(f"   📝 Ingredients: {len(recipe.ingredients)} chars")
+        logger.info(f"   📝 Instructions: {len(recipe.instructions)} chars")
+        
+        return recipe
+    
+    def _extract_with_patterns(self, text: str, recipe: RecipeData) -> RecipeData:
+        """Fallback pattern-based extraction"""
+        import re
+        
+        # Look for common ingredient patterns
+        ingredient_patterns = [
+            r'(\d+[\s\/]*(?:cups?|tablespoons?|teaspoons?|oz|lbs?|grams?|ml)[\s\w,]+)',
+            r'([•\-\*]\s*[\d\/\s]*[\w\s,]+(?:cups?|tablespoons?|teaspoons?|oz|lbs?|grams?|ml)[\w\s,]*)'
+        ]
+        
+        ingredients = []
+        for pattern in ingredient_patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE | re.MULTILINE)
+            ingredients.extend(matches)
+        
+        if ingredients and not recipe.ingredients:
+            recipe.ingredients = '\n'.join(ingredients)
+        
+        # Look for instruction patterns (numbered steps, action verbs)
+        instruction_patterns = [
+            r'(\d+\.\s*[A-Z][^\n]+)',
+            r'((?:Mix|Stir|Add|Combine|Bake|Cook|Heat|Pour|Blend)[^\n]+)'
+        ]
+        
+        instructions = []
+        for pattern in instruction_patterns:
+            matches = re.findall(pattern, text, re.MULTILINE)
+            instructions.extend(matches)
+        
+        if instructions and not recipe.instructions:
+            recipe.instructions = '\n'.join(instructions)
+        
+        return recipe
+    
+    def _extract_metadata_from_text(self, text: str, recipe: RecipeData):
+        """Extract metadata like servings, time, etc."""
+        import re
+        
+        text_lower = text.lower()
+        
+        # Extract servings
+        servings_match = re.search(r'(?:serves|yield|makes)[:\s]+(\d+[-\s]?\d*)', text_lower)
+        if servings_match:
+            recipe.servings = servings_match.group(1)
+        
+        # Extract times
+        prep_match = re.search(r'prep(?:\s+time)?[:\s]+(\d+\s*(?:min|hour|hr))', text_lower)
+        if prep_match:
+            recipe.prep_time = prep_match.group(1)
+        
+        cook_match = re.search(r'cook(?:\s+time)?[:\s]+(\d+\s*(?:min|hour|hr))', text_lower)
+        if cook_match:
+            recipe.cook_time = cook_match.group(1)
+    
+    def _calculate_text_extraction_confidence(self, recipe: RecipeData) -> float:
+        """Calculate confidence for text-based extraction"""
+        scores = []
+        
+        # Title confidence
+        if recipe.title and len(recipe.title) > 3:
+            scores.append(0.9 if len(recipe.title) < 100 else 0.7)
+        else:
+            scores.append(0.3)
+        
+        # Ingredients confidence
+        if recipe.ingredients:
+            ing_lines = len([l for l in recipe.ingredients.split('\n') if l.strip()])
+            if ing_lines >= 3:
+                scores.append(0.9)
+            elif ing_lines >= 1:
+                scores.append(0.7)
+            else:
+                scores.append(0.3)
+        else:
+            scores.append(0.0)
+        
+        # Instructions confidence  
+        if recipe.instructions:
+            inst_lines = len([l for l in recipe.instructions.split('\n') if l.strip()])
+            if inst_lines >= 3:
+                scores.append(0.9)
+            elif inst_lines >= 1:
+                scores.append(0.7)
+            else:
+                scores.append(0.3)
+        else:
+            scores.append(0.0)
+        
+        # Overall confidence
+        return sum(scores) / len(scores) if scores else 0.0
+
+
 # CLI Interface
 def main():
     """Command line interface for the Universal Recipe Parser"""
