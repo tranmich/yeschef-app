@@ -200,7 +200,7 @@ class UniversalRecipeImporter:
     
     def import_from_text(self, recipe_text: str, user_id: int, metadata: Dict = None) -> ImportResult:
         """
-        Import recipe from pasted text using AdaptiveRecipeExtractor
+        Import recipe from pasted text using UniversalRecipeParser
         """
         try:
             logger.info("📝 Processing text import...")
@@ -212,13 +212,14 @@ class UniversalRecipeImporter:
                     extraction_method="text"
                 )
             
-            # Use existing AdaptiveRecipeExtractor methods if available
+            # Use UniversalRecipeParser for better text extraction
             if self.adaptive_extractor:
-                # The AdaptiveRecipeExtractor is designed for PDFs, so let's use our simple parser for text
-                extracted_recipe = self._simple_text_parse(recipe_text)
-                confidence = 0.7  # Higher confidence for our simple parser
+                logger.info("📖 Using UniversalRecipeParser for text extraction...")
+                extracted_recipe = self.adaptive_extractor.extract_from_text(recipe_text, source='ocr')
+                confidence = extracted_recipe.confidence_scores.get('overall', 0.7)
             else:
                 # Fallback simple parsing
+                logger.warning("⚠️ Using fallback simple parser")
                 extracted_recipe = self._simple_text_parse(recipe_text)
                 confidence = 0.6
             
@@ -239,11 +240,11 @@ class UniversalRecipeImporter:
                 recipe_data=asdict(processed_recipe) if hasattr(processed_recipe, '__dict__') else processed_recipe,
                 confidence=confidence,
                 needs_review=needs_review,
-                extraction_method="text_adaptive"
+                extraction_method="text_universal_parser"
             )
             
         except Exception as e:
-            logger.error(f"Text import failed: {e}")
+            logger.error(f"Text import failed: {e}", exc_info=True)
             return ImportResult(
                 success=False,
                 errors=[f"Text processing failed: {str(e)}"],
