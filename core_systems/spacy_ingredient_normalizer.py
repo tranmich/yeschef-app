@@ -50,6 +50,107 @@ class SpaCyIngredientNormalizer:
             'grated', 'shredded', 'julienned', 'cubed', 'whole',
             'fresh', 'dried', 'canned', 'frozen', 'jarred'
         }
+        
+        # Quality adjectives (for separation)
+        self.quality_adjectives = {
+            'fresh', 'canned', 'frozen', 'dried', 'jarred',
+            'organic', 'raw', 'cooked', 'roasted', 'grilled'
+        }
+        
+        # Size adjectives (can combine)
+        self.size_adjectives = {
+            'large', 'small', 'medium', 'big', 'tiny',
+            'jumbo', 'mini', 'baby', 'giant'
+        }
+    
+    def extract_metadata(self, items: List[Dict]) -> Dict:
+        """
+        Extract semantic metadata for JavaScript to use
+        This runs FIRST to provide intelligence to JavaScript combiner
+        
+        Args:
+            items: List of grocery items
+            
+        Returns:
+            Dict with metadata for each item:
+            {
+                'item_id': {
+                    'core_ingredient': 'tomato',
+                    'qualities': ['fresh'],
+                    'preparations': ['diced'],
+                    'sizes': ['large'],
+                    'similarity_groups': [other_item_ids],
+                    'should_separate': True/False  # if quality differs
+                }
+            }
+        """
+        logger.info(f"🧠 Extracting metadata for {len(items)} items...")
+        
+        metadata = {}
+        item_docs = [(item, self.nlp(item.get('name', '').lower())) for item in items]
+        
+        # Extract metadata for each item
+        for item, doc in item_docs:
+            item_id = item.get('id')
+            item_name = item.get('name', '').lower()
+            
+            # Extract core ingredient (main noun)
+            core = self._extract_core_ingredient(doc)
+            core_text = core.lemma_ if hasattr(core, 'lemma_') else str(core)
+            
+            # Extract qualities
+            qualities = set()
+            preparations = set()
+            sizes = set()
+            
+            for token in doc:
+                token_text = token.text.lower()
+                
+                if token_text in self.quality_adjectives:
+                    qualities.add(token_text)
+                elif token_text in self.preparation_keywords:
+                    preparations.add(token_text)
+                elif token_text in self.size_adjectives:
+                    sizes.add(token_text)
+            
+            # Find similar items (for grouping)
+            similar_items = []
+            for other_item, other_doc in item_docs:
+                if other_item.get('id') == item_id:
+                    continue
+                
+                similarity = doc.similarity(other_doc)
+                if similarity > self.similarity_threshold:
+                    similar_items.append({
+                        'id': other_item.get('id'),
+                        'name': other_item.get('name'),
+                        'similarity': float(similarity)
+                    })
+            
+            # Determine if should be kept separate
+            should_separate = False
+            if qualities:
+                # Check if any similar item has DIFFERENT quality
+                for sim_item, sim_doc in item_docs:
+                    if sim_item.get('id') in [s['id'] for s in similar_items]:
+                        sim_qualities = {token.text.lower() for token in sim_doc 
+                                        if token.text.lower() in self.quality_adjectives}
+                        if sim_qualities and sim_qualities != qualities:
+                            should_separate = True
+                            break
+            
+            metadata[item_id] = {
+                'core_ingredient': core_text,
+                'qualities': list(qualities),
+                'preparations': list(preparations),
+                'sizes': list(sizes),
+                'similar_items': similar_items,
+                'should_separate': should_separate,
+                'original_name': item_name
+            }
+        
+        logger.info(f"✅ Metadata extracted for {len(metadata)} items")
+        return metadata
     
     def enhance_combining(self, items: List[Dict]) -> Dict:
         """

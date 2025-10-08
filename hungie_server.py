@@ -3966,6 +3966,51 @@ def delete_grocery_list(list_id):
 # 🧠 SPACY GROCERY COMBINING ENHANCEMENT
 # ===================================
 
+@app.route('/api/grocery/extract-metadata', methods=['POST'])
+def extract_metadata():
+    """
+    Extract semantic metadata for JavaScript combiner (Tier 1)
+    This runs FIRST to provide intelligence to JavaScript
+    """
+    if not SPACY_NORMALIZER_AVAILABLE:
+        # Gracefully fail if spaCy not available
+        return jsonify({
+            'success': False,
+            'metadata': {},
+            'status': 'spacy_unavailable'
+        })
+    
+    try:
+        data = request.get_json()
+        items = data.get('items', [])
+        
+        if not items:
+            return jsonify({
+                'success': False,
+                'error': 'No items provided'
+            }), 400
+        
+        logger.info(f"🧠 Extracting metadata for {len(items)} items...")
+        
+        # Get normalizer and extract metadata
+        normalizer = get_normalizer()
+        metadata = normalizer.extract_metadata(items)
+        
+        return jsonify({
+            'success': True,
+            'metadata': metadata,
+            'item_count': len(items)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Metadata extraction error: {e}")
+        # Return empty metadata on error (graceful fallback)
+        return jsonify({
+            'success': False,
+            'metadata': {},
+            'error': str(e)
+        })
+
 @app.route('/api/grocery/enhance-combining', methods=['POST'])
 def enhance_combining():
     """
