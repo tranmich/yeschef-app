@@ -3992,9 +3992,27 @@ def extract_metadata():
         
         logger.info(f"🧠 Extracting metadata for {len(items)} items...")
         
+        # Log input items for debugging
+        logger.info("📥 INPUT ITEMS:")
+        for item in items[:10]:  # Log first 10 items
+            logger.info(f"   - {item.get('name', 'unnamed')}")
+        if len(items) > 10:
+            logger.info(f"   ... and {len(items) - 10} more items")
+        
         # Get normalizer and extract metadata
         normalizer = get_normalizer()
         metadata = normalizer.extract_metadata(items)
+        
+        # Log metadata results for debugging
+        logger.info("📤 METADATA EXTRACTED:")
+        for item_id, meta in list(metadata.items())[:10]:
+            item_name = next((i['name'] for i in items if i.get('id') == item_id), 'unknown')
+            logger.info(f"   '{item_name}':")
+            logger.info(f"      Core: {meta.get('core_ingredient')}")
+            logger.info(f"      Qualities: {meta.get('qualities', [])}")
+            logger.info(f"      Should Separate: {meta.get('should_separate', False)}")
+        if len(metadata) > 10:
+            logger.info(f"   ... and {len(metadata) - 10} more items")
         
         return jsonify({
             'success': True,
