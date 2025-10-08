@@ -9,11 +9,14 @@ Combines proven strategies from:
 Key Innovation: IMPLICIT section detection by content patterns,
 not just relying on explicit "Ingredients:" headers.
 
+Plus: OCR artifact cleanup for cleaner results!
+
 Author: GitHub Copilot
 Date: October 7, 2025
 """
 
 import logging
+import re
 from typing import Dict, List
 
 logger = logging.getLogger(__name__)
@@ -40,6 +43,31 @@ class OCRTextParser:
     
     SKIP_PATTERNS = ['===', '---', 'www.', 'http', 'chapter']
     
+    def _cleanup_ocr_artifacts(self, text: str) -> str:
+        """
+        Clean up common OCR artifacts and errors
+        
+        Rules:
+        1. Remove all-caps concatenated words (book titles, headers)
+        2. Clean multiple spaces
+        
+        NOTE: Don't truncate at "Variations" here - that's done per-line
+        """
+        if not text:
+            return text
+        
+        # 1. Remove all-caps concatenated words (likely book title/header artifacts)
+        # Example: "SALTFATACIDHEAT" 
+        text = re.sub(r'\b[A-Z]{15,}\b', '', text)
+        
+        # 2. Clean multiple spaces
+        text = re.sub(r'\s+', ' ', text)
+        
+        # 3. Remove trailing fragments (incomplete sentences at end)
+        text = text.strip()
+        
+        return text
+    
     def parse(self, text: str) -> Dict:
         """
         Parse OCR text into recipe structure
@@ -47,10 +75,14 @@ class OCRTextParser:
         Returns:
             Dict with title, ingredients, instructions, confidence
         """
+        # DON'T clean the full text yet - parse first, then clean results
         lines = [line.strip() for line in text.split('\n') if line.strip()]
         
         title = self._find_title(lines)
-        ingredients, instructions = self._find_sections(lines, title)
+        ingredients, instruction_lines = self._find_sections(lines, title)
+        
+        # Combine instruction lines into proper steps
+        instructions = self._combine_instruction_steps(instruction_lines)
         
         result = {
             'title': title or "Imported Recipe",
@@ -60,7 +92,25 @@ class OCRTextParser:
             'confidence': self._calculate_confidence(title, ingredients, instructions)
         }
         
-        logger.info(f"✅ Parsed '{result['title']}': {len(ingredients)} ingredients, {len(instructions)} instruction lines")
+        logger.info(f"✅ Parsed '{result['title']}': {len(ingredients)} ingredients, {len(instructions)} instruction steps")
+        
+        # DEBUG: Export full recipe card
+        logger.info("=" * 80)
+        logger.info(f"📋 TITLE: {result['title']}")
+        logger.info("=" * 80)
+        logger.info(f"🥕 INGREDIENTS ({len(ingredients)} items):")
+        for i, ing in enumerate(ingredients[:10], 1):  # Show first 10
+            logger.info(f"  {i}. {ing}")
+        if len(ingredients) > 10:
+            logger.info(f"  ... and {len(ingredients) - 10} more")
+        logger.info("=" * 80)
+        logger.info(f"📖 INSTRUCTIONS ({len(instructions)} steps):")
+        for i, inst in enumerate(instructions[:10], 1):  # Show first 10
+            logger.info(f"  {i}. {inst[:100]}{'...' if len(inst) > 100 else ''}")
+        if len(instructions) > 10:
+            logger.info(f"  ... and {len(instructions) - 10} more steps")
+        logger.info("=" * 80)
+        
         return result
     
     def _find_title(self, lines: List[str]) -> str:
@@ -170,6 +220,78 @@ class OCRTextParser:
                 instructions.append(cleaned)
         
         return ingredients, instructions
+    
+    def _combine_instruction_steps(self, lines: List[str]) -> List[str]:
+        """
+        Combine broken instruction lines into proper steps
+        
+        Rules:
+        - Lines starting with action words = new step
+        - Short continuation lines get merged with previous step
+        - Period at end = end of step (usually)
+        - Filter out incomplete/short steps
+        """
+        if not lines:
+            return []
+        
+        steps = []
+        current_step = ""
+        
+        for line in lines:
+            # Clean the line
+            line = self._cleanup_ocr_artifacts(line)
+            if not line:
+                continue
+            
+            line_lower = line.lower()
+            
+            # Check if this starts a new step (action word at start)
+            starts_new_step = any(line_lower.startswith(word) for word in self.ACTION_WORDS)
+            
+            # If we have a current step and this starts a new one, save current
+            if current_step and starts_new_step:
+                steps.append(current_step.strip())
+                current_step = line
+            # If we have a current step and this is a continuation
+            elif current_step:
+                # Add with space (sentence continues)
+                current_step += " " + line
+            # First line
+            else:
+                current_step = line
+        
+        # Don't forget the last step!
+        if current_step:
+            steps.append(current_step.strip())
+        
+        # Filter out steps that are too short or incomplete
+        quality_steps = []
+        for i, step in enumerate(steps):
+            # Check if this step contains "Variations" (next recipe starting)
+            if 'variations' in step.lower():
+                # Keep everything before "Variations" in this step
+                parts = re.split(r'variations?', step, maxsplit=1, flags=re.IGNORECASE)
+                step = parts[0].strip()
+                logger.info(f"🧹 Truncated step at 'Variations': kept '{step[:50]}...'")
+                if step:  # Only add if there's content left
+                    quality_steps.append(step)
+                break  # Stop processing more steps
+            
+            # Must be at least 15 characters
+            if len(step) < 15:
+                logger.info(f"🧹 Filtered out short step: '{step}'")
+                continue
+            
+            # Last step should end with punctuation (not a fragment)
+            if i == len(steps) - 1 and not step[-1] in '.!?':
+                if len(step) < 30:  # Short AND no punctuation = fragment
+                    logger.info(f"🧹 Filtered out fragment: '{step}'")
+                    continue
+            
+            quality_steps.append(step)
+        
+        logger.info(f"📝 Combined {len(lines)} lines into {len(quality_steps)} quality instruction steps")
+        return quality_steps
     
     def _calculate_confidence(self, title: str, ingredients: List[str], instructions: List[str]) -> float:
         """Calculate confidence score"""
