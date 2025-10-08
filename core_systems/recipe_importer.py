@@ -246,20 +246,16 @@ class UniversalRecipeImporter:
             # Process with ingredient intelligence
             processed_recipe = self._process_with_intelligence(extracted_recipe, user_id)
             
-            # Validate and save to database
-            if confidence >= self.confidence_threshold:
-                recipe_id = self._save_recipe_to_database(processed_recipe, user_id)
-                needs_review = False
-            else:
-                recipe_id = None
-                needs_review = True
+            # DON'T save to database yet - return for user review
+            # The mobile app will save it after user reviews and confirms
+            logger.info("📋 Recipe extracted and processed - ready for user review")
             
             return ImportResult(
                 success=True,
-                recipe_id=recipe_id,
+                recipe_id=None,  # No ID yet - not saved to database
                 recipe_data=asdict(processed_recipe) if hasattr(processed_recipe, '__dict__') else processed_recipe,
                 confidence=confidence,
-                needs_review=needs_review,
+                needs_review=True,  # Always needs review for OCR/text imports
                 extraction_method="text_universal_parser"
             )
             
