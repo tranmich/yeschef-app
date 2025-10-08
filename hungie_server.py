@@ -49,6 +49,15 @@ except ImportError as e:
 DATABASE_MIGRATIONS_AVAILABLE = False
 logger.info("ℹ️ Database migrations module not available - using fallback functions")
 
+# Import spaCy ingredient normalizer
+try:
+    from core_systems.spacy_ingredient_normalizer import get_normalizer
+    SPACY_NORMALIZER_AVAILABLE = True
+    logger.info("✅ spaCy ingredient normalizer loaded")
+except Exception as e:
+    SPACY_NORMALIZER_AVAILABLE = False
+    logger.warning(f"⚠️ spaCy normalizer not available: {e}")
+
 # Define fallback functions for admin endpoints
 def run_intelligence_migration():
     return {"success": False, "error": "Database migrations module not available"}
@@ -3948,6 +3957,204 @@ def delete_grocery_list(list_id):
         
     except Exception as e:
         logger.error(f"Delete grocery list error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# ===================================
+# 🧠 SPACY GROCERY COMBINING ENHANCEMENT
+# ===================================
+
+@app.route('/api/grocery/enhance-combining', methods=['POST'])
+def enhance_combining():
+    """
+    Enhance JavaScript combining with spaCy intelligence (Tier 2)
+    Called in background after JavaScript combining completes
+    """
+    if not SPACY_NORMALIZER_AVAILABLE:
+        # Gracefully fail if spaCy not available
+        return jsonify({
+            'enhanced_items': request.json.get('items', []),
+            'improvements': 0,
+            'details': [],
+            'status': 'spacy_unavailable'
+        })
+    
+    try:
+        data = request.get_json()
+        items = data.get('items', [])
+        
+        if not items:
+            return jsonify({
+                'success': False,
+                'error': 'No items provided'
+            }), 400
+        
+        logger.info(f"🧠 Enhancing {len(items)} items with spaCy...")
+        
+        # Get normalizer and enhance
+        normalizer = get_normalizer()
+        result = normalizer.enhance_combining(items)
+        
+        return jsonify({
+            'success': True,
+            **result
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ spaCy enhancement error: {e}")
+        # Return original items on error (graceful fallback)
+        return jsonify({
+            'enhanced_items': request.json.get('items', []),
+            'improvements': 0,
+            'details': [],
+            'error': str(e)
+        })
+
+@app.route('/api/grocery/merge-lists', methods=['POST'])
+def merge_grocery_lists():
+    """
+    Intelligently merge multiple grocery lists using spaCy
+    """
+    if not SPACY_NORMALIZER_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'spaCy normalizer not available'
+        }), 503
+    
+    try:
+        # Check authentication
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        data = request.get_json()
+        list_ids = data.get('list_ids', [])
+        
+        if not list_ids or len(list_ids) < 2:
+            return jsonify({
+                'success': False,
+                'error': 'Please provide at least 2 list IDs to merge'
+            }), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Fetch all lists
+        lists = []
+        for list_id in list_ids:
+            cursor.execute("""
+                SELECT id, list_name, list_data 
+                FROM grocery_lists 
+                WHERE id = %s AND user_id = %s
+            """, (list_id, user_id))
+            
+            grocery_list = cursor.fetchone()
+            if grocery_list:
+                # Extract items from list_data
+                list_data = grocery_list['list_data']
+                if isinstance(list_data, list):
+                    items = list_data
+                else:
+                    # Handle structured format
+                    items = []
+                    if isinstance(list_data, dict):
+                        for section, section_items in list_data.items():
+                            if isinstance(section_items, list):
+                                items.extend(section_items)
+                
+                lists.append(items)
+        
+        conn.close()
+        
+        if not lists:
+            return jsonify({
+                'success': False,
+                'error': 'No valid lists found'
+            }), 404
+        
+        logger.info(f"🔄 Merging {len(lists)} lists with spaCy...")
+        
+        # Use spaCy to merge
+        normalizer = get_normalizer()
+        result = normalizer.merge_multiple_lists(lists)
+        
+        return jsonify({
+            'success': True,
+            **result
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Merge lists error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/grocery/compare-lists', methods=['POST'])
+def compare_grocery_lists():
+    """
+    Compare two grocery lists semantically using spaCy
+    """
+    if not SPACY_NORMALIZER_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'spaCy normalizer not available'
+        }), 503
+    
+    try:
+        # Check authentication
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        data = request.get_json()
+        list_a_id = data.get('list_a_id')
+        list_b_id = data.get('list_b_id')
+        
+        if not list_a_id or not list_b_id:
+            return jsonify({
+                'success': False,
+                'error': 'Please provide both list_a_id and list_b_id'
+            }), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Fetch both lists
+        cursor.execute("""
+            SELECT id, list_name, list_data 
+            FROM grocery_lists 
+            WHERE id IN (%s, %s) AND user_id = %s
+        """, (list_a_id, list_b_id, user_id))
+        
+        lists = cursor.fetchall()
+        conn.close()
+        
+        if len(lists) != 2:
+            return jsonify({
+                'success': False,
+                'error': 'Could not find both lists'
+            }), 404
+        
+        # Extract items from both lists
+        list_a_items = lists[0]['list_data'] if isinstance(lists[0]['list_data'], list) else []
+        list_b_items = lists[1]['list_data'] if isinstance(lists[1]['list_data'], list) else []
+        
+        logger.info(f"🔍 Comparing lists: {len(list_a_items)} vs {len(list_b_items)} items")
+        
+        # Use spaCy to compare
+        normalizer = get_normalizer()
+        result = normalizer.compare_lists(list_a_items, list_b_items)
+        
+        return jsonify({
+            'success': True,
+            **result
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Compare lists error: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
