@@ -1,0 +1,45 @@
+# Railway Dockerfile with Ollama Support
+# Builds a container with Flask + spaCy + Ollama + Llama 3.2
+
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Download spaCy model
+RUN python -m spacy download en_core_web_md
+
+# Copy application code
+COPY . .
+
+# Expose ports
+EXPOSE 5000 11434
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+# Start Ollama in background\n\
+ollama serve &\n\
+sleep 5\n\
+# Pull Llama model\n\
+ollama pull llama3.2:3b\n\
+# Start Flask app\n\
+python hungie_server.py\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
+# Start services
+CMD ["/app/start.sh"]
