@@ -275,17 +275,58 @@ class SpaCyIngredientNormalizer:
     def _extract_core_ingredient(self, doc) -> any:
         """
         Extract the core ingredient noun from spaCy doc
+        Improved to handle complex cases better
         """
-        # Find the main noun (usually the ingredient)
+        text = doc.text.lower()
+        
+        # Special case: compound ingredients with "and"
+        if ' and ' in text:
+            # "Salt and Pepper" → extract first main ingredient
+            parts = text.split(' and ')
+            if len(parts) == 2:
+                # Return the first main ingredient
+                first_part = self.nlp(parts[0].strip())
+                nouns = [t for t in first_part if t.pos_ == 'NOUN']
+                if nouns:
+                    return nouns[-1]
+        
+        # Find all nouns
         nouns = [token for token in doc if token.pos_ == 'NOUN']
         
-        if nouns:
-            # Return the last noun (usually the ingredient)
-            # e.g., "cherry tomatoes" → "tomatoes"
-            return nouns[-1]
+        if not nouns:
+            # Fallback: return last token
+            return doc[-1] if len(doc) > 0 else doc
         
-        # Fallback: return last token
-        return doc[-1] if len(doc) > 0 else doc
+        # Skip measurement units and descriptors (common last nouns that aren't ingredients)
+        skip_nouns = {'pound', 'ounce', 'cup', 'tablespoon', 'teaspoon', 'tbsp', 'tsp',
+                      'lb', 'oz', 'gram', 'kg', 'clove', 'head', 'bunch', 'sprig',
+                      'piece', 'slice', 'can', 'jar', 'package', 'box', 'bottle',
+                      'taste', 'need', 'serving', 'garnish', 'juice', 'flake', 'leaf',
+                      'leaves'}
+        
+        # Filter out unit/descriptor nouns
+        ingredient_nouns = [n for n in nouns if n.text.lower() not in skip_nouns]
+        
+        if ingredient_nouns:
+            # Return the last ingredient noun (after filtering units)
+            core_token = ingredient_nouns[-1]
+        else:
+            # If all nouns were filtered, return last noun anyway
+            core_token = nouns[-1]
+        
+        # Post-processing: normalize similar ingredients
+        core_text = core_token.text.lower()
+        
+        # Normalize stock/broth
+        if core_text in ['stock', 'broth']:
+            return self.nlp('broth')[0]
+        
+        # Normalize variations
+        if core_text in ['breast', 'thigh', 'wing', 'leg']:
+            # Keep chicken parts separate (breast, thigh, etc.)
+            return core_token
+        
+        return core_token
     
     def _combine_semantic_group(self, items: List[Dict]) -> Dict:
         """
