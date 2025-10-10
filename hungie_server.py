@@ -4060,7 +4060,7 @@ def test_ollama():
                 'prompt': question,
                 'stream': False
             },
-            timeout=30
+            timeout=120  # Increased to 120s - first LLM call is slow
         )
         
         processing_time = time.time() - start_time

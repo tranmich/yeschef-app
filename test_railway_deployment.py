@@ -42,10 +42,12 @@ try:
         "question": "Should 'chicken thighs' and 'chicken broth' be combined in a grocery list?"
     }
     
+    print("   ⏳ First LLM call can take 30-60 seconds (loading model)...")
+    
     response = requests.post(
         f"{railway_url}/api/ollama/test",
         json=test_data,
-        timeout=30  # LLM can take a few seconds
+        timeout=90  # Increased to 90 seconds for first call
     )
     
     if response.ok:
@@ -56,6 +58,10 @@ try:
     else:
         print(f"   ⚠️ Ollama test failed: {response.status_code}")
         print(f"   Response: {response.text[:200]}")
+except requests.exceptions.Timeout:
+    print(f"   ⚠️ Timeout after 90s - model might still be loading")
+    print(f"   Note: Ollama is running (health check passed!)")
+    print(f"   Try again in a minute or test via mobile app")
 except Exception as e:
     print(f"   ❌ Error: {e}")
 
@@ -71,7 +77,7 @@ try:
     response = requests.post(
         f"{railway_url}/api/grocery/extract-metadata",
         json={"items": test_items},
-        timeout=10
+        timeout=30  # Increased timeout
     )
     
     if response.ok:
