@@ -5446,7 +5446,9 @@ def health_check():
             'recipe_import': RECIPE_IMPORT_AVAILABLE,
             'session_management': session_manager is not None,
             'ai_chat': client is not None,
-            'database_connection': True
+            'database_connection': True,
+            'spacy': SPACY_NORMALIZER_AVAILABLE,
+            'ollama': False
         }
 
         # Test database connection
@@ -5460,6 +5462,20 @@ def health_check():
         except Exception as e:
             capabilities['database_connection'] = False
             capabilities['database_error'] = str(e)
+        
+        # Test Ollama connection
+        try:
+            import requests
+            ollama_url = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
+            response = requests.get(f"{ollama_url}/api/tags", timeout=2)
+            if response.ok:
+                capabilities['ollama'] = True
+                data = response.json()
+                if 'models' in data:
+                    capabilities['ollama_models'] = [m.get('name') for m in data['models']]
+        except Exception as e:
+            capabilities['ollama'] = False
+            capabilities['ollama_error'] = str(e)
 
         return jsonify({
             'success': True,
