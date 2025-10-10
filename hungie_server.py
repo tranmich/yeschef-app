@@ -3061,7 +3061,10 @@ def list_meal_plans():
                         shared_plan['is_shared'] = True
                         shared_plan['permission_level'] = collab['permission_level']
                         shared_plan['shared_by'] = collab['owner_name']
-                        shared_plan['plan_name'] = f"📤 {shared_plan.get('plan_name', f'Shared Plan #{collab["resource_id"]}')} (by {collab['owner_name']})"
+                        # Fix: Use single quotes for dictionary access to avoid f-string quote conflicts
+                        default_name = f"Shared Plan #{collab['resource_id']}"
+                        plan_name = shared_plan.get('plan_name', default_name)
+                        shared_plan['plan_name'] = f"📤 {plan_name} (by {collab['owner_name']})"
                         shared_plans.append(shared_plan)
                 except Exception as e:
                     logger.warning(f"Could not load shared meal plan {collab['resource_id']}: {e}")
