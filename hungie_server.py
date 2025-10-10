@@ -4032,6 +4032,68 @@ def extract_metadata():
             'error': str(e)
         })
 
+@app.route('/api/ollama/test', methods=['POST'])
+def test_ollama():
+    """
+    Test Ollama integration with a simple question
+    Used for health checks and deployment verification
+    """
+    try:
+        import requests
+        import time
+        
+        data = request.get_json()
+        question = data.get('question', 'Should chicken thighs and chicken broth be combined in a grocery list?')
+        
+        ollama_url = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
+        model = os.getenv('OLLAMA_MODEL', 'llama3.2:3b')
+        
+        logger.info(f"🤖 Testing Ollama: {ollama_url} with model {model}")
+        
+        # Test Ollama connection and generate response
+        start_time = time.time()
+        
+        response = requests.post(
+            f"{ollama_url}/api/generate",
+            json={
+                'model': model,
+                'prompt': question,
+                'stream': False
+            },
+            timeout=30
+        )
+        
+        processing_time = time.time() - start_time
+        
+        if response.ok:
+            result = response.json()
+            ollama_response = result.get('response', '')
+            
+            logger.info(f"✅ Ollama responded in {processing_time:.2f}s")
+            
+            return jsonify({
+                'success': True,
+                'response': ollama_response,
+                'processing_time': round(processing_time, 2),
+                'model': model,
+                'question': question
+            })
+        else:
+            logger.error(f"❌ Ollama error: {response.status_code}")
+            return jsonify({
+                'success': False,
+                'error': f"Ollama returned status {response.status_code}",
+                'details': response.text
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"❌ Ollama test error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'hint': 'Check if Ollama is running and OLLAMA_HOST is set correctly'
+        }), 500
+
 @app.route('/api/grocery/enhance-combining', methods=['POST'])
 def enhance_combining():
     """
