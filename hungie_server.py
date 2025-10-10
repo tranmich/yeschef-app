@@ -4032,160 +4032,6 @@ def extract_metadata():
             'error': str(e)
         })
 
-@app.route('/api/ollama/ping', methods=['GET'])
-def ollama_ping():
-    """
-    Quick health check for Ollama service
-    Just checks if Ollama is responding, no LLM inference
-    """
-    try:
-        import requests
-        import time
-        
-        ollama_url = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
-        
-        logger.info(f"🏓 Pinging Ollama at {ollama_url}")
-        
-        # Just check if Ollama is alive
-        start_time = time.time()
-        
-        response = requests.get(f"{ollama_url}/api/tags", timeout=5)
-        
-        ping_time = time.time() - start_time
-        
-        if response.ok:
-            data = response.json()
-            models = [m.get('name') for m in data.get('models', [])]
-            
-            logger.info(f"✅ Ollama responding in {ping_time*1000:.0f}ms")
-            
-            return jsonify({
-                'success': True,
-                'ping_time_ms': round(ping_time * 1000, 2),
-                'ollama_url': ollama_url,
-                'available_models': models,
-                'status': 'healthy'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': f'Ollama returned status {response.status_code}',
-                'ping_time_ms': round(ping_time * 1000, 2)
-            }), 500
-            
-    except Exception as e:
-        logger.error(f"❌ Ollama ping failed: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'status': 'unreachable'
-        }), 500
-
-@app.route('/api/ollama/test', methods=['POST'])
-def test_ollama():
-    """
-    Test Ollama integration with a simple question
-    Used for health checks and deployment verification
-    """
-    try:
-        import requests
-        import time
-        
-        data = request.get_json()
-        question = data.get('question', 'Should chicken thighs and chicken broth be combined in a grocery list?')
-        
-        ollama_url = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
-        model = os.getenv('OLLAMA_MODEL', 'llama3.2:3b')
-        
-        logger.info(f"🤖 Testing Ollama: {ollama_url} with model {model}")
-        
-        # Test Ollama connection and generate response
-        start_time = time.time()
-        
-        response = requests.post(
-            f"{ollama_url}/api/generate",
-            json={
-                'model': model,
-                'prompt': question,
-                'stream': False
-            },
-            timeout=120  # Increased to 120s - first LLM call is slow
-        )
-        
-        processing_time = time.time() - start_time
-        
-        if response.ok:
-            result = response.json()
-            ollama_response = result.get('response', '')
-            
-            logger.info(f"✅ Ollama responded in {processing_time:.2f}s")
-            
-            return jsonify({
-                'success': True,
-                'response': ollama_response,
-                'processing_time': round(processing_time, 2),
-                'model': model,
-                'question': question
-            })
-        else:
-            logger.error(f"❌ Ollama error: {response.status_code}")
-            return jsonify({
-                'success': False,
-                'error': f"Ollama returned status {response.status_code}",
-                'details': response.text
-            }), 500
-            
-    except Exception as e:
-        logger.error(f"❌ Ollama test error: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'hint': 'Check if Ollama is running and OLLAMA_HOST is set correctly'
-        }), 500
-
-@app.route('/api/ollama/pull-model', methods=['POST'])
-def ollama_pull_model():
-    """
-    Pull/download a new Ollama model
-    Useful for switching models without redeploying
-    """
-    try:
-        data = request.get_json()
-        model_name = data.get('name', os.getenv('OLLAMA_MODEL', 'llama3.2:3b'))
-        
-        ollama_url = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
-        
-        logger.info(f"📥 Pulling Ollama model: {model_name}")
-        
-        # Trigger model pull (this can take 2-5 minutes)
-        response = requests.post(
-            f"{ollama_url}/api/pull",
-            json={"name": model_name},
-            timeout=600  # 10 minutes for model download
-        )
-        
-        if response.ok:
-            logger.info(f"✅ Model {model_name} pulled successfully")
-            return jsonify({
-                'success': True,
-                'model': model_name,
-                'message': f'Model {model_name} downloaded successfully',
-                'note': 'Model is now available for inference'
-            })
-        else:
-            logger.error(f"❌ Model pull failed: {response.text}")
-            return jsonify({
-                'success': False,
-                'error': f'Model pull failed: {response.text}'
-            }), 500
-            
-    except Exception as e:
-        logger.error(f"❌ Model pull error: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
 @app.route('/api/grocery/enhance-combining', methods=['POST'])
 def enhance_combining():
     """
@@ -5601,8 +5447,7 @@ def health_check():
             'session_management': session_manager is not None,
             'ai_chat': client is not None,
             'database_connection': True,
-            'spacy': SPACY_NORMALIZER_AVAILABLE,
-            'ollama': False
+            'spacy': SPACY_NORMALIZER_AVAILABLE
         }
 
         # Test database connection
@@ -5616,20 +5461,6 @@ def health_check():
         except Exception as e:
             capabilities['database_connection'] = False
             capabilities['database_error'] = str(e)
-        
-        # Test Ollama connection
-        try:
-            import requests
-            ollama_url = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
-            response = requests.get(f"{ollama_url}/api/tags", timeout=2)
-            if response.ok:
-                capabilities['ollama'] = True
-                data = response.json()
-                if 'models' in data:
-                    capabilities['ollama_models'] = [m.get('name') for m in data['models']]
-        except Exception as e:
-            capabilities['ollama'] = False
-            capabilities['ollama_error'] = str(e)
 
         return jsonify({
             'success': True,

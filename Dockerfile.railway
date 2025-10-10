@@ -1,5 +1,5 @@
-# Railway Dockerfile with Ollama Support
-# Builds a container with Flask + spaCy + Ollama + Llama 3.2
+# Railway Dockerfile
+# Builds a container with Flask + spaCy for YesChef Backend
 
 FROM python:3.11-slim
 
@@ -8,9 +8,6 @@ RUN apt-get update && apt-get install -y \
     curl \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Ollama
-RUN curl -fsSL https://ollama.com/install.sh | sh
 
 # Set working directory
 WORKDIR /app
@@ -27,21 +24,8 @@ RUN python -m spacy download en_core_web_md
 # Copy application code
 COPY . .
 
-# Expose ports
-EXPOSE 5000 11434
+# Expose Flask port
+EXPOSE 5000
 
-# Create startup script that uses OLLAMA_MODEL env variable
-RUN echo '#!/bin/bash\n\
-# Start Ollama in background\n\
-ollama serve &\n\
-sleep 5\n\
-# Pull model from environment variable (defaults to 3b if not set)\n\
-OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}\n\
-echo "Pulling Ollama model: $OLLAMA_MODEL"\n\
-ollama pull $OLLAMA_MODEL\n\
-# Start Flask app\n\
-python hungie_server.py\n\
-' > /app/start.sh && chmod +x /app/start.sh
-
-# Start services
-CMD ["/app/start.sh"]
+# Start Flask app
+CMD ["python", "hungie_server.py"]
