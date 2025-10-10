@@ -4032,6 +4032,54 @@ def extract_metadata():
             'error': str(e)
         })
 
+@app.route('/api/grocery/groq-analyze', methods=['POST'])
+def groq_analyze():
+    """
+    Use Groq LLM to analyze grocery items for intelligent combining
+    This is called after spaCy analysis for enhanced intelligence
+    """
+    try:
+        from core_systems.groq_grocery_analyzer import get_groq_analyzer
+        
+        data = request.get_json()
+        items = data.get('items', [])
+        spacy_metadata = data.get('spacy_metadata', None)
+        
+        if not items:
+            return jsonify({
+                'success': False,
+                'error': 'No items provided'
+            }), 400
+        
+        # Get Groq analyzer
+        groq = get_groq_analyzer()
+        
+        if not groq.is_available():
+            return jsonify({
+                'success': False,
+                'error': 'Groq not configured',
+                'hint': 'Set GROQ_API_KEY environment variable'
+            }), 503
+        
+        logger.info(f"🤖 Analyzing {len(items)} items with Groq LLM...")
+        
+        # Analyze with Groq
+        result = groq.analyze_combining(items, spacy_metadata)
+        
+        if result.get('success'):
+            logger.info(f"✅ Groq analysis complete")
+            return jsonify(result)
+        else:
+            logger.error(f"❌ Groq analysis failed: {result.get('error')}")
+            return jsonify(result), 500
+            
+    except Exception as e:
+        logger.error(f"❌ Groq endpoint error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/grocery/enhance-combining', methods=['POST'])
 def enhance_combining():
     """
@@ -5447,7 +5495,8 @@ def health_check():
             'session_management': session_manager is not None,
             'ai_chat': client is not None,
             'database_connection': True,
-            'spacy': SPACY_NORMALIZER_AVAILABLE
+            'spacy': SPACY_NORMALIZER_AVAILABLE,
+            'groq': False
         }
 
         # Test database connection
@@ -5461,6 +5510,17 @@ def health_check():
         except Exception as e:
             capabilities['database_connection'] = False
             capabilities['database_error'] = str(e)
+        
+        # Test Groq availability
+        try:
+            from core_systems.groq_grocery_analyzer import get_groq_analyzer
+            groq = get_groq_analyzer()
+            capabilities['groq'] = groq.is_available()
+            if groq.is_available():
+                capabilities['groq_model'] = groq.model
+        except Exception as e:
+            capabilities['groq'] = False
+            capabilities['groq_error'] = str(e)
 
         return jsonify({
             'success': True,
