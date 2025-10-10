@@ -27,16 +27,22 @@ class GroqGroceryAnalyzer:
         self.client = None
         self.model = "llama-3.1-8b-instant"  # Fast & free tier!
         
+        logger.info("🔧 Initializing Groq analyzer...")
+        logger.info(f"   GROQ_AVAILABLE: {GROQ_AVAILABLE}")
+        
         if GROQ_AVAILABLE:
             api_key = os.getenv('GROQ_API_KEY')
+            logger.info(f"   API key present: {bool(api_key)}")
             if api_key:
+                logger.info(f"   API key starts with: {api_key[:10]}...")
                 try:
                     self.client = Groq(api_key=api_key)
-                    logger.info("✅ Groq client initialized")
+                    logger.info("✅ Groq client initialized successfully!")
                 except Exception as e:
                     logger.error(f"❌ Groq initialization failed: {e}")
             else:
-                logger.warning("⚠️ GROQ_API_KEY not found in environment")
+                logger.warning("⚠️ GROQ_API_KEY not found in environment variables")
+                logger.info(f"   Available env vars: {list(os.environ.keys())[:10]}...")
     
     def is_available(self) -> bool:
         """Check if Groq is available and configured"""
