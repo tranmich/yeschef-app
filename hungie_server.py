@@ -4068,6 +4068,8 @@ def groq_analyze():
         
         if result.get('success'):
             logger.info(f"✅ Groq analysis complete")
+            logger.info(f"📊 Analysis result keys: {list(result.keys())}")
+            logger.info(f"📦 Analysis content: {json.dumps(result.get('analysis', {}), indent=2)[:500]}...")
             return jsonify(result)
         else:
             logger.error(f"❌ Groq analysis failed: {result.get('error')}")
