@@ -126,21 +126,26 @@ COMBINING RULES:
 ✅ SHOULD COMBINE:
 - Same ingredient, same quality: "2 cups flour" + "1 cup flour" = "3 cups flour"
 - Stock and broth are interchangeable: "chicken stock" + "chicken broth" = "chicken stock/broth"
-- Same base ingredient, no quality difference: "parmesan cheese" + "grated parmesan" = "parmesan cheese"
-- Olive oil variations without quality specs: "olive oil" + "extra virgin olive oil" = "olive oil"
+- Same herb, same preparation: "1 tbsp chopped parsley" + "2 tbsp chopped parsley" = "3 tbsp chopped parsley"
+- Plain salt entries: "salt to taste" + "salt (as needed)" = "salt to taste"
+- Same olive oil without quality difference: "olive oil" + "extra virgin olive oil" (if no quality specified) = "olive oil"
 
-❌ MUST STAY SEPARATE:
-- Different cuts of meat: "chicken breast" ≠ "chicken thigh" ≠ "chicken wings"
-- Different forms of herbs/produce: "fresh parsley" ≠ "dried parsley" ≠ "parsley sprigs"
-- Different pepper types: "black pepper" ≠ "red pepper flakes" ≠ "bell pepper"
-- Different forms: "fresh tomatoes" ≠ "canned tomatoes" ≠ "sun-dried tomatoes"
-- Different preparations: "chopped parsley" ≠ "whole parsley sprigs" ≠ "parsley leaves"
-- Items with different uses: meat ≠ broth (even if same animal)
+❌ MUST STAY SEPARATE - BE VERY STRICT ABOUT THESE:
+- **Different cuts of meat:** "chicken breast" ≠ "chicken thigh" ≠ "chicken wings"
+- **Different forms of herbs:** "chopped parsley" ≠ "parsley sprigs" ≠ "parsley leaves" ≠ "garnish parsley"
+- **CRITICAL: Different pepper types:** "black pepper" ≠ "red pepper flakes" ≠ "white pepper" ≠ "cayenne"
+  * Black pepper = regular table pepper
+  * Red pepper flakes = crushed red chilies (SPICY!)
+  * These are COMPLETELY DIFFERENT and must stay separate!
+- **Different forms of produce:** "fresh tomatoes" ≠ "canned tomatoes" ≠ "sun-dried tomatoes"
+- **Items with different uses:** meat ≠ broth (even if same animal)
+- **"Salt and Pepper" combos:** Keep "Salt And Pepper To Taste" separate from plain "Salt" or plain "Pepper"
 
 ⚠️ BE PRECISE:
-- "2 tbsp vinegar" + "3 tbsp vinegar" = COMBINE (same ingredient)
+- "2 tbsp vinegar" + "3 tbsp vinegar" = COMBINE (same ingredient, can add quantities)
 - "6 tbsp butter" is ONE item, not a duplicate
 - Don't say "duplicate" unless items are EXACTLY the same
+- Don't mix herbs with non-herbs (parsley ≠ lemon juice!)
 - When in doubt about form/quality, keep separate
 
 Return JSON with TWO keys:
