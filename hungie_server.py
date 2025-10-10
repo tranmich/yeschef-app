@@ -4032,6 +4032,55 @@ def extract_metadata():
             'error': str(e)
         })
 
+@app.route('/api/ollama/ping', methods=['GET'])
+def ollama_ping():
+    """
+    Quick health check for Ollama service
+    Just checks if Ollama is responding, no LLM inference
+    """
+    try:
+        import requests
+        import time
+        
+        ollama_url = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
+        
+        logger.info(f"🏓 Pinging Ollama at {ollama_url}")
+        
+        # Just check if Ollama is alive
+        start_time = time.time()
+        
+        response = requests.get(f"{ollama_url}/api/tags", timeout=5)
+        
+        ping_time = time.time() - start_time
+        
+        if response.ok:
+            data = response.json()
+            models = [m.get('name') for m in data.get('models', [])]
+            
+            logger.info(f"✅ Ollama responding in {ping_time*1000:.0f}ms")
+            
+            return jsonify({
+                'success': True,
+                'ping_time_ms': round(ping_time * 1000, 2),
+                'ollama_url': ollama_url,
+                'available_models': models,
+                'status': 'healthy'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Ollama returned status {response.status_code}',
+                'ping_time_ms': round(ping_time * 1000, 2)
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"❌ Ollama ping failed: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'status': 'unreachable'
+        }), 500
+
 @app.route('/api/ollama/test', methods=['POST'])
 def test_ollama():
     """
