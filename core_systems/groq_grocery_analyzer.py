@@ -113,51 +113,68 @@ class GroqGroceryAnalyzer:
     def _build_analysis_prompt(self, items: List[Dict], spacy_metadata: Optional[Dict]) -> str:
         """Build the prompt for LLM analysis"""
         
-        # Format items
-        items_text = "\n".join([f"- {item.get('name', 'Unknown')}" for item in items])
+        # Format items with IDs for tracking
+        items_text = "\n".join([f"{i+1}. {item.get('name', 'Unknown')}" for i, item in enumerate(items)])
         
-        prompt = f"""Analyze these grocery items and suggest which should be combined:
+        prompt = f"""You are a grocery shopping assistant. Analyze these items and determine which should be combined into single grocery list entries.
 
-ITEMS:
+GROCERY ITEMS ({len(items)} total):
 {items_text}
 
-RULES:
-1. Different cuts of meat should stay separate (chicken breast ≠ chicken thigh)
-2. Meat and broth/stock should stay separate (chicken breast ≠ chicken broth)
-3. Stock and broth are the same (combine them)
-4. Different pepper types should stay separate (black pepper ≠ red pepper flakes ≠ bell pepper)
-5. Fresh vs canned/dried are ALWAYS different - keep separate (fresh tomatoes ≠ canned tomatoes, fresh parsley ≠ dried parsley)
-6. Consider quality descriptors (fresh, canned, frozen, dried) - these indicate different products
-7. Same exact ingredient without quality differences can combine
+COMBINING RULES:
 
-IMPORTANT: When in doubt, keep items separate. Better to have more items than incorrectly combine different products.
+✅ SHOULD COMBINE:
+- Same ingredient, same quality: "2 cups flour" + "1 cup flour" = "3 cups flour"
+- Stock and broth are interchangeable: "chicken stock" + "chicken broth" = "chicken stock/broth"
+- Same base ingredient, no quality difference: "parmesan cheese" + "grated parmesan" = "parmesan cheese"
+- Olive oil variations without quality specs: "olive oil" + "extra virgin olive oil" = "olive oil"
 
+❌ MUST STAY SEPARATE:
+- Different cuts of meat: "chicken breast" ≠ "chicken thigh" ≠ "chicken wings"
+- Different forms of herbs/produce: "fresh parsley" ≠ "dried parsley" ≠ "parsley sprigs"
+- Different pepper types: "black pepper" ≠ "red pepper flakes" ≠ "bell pepper"
+- Different forms: "fresh tomatoes" ≠ "canned tomatoes" ≠ "sun-dried tomatoes"
+- Different preparations: "chopped parsley" ≠ "whole parsley sprigs" ≠ "parsley leaves"
+- Items with different uses: meat ≠ broth (even if same animal)
+
+⚠️ BE PRECISE:
+- "2 tbsp vinegar" + "3 tbsp vinegar" = COMBINE (same ingredient)
+- "6 tbsp butter" is ONE item, not a duplicate
+- Don't say "duplicate" unless items are EXACTLY the same
+- When in doubt about form/quality, keep separate
+
+Return JSON with TWO keys:
+- "groups": Array of items to combine (only include if 2+ items should merge)
+- "separate": Array of items that should stay separate
+
+Only list items in ONE place (either "groups" OR "separate", not both).
 """
         
         # Add spaCy context if available
         if spacy_metadata:
             prompt += f"""
-SPACY ANALYSIS:
-{json.dumps(spacy_metadata, indent=2)}
 
-Use this to help understand core ingredients and qualities.
+ADDITIONAL CONTEXT (spaCy analysis):
+{json.dumps(spacy_metadata, indent=2)[:1000]}...
 
+Use this to understand core ingredients.
 """
         
         prompt += """
-Return JSON with:
+
+Return JSON format:
 {
   "groups": [
     {
-      "items": ["item1", "item2"],
-      "combined_name": "suggested name",
-      "reasoning": "why these should combine"
+      "items": ["exact item name 1", "exact item name 2"],
+      "combined_name": "readable combined name",
+      "reasoning": "brief reason"
     }
   ],
   "separate": [
     {
-      "item": "item name",
-      "reasoning": "why this stays separate"
+      "item": "exact item name",
+      "reasoning": "brief reason why separate"
     }
   ]
 }
