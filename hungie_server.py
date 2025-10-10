@@ -4094,6 +4094,49 @@ def test_ollama():
             'hint': 'Check if Ollama is running and OLLAMA_HOST is set correctly'
         }), 500
 
+@app.route('/api/ollama/pull-model', methods=['POST'])
+def ollama_pull_model():
+    """
+    Pull/download a new Ollama model
+    Useful for switching models without redeploying
+    """
+    try:
+        data = request.get_json()
+        model_name = data.get('name', os.getenv('OLLAMA_MODEL', 'llama3.2:3b'))
+        
+        ollama_url = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
+        
+        logger.info(f"📥 Pulling Ollama model: {model_name}")
+        
+        # Trigger model pull (this can take 2-5 minutes)
+        response = requests.post(
+            f"{ollama_url}/api/pull",
+            json={"name": model_name},
+            timeout=600  # 10 minutes for model download
+        )
+        
+        if response.ok:
+            logger.info(f"✅ Model {model_name} pulled successfully")
+            return jsonify({
+                'success': True,
+                'model': model_name,
+                'message': f'Model {model_name} downloaded successfully',
+                'note': 'Model is now available for inference'
+            })
+        else:
+            logger.error(f"❌ Model pull failed: {response.text}")
+            return jsonify({
+                'success': False,
+                'error': f'Model pull failed: {response.text}'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"❌ Model pull error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/grocery/enhance-combining', methods=['POST'])
 def enhance_combining():
     """
