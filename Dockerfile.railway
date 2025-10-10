@@ -30,13 +30,15 @@ COPY . .
 # Expose ports
 EXPOSE 5000 11434
 
-# Create startup script
+# Create startup script that uses OLLAMA_MODEL env variable
 RUN echo '#!/bin/bash\n\
 # Start Ollama in background\n\
 ollama serve &\n\
 sleep 5\n\
-# Pull Llama model\n\
-ollama pull llama3.2:3b\n\
+# Pull model from environment variable (defaults to 3b if not set)\n\
+OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}\n\
+echo "Pulling Ollama model: $OLLAMA_MODEL"\n\
+ollama pull $OLLAMA_MODEL\n\
 # Start Flask app\n\
 python hungie_server.py\n\
 ' > /app/start.sh && chmod +x /app/start.sh
