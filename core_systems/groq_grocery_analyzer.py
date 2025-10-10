@@ -126,9 +126,11 @@ RULES:
 2. Meat and broth/stock should stay separate (chicken breast ≠ chicken broth)
 3. Stock and broth are the same (combine them)
 4. Different pepper types should stay separate (black pepper ≠ red pepper flakes ≠ bell pepper)
-5. Fresh vs canned/dried are different (fresh tomatoes ≠ canned tomatoes)
-6. Same herb in different forms can combine (fresh parsley + dried parsley)
-7. Consider quality descriptors (fresh, canned, frozen, dried)
+5. Fresh vs canned/dried are ALWAYS different - keep separate (fresh tomatoes ≠ canned tomatoes, fresh parsley ≠ dried parsley)
+6. Consider quality descriptors (fresh, canned, frozen, dried) - these indicate different products
+7. Same exact ingredient without quality differences can combine
+
+IMPORTANT: When in doubt, keep items separate. Better to have more items than incorrectly combine different products.
 
 """
         
