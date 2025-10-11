@@ -162,71 +162,79 @@ class GroqGroceryAnalyzer:
             for item in structured_items
         ])
         
-        prompt = f"""Analyze these grocery items and suggest which should be combined.
+        prompt = f"""Analyze these grocery items using CATEGORY-BASED intelligence.
 
 ITEMS:
 {items_text}
 
-When analyzing, focus on the INGREDIENT (ignore quantities). But use full_name when listing items.
+Focus on INGREDIENT names (ignore quantities when grouping). Use full_name when listing items in your response.
 
-UNIVERSAL COMBINING PRINCIPLES:
+🗂️ INGREDIENT CATEGORIES - Understand these to make smart decisions:
 
-1. SAME HERB/SPICE IN DIFFERENT FORMS = COMBINE
-   Examples: 
-   - "fresh parsley" + "dried parsley" + "parsley sprigs" = combine
-   - "fresh basil" + "basil leaves" = combine
-   - "ground cinnamon" + "cinnamon" = combine
+CATEGORY 1: STOCKS & BROTHS
+- chicken stock, beef stock, vegetable broth, fish stock
+✅ "chicken stock" + "chicken broth" = SAME ingredient, COMBINE
+❌ "chicken stock" + "beef stock" = DIFFERENT ingredients, SEPARATE
 
-2. SAME LIQUID/STOCK = COMBINE
-   Examples:
-   - "chicken stock" + "chicken broth" = combine (same thing)
-   - "lemon juice" + "juice of 1 lemon" = combine
-   But: chicken stock ≠ beef stock (different base)
+CATEGORY 2: COOKING LIQUIDS (all different!)
+- water, wine, beer, sake
+❌ water ≠ wine ≠ beer (completely different liquids!)
 
-3. SAME INGREDIENT, DIFFERENT PREPARATION = COMBINE
-   Examples:
-   - "diced onion" + "sliced onion" = combine
-   - "grated cheese" + "shredded cheese" = combine
-   - "crushed garlic" + "minced garlic" = combine
+CATEGORY 3: ACIDS (all different!)
+- lemon juice, lime juice, vinegar types, orange juice
+❌ lemon juice ≠ lime juice ≠ vinegar (different acids!)
+✅ "lemon juice" + "juice of 1 lemon" = SAME thing, COMBINE
 
-4. QUALITY DESCRIPTORS DON'T CHANGE INGREDIENT = COMBINE
-   Examples:
-   - "extra virgin olive oil" + "olive oil" = combine (same oil)
-   - "fresh parsley" + "parsley" = combine (same herb)
-   - "organic eggs" + "eggs" = combine (same item)
+CATEGORY 4: OILS & FATS
+- olive oil, vegetable oil, sesame oil, butter
+✅ "olive oil" + "extra virgin olive oil" = SAME oil, COMBINE
+❌ "olive oil" + "sesame oil" = DIFFERENT oils, SEPARATE
 
-5. DIFFERENT CUTS OF MEAT = NEVER COMBINE
-   Examples:
-   - chicken breast ≠ chicken thigh (different cuts)
-   - ground beef ≠ beef stew meat (different cuts)
-   - pork chops ≠ pork tenderloin (different cuts)
+CATEGORY 5: FRESH HERBS (each is unique flavor!)
+- parsley, cilantro, basil, dill, mint, thyme, rosemary
+✅ "fresh parsley" + "dried parsley" + "parsley sprigs" = SAME herb, COMBINE
+❌ parsley ≠ cilantro ≠ basil (different herbs!)
 
-6. MEAT VS BROTH = NEVER COMBINE
-   Examples:
-   - chicken breast ≠ chicken broth (one is meat, one is liquid)
-   - beef steak ≠ beef stock (completely different uses)
+CATEGORY 6: GROUND SPICES (each is different!)
+- black pepper, red pepper flakes, cumin, paprika, cayenne
+✅ "black pepper" + "ground black pepper" + "freshly ground pepper" = SAME spice, COMBINE
+❌ black pepper ≠ red pepper flakes (completely different spices!)
+❌ paprika ≠ cayenne ≠ cumin (all different!)
 
-7. DIFFERENT SPICE TYPES = NEVER COMBINE
-   Examples:
-   - black pepper ≠ red pepper flakes (black is table pepper, red is chili)
-   - paprika ≠ cayenne (different heat/flavor)
-   - cinnamon ≠ nutmeg (different spices)
-   But: "black pepper" = "ground black pepper" = "freshly ground pepper" (SAME spice!)
+CATEGORY 7: CONDIMENTS (all different!)
+- ketchup, mustard, mayo, soy sauce, hot sauce
+❌ ketchup ≠ mustard ≠ mayo (all different condiments!)
 
-8. DIFFERENT PRODUCE VARIETIES = USUALLY COMBINE
-   Examples:
-   - "Little Neck clams" + "Manila clams" = combine (both clams)
-   - "Roma tomatoes" + "cherry tomatoes" = combine (both tomatoes)
+CATEGORY 8: BRINED/PICKLED (all different!)
+- capers, olives, pickles, pickled jalapeños
+❌ capers ≠ olives ≠ pickles (all different!)
 
-9. FRESH VS CANNED/DRIED = DIFFERENT (DON'T COMBINE)
-   Examples:
-   - fresh tomatoes ≠ canned tomatoes (different form)
-   - fresh herbs ≠ dried herbs (different potency)
+CATEGORY 9: CHEESE TYPES (each is different!)
+- parmesan, cheddar, mozzarella, feta
+✅ "parmesan" + "grated parmesan" + "parmesan cheese" = SAME cheese, COMBINE
+❌ parmesan ≠ cheddar ≠ mozzarella (different cheeses!)
 
-CRITICAL RULE: Each item appears in ONLY ONE place!
-- If you put an item in a group, DO NOT list it in "separate"
-- If you list an item in "separate", DO NOT include it in any group
+CATEGORY 10: PROTEINS (never auto-combine!)
+- chicken breast, chicken thigh, ground beef, salmon
+❌ chicken breast ≠ chicken thigh (different cuts, different cooking!)
+❌ ground beef ≠ beef stew meat (different preparations!)
+❌ chicken breast ≠ chicken stock (meat ≠ liquid!)
 
+CATEGORY 11: AROMATICS
+- onions, garlic, shallots, leeks, ginger
+✅ "diced onion" + "sliced onion" = SAME ingredient, COMBINE
+❌ onions ≠ shallots ≠ garlic (different flavors!)
+
+CATEGORY 12: FRESH VEGETABLES
+- tomatoes, peppers, carrots, broccoli
+✅ "Roma tomatoes" + "cherry tomatoes" = both tomatoes, CAN combine
+❌ fresh tomatoes ≠ canned tomatoes (different form!)
+
+🎯 THE GOLDEN RULE:
+Within any category: SAME ingredient (different form/prep) = COMBINE
+Within any category: DIFFERENT ingredients = SEPARATE (even if same category!)
+
+CRITICAL: Each item appears in ONLY ONE place - either in a group OR in separate, NEVER both!
 """
         
         # Add spaCy context if available
