@@ -116,43 +116,74 @@ class GroqGroceryAnalyzer:
         # Format items with IDs for tracking
         items_text = "\n".join([f"{i+1}. {item.get('name', 'Unknown')}" for i, item in enumerate(items)])
         
-        prompt = f"""You are a grocery shopping assistant. Analyze these items and determine which should be combined into single grocery list entries.
+        prompt = f"""Analyze these grocery items and suggest which should be combined:
 
-GROCERY ITEMS ({len(items)} total):
+ITEMS:
 {items_text}
 
-COMBINING RULES:
+STRICT RULES:
+1. Different cuts of meat NEVER combine (chicken breast ≠ chicken thigh)
+2. Meat and broth NEVER combine (chicken breast ≠ chicken broth)
+3. Stock and broth ARE the same (combine them)
+4. Different pepper types NEVER combine:
+   - Black pepper (regular ground pepper)
+   - Red pepper flakes (crushed red chilies - SPICY)
+   - Bell pepper (vegetable)
+   These are completely different ingredients!
+5. Fresh vs canned/dried are DIFFERENT (fresh tomatoes ≠ canned tomatoes)
+6. Olive oil and extra virgin olive oil CAN combine
+7. Different clam varieties CAN combine (Little Neck + Manila = "Clams")
+8. Parsley in ANY form CAN combine:
+   - Chopped parsley
+   - Finely chopped parsley
+   - Parsley sprigs
+   - Parsley leaves
+   - Parsley garnish
+   ALL are the same herb - COMBINE them!
+9. Salt variations CAN combine:
+   - "Salt"
+   - "Salt to taste"
+   - "Salt and pepper"
+   ALL are salt - COMBINE them!
+10. Lemon in any form CAN combine:
+    - Lemon juice
+    - Juice of 1 lemon
+    ALL are lemon juice - COMBINE them!
 
-✅ SHOULD COMBINE:
-- Same ingredient, same quality: "2 cups flour" + "1 cup flour" = "3 cups flour"
-- Stock and broth are interchangeable: "chicken stock" + "chicken broth" = "chicken stock/broth"
-- Same herb, same preparation: "1 tbsp chopped parsley" + "2 tbsp chopped parsley" = "3 tbsp chopped parsley"
-- Plain salt entries: "salt to taste" + "salt (as needed)" = "salt to taste"
-- Same olive oil without quality difference: "olive oil" + "extra virgin olive oil" (if no quality specified) = "olive oil"
+CRITICAL: Each item must appear in EITHER "groups" OR "separate", NEVER BOTH!
+If an item is in a group, do NOT list it again in separate!
 
-❌ MUST STAY SEPARATE - BE VERY STRICT ABOUT THESE:
-- **Different cuts of meat:** "chicken breast" ≠ "chicken thigh" ≠ "chicken wings"
-- **Different forms of herbs:** "chopped parsley" ≠ "parsley sprigs" ≠ "parsley leaves" ≠ "garnish parsley"
-- **CRITICAL: Different pepper types:** "black pepper" ≠ "red pepper flakes" ≠ "white pepper" ≠ "cayenne"
-  * Black pepper = regular table pepper
-  * Red pepper flakes = crushed red chilies (SPICY!)
-  * These are COMPLETELY DIFFERENT and must stay separate!
-- **Different forms of produce:** "fresh tomatoes" ≠ "canned tomatoes" ≠ "sun-dried tomatoes"
-- **Items with different uses:** meat ≠ broth (even if same animal)
-- **"Salt and Pepper" combos:** Keep "Salt And Pepper To Taste" separate from plain "Salt" or plain "Pepper"
+"""
+        
+        # Add spaCy context if available
+        if spacy_metadata:
+            prompt += f"""
+SPACY ANALYSIS:
+{json.dumps(spacy_metadata, indent=2)}
 
-⚠️ BE PRECISE:
-- "2 tbsp vinegar" + "3 tbsp vinegar" = COMBINE (same ingredient, can add quantities)
-- "6 tbsp butter" is ONE item, not a duplicate
-- Don't say "duplicate" unless items are EXACTLY the same
-- Don't mix herbs with non-herbs (parsley ≠ lemon juice!)
-- When in doubt about form/quality, keep separate
+Use this to understand cores and qualities.
 
-Return JSON with TWO keys:
-- "groups": Array of items to combine (only include if 2+ items should merge)
-- "separate": Array of items that should stay separate
+"""
+        
+        prompt += """
+Return JSON with this EXACT format:
+{
+  "groups": [
+    {
+      "items": ["item1", "item2"],
+      "combined_name": "suggested name",
+      "reasoning": "why combine"
+    }
+  ],
+  "separate": [
+    {
+      "item": "item name",
+      "reasoning": "why separate"
+    }
+  ]
+}
 
-Only list items in ONE place (either "groups" OR "separate", not both).
+REMEMBER: Each item appears in ONLY ONE place - either in a group OR in separate, NEVER both!
 """
         
         # Add spaCy context if available
