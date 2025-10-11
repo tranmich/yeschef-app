@@ -177,6 +177,7 @@ class GroqGroceryAnalyzer:
         
         # Parse items into structured format (quantity + ingredient)
         structured_items = []
+        logger.info("\n📋 ===== ITEMS SENT TO GROQ =====")
         for i, item in enumerate(items):
             name = item.get('name', 'Unknown')
             quantity, ingredient = self._parse_quantity(name)
@@ -186,20 +187,21 @@ class GroqGroceryAnalyzer:
                 'ingredient': ingredient,
                 'quantity': quantity
             })
+            logger.info(f"   {i+1}. '{name}' → '{ingredient}'")
+        logger.info("=================================\n")
         
-        # Format for display - show both full name and parsed ingredient
+        # Format for display - show ONLY ingredient names (cleaned) to Groq
         items_text = "\n".join([
-            f"{item['index']}. \"{item['full_name']}\" → ingredient: \"{item['ingredient']}\"" 
+            f"{item['index']}. {item['ingredient']}"  # Only send cleaned ingredient
             for item in structured_items
         ])
         
         prompt = f"""Analyze these grocery items using CATEGORY-BASED intelligence.
 
-ITEMS (format: "full name with quantity" → ingredient: "ingredient without quantity"):
+ITEMS (cleaned ingredient names without quantities):
 {items_text}
 
-IMPORTANT: When listing items in your response, use the INGREDIENT name (without quantities), NOT the full name!
-Example: Use "Chicken Stock" not "9 cups Chicken Stock"
+IMPORTANT: When listing items in groups, use these EXACT ingredient names from the list above!
 
 🗂️ INGREDIENT CATEGORIES - Understand these to make smart decisions:
 
