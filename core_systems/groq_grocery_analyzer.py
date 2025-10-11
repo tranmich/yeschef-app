@@ -110,48 +110,122 @@ class GroqGroceryAnalyzer:
                 'fallback': 'Using spaCy only'
             }
     
+    def _parse_quantity(self, item_name: str) -> tuple:
+        """
+        Parse quantity from item name
+        Returns: (quantity, ingredient_name)
+        
+        Examples:
+            "9 cups Chicken Stock" -> ("9 cups", "Chicken Stock")
+            "2 tablespoons Olive Oil" -> ("2 tablespoons", "Olive Oil")
+            "Salt (as needed)" -> ("as needed", "Salt")
+        """
+        import re
+        
+        # Pattern: number + unit at the start
+        # Matches: "9 cups", "2 tbsp", "1.5 tsp", "0.5 cup"
+        pattern = r'^([\d\.\/\s]+(?:cup|cups|tablespoon|tablespoons|tbsp|tsp|teaspoon|teaspoons|ounce|ounces|oz|pound|pounds|lb|lbs|gram|grams|g|kg|clove|cloves)?)\s+'
+        
+        match = re.match(pattern, item_name, re.IGNORECASE)
+        if match:
+            quantity = match.group(1).strip()
+            ingredient = item_name[len(match.group(0)):].strip()
+            return (quantity, ingredient)
+        
+        # Check for "as needed" pattern
+        if '(as needed)' in item_name.lower() or 'to taste' in item_name.lower():
+            # Remove these descriptors to get clean ingredient
+            clean = re.sub(r'\(as needed\)|\(to taste\)|as needed|to taste', '', item_name, flags=re.IGNORECASE).strip()
+            return ('as needed', clean)
+        
+        # No quantity found, return empty quantity
+        return ('', item_name)
+    
     def _build_analysis_prompt(self, items: List[Dict], spacy_metadata: Optional[Dict]) -> str:
         """Build the prompt for LLM analysis"""
         
-        # Format items with IDs for tracking
-        items_text = "\n".join([f"{i+1}. {item.get('name', 'Unknown')}" for i, item in enumerate(items)])
+        # Parse items into structured format (quantity + ingredient)
+        structured_items = []
+        for i, item in enumerate(items):
+            name = item.get('name', 'Unknown')
+            quantity, ingredient = self._parse_quantity(name)
+            structured_items.append({
+                'index': i + 1,
+                'full_name': name,
+                'ingredient': ingredient,
+                'quantity': quantity
+            })
         
-        prompt = f"""Analyze these grocery items and suggest which should be combined:
+        # Format for display
+        items_text = "\n".join([
+            f"{item['index']}. {item['full_name']}" 
+            for item in structured_items
+        ])
+        
+        prompt = f"""Analyze these grocery items and suggest which should be combined.
 
 ITEMS:
 {items_text}
 
-STRICT RULES:
-1. Different cuts of meat NEVER combine (chicken breast ≠ chicken thigh)
-2. Meat and broth NEVER combine (chicken breast ≠ chicken broth)
-3. Stock and broth ARE the same (combine them)
-4. Different pepper types NEVER combine:
-   - Black pepper (regular ground pepper)
-   - Red pepper flakes (crushed red chilies - SPICY)
-   - Bell pepper (vegetable)
-   These are completely different ingredients!
-5. Fresh vs canned/dried are DIFFERENT (fresh tomatoes ≠ canned tomatoes)
-6. Olive oil and extra virgin olive oil CAN combine
-7. Different clam varieties CAN combine (Little Neck + Manila = "Clams")
-8. Parsley in ANY form CAN combine:
-   - Chopped parsley
-   - Finely chopped parsley
-   - Parsley sprigs
-   - Parsley leaves
-   - Parsley garnish
-   ALL are the same herb - COMBINE them!
-9. Salt variations CAN combine:
-   - "Salt"
-   - "Salt to taste"
-   - "Salt and pepper"
-   ALL are salt - COMBINE them!
-10. Lemon in any form CAN combine:
-    - Lemon juice
-    - Juice of 1 lemon
-    ALL are lemon juice - COMBINE them!
+When analyzing, focus on the INGREDIENT (ignore quantities). But use full_name when listing items.
 
-CRITICAL: Each item must appear in EITHER "groups" OR "separate", NEVER BOTH!
-If an item is in a group, do NOT list it again in separate!
+UNIVERSAL COMBINING PRINCIPLES:
+
+1. SAME HERB/SPICE IN DIFFERENT FORMS = COMBINE
+   Examples: 
+   - "fresh parsley" + "dried parsley" + "parsley sprigs" = combine
+   - "fresh basil" + "basil leaves" = combine
+   - "ground cinnamon" + "cinnamon" = combine
+
+2. SAME LIQUID/STOCK = COMBINE
+   Examples:
+   - "chicken stock" + "chicken broth" = combine (same thing)
+   - "lemon juice" + "juice of 1 lemon" = combine
+   But: chicken stock ≠ beef stock (different base)
+
+3. SAME INGREDIENT, DIFFERENT PREPARATION = COMBINE
+   Examples:
+   - "diced onion" + "sliced onion" = combine
+   - "grated cheese" + "shredded cheese" = combine
+   - "crushed garlic" + "minced garlic" = combine
+
+4. QUALITY DESCRIPTORS DON'T CHANGE INGREDIENT = COMBINE
+   Examples:
+   - "extra virgin olive oil" + "olive oil" = combine (same oil)
+   - "fresh parsley" + "parsley" = combine (same herb)
+   - "organic eggs" + "eggs" = combine (same item)
+
+5. DIFFERENT CUTS OF MEAT = NEVER COMBINE
+   Examples:
+   - chicken breast ≠ chicken thigh (different cuts)
+   - ground beef ≠ beef stew meat (different cuts)
+   - pork chops ≠ pork tenderloin (different cuts)
+
+6. MEAT VS BROTH = NEVER COMBINE
+   Examples:
+   - chicken breast ≠ chicken broth (one is meat, one is liquid)
+   - beef steak ≠ beef stock (completely different uses)
+
+7. DIFFERENT SPICE TYPES = NEVER COMBINE
+   Examples:
+   - black pepper ≠ red pepper flakes (black is table pepper, red is chili)
+   - paprika ≠ cayenne (different heat/flavor)
+   - cinnamon ≠ nutmeg (different spices)
+   But: "black pepper" = "ground black pepper" = "freshly ground pepper" (SAME spice!)
+
+8. DIFFERENT PRODUCE VARIETIES = USUALLY COMBINE
+   Examples:
+   - "Little Neck clams" + "Manila clams" = combine (both clams)
+   - "Roma tomatoes" + "cherry tomatoes" = combine (both tomatoes)
+
+9. FRESH VS CANNED/DRIED = DIFFERENT (DON'T COMBINE)
+   Examples:
+   - fresh tomatoes ≠ canned tomatoes (different form)
+   - fresh herbs ≠ dried herbs (different potency)
+
+CRITICAL RULE: Each item appears in ONLY ONE place!
+- If you put an item in a group, DO NOT list it in "separate"
+- If you list an item in "separate", DO NOT include it in any group
 
 """
         
