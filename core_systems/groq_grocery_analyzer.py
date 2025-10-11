@@ -122,24 +122,55 @@ class GroqGroceryAnalyzer:
         """
         import re
         
+        # First, remove "noise" phrases that don't affect the ingredient
+        # These are instructions/suggestions, not part of the ingredient name
+        noise_phrases = [
+            r'\(as needed\)',
+            r'\(to taste\)',
+            r'\(to season\)',
+            r'\(as desired\)',
+            r'\(as required\)',
+            r'\(optional\)',
+            r'\(if desired\)',
+            r'\(if needed\)',
+            r'\(for serving\)',
+            r'\(for garnish\)',
+            r'\(for topping\)',
+            r'\(for drizzling\)',
+            r'\(for sprinkling\)',
+            r'\(for dusting\)',
+            r'as needed',
+            r'to taste',
+            r'to season',
+            r'as desired',
+            r'optional'
+        ]
+        
+        cleaned_name = item_name
+        for phrase in noise_phrases:
+            cleaned_name = re.sub(phrase, '', cleaned_name, flags=re.IGNORECASE)
+        
+        # Clean up extra spaces and parentheses
+        cleaned_name = re.sub(r'\s+', ' ', cleaned_name)  # Multiple spaces -> single
+        cleaned_name = re.sub(r'\(\s*\)', '', cleaned_name)  # Empty parentheses
+        cleaned_name = cleaned_name.strip()
+        
         # Pattern: number + unit at the start
         # Matches: "9 cups", "2 tbsp", "1.5 tsp", "0.5 cup"
         pattern = r'^([\d\.\/\s]+(?:cup|cups|tablespoon|tablespoons|tbsp|tsp|teaspoon|teaspoons|ounce|ounces|oz|pound|pounds|lb|lbs|gram|grams|g|kg|clove|cloves)?)\s+'
         
-        match = re.match(pattern, item_name, re.IGNORECASE)
+        match = re.match(pattern, cleaned_name, re.IGNORECASE)
         if match:
             quantity = match.group(1).strip()
-            ingredient = item_name[len(match.group(0)):].strip()
+            ingredient = cleaned_name[len(match.group(0)):].strip()
             return (quantity, ingredient)
         
-        # Check for "as needed" pattern
-        if '(as needed)' in item_name.lower() or 'to taste' in item_name.lower():
-            # Remove these descriptors to get clean ingredient
-            clean = re.sub(r'\(as needed\)|\(to taste\)|as needed|to taste', '', item_name, flags=re.IGNORECASE).strip()
-            return ('as needed', clean)
+        # Check if original item had "as needed" pattern (before cleaning)
+        if re.search(r'(as needed|to taste|optional)', item_name, re.IGNORECASE):
+            return ('as needed', cleaned_name)
         
         # No quantity found, return empty quantity
-        return ('', item_name)
+        return ('', cleaned_name)
     
     def _build_analysis_prompt(self, items: List[Dict], spacy_metadata: Optional[Dict]) -> str:
         """Build the prompt for LLM analysis"""
@@ -156,18 +187,19 @@ class GroqGroceryAnalyzer:
                 'quantity': quantity
             })
         
-        # Format for display
+        # Format for display - show both full name and parsed ingredient
         items_text = "\n".join([
-            f"{item['index']}. {item['full_name']}" 
+            f"{item['index']}. \"{item['full_name']}\" → ingredient: \"{item['ingredient']}\"" 
             for item in structured_items
         ])
         
         prompt = f"""Analyze these grocery items using CATEGORY-BASED intelligence.
 
-ITEMS:
+ITEMS (format: "full name with quantity" → ingredient: "ingredient without quantity"):
 {items_text}
 
-Focus on INGREDIENT names (ignore quantities when grouping). Use full_name when listing items in your response.
+IMPORTANT: When listing items in your response, use the INGREDIENT name (without quantities), NOT the full name!
+Example: Use "Chicken Stock" not "9 cups Chicken Stock"
 
 🗂️ INGREDIENT CATEGORIES - Understand these to make smart decisions:
 
