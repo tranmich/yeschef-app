@@ -171,7 +171,7 @@ Return JSON with this EXACT format:
   "groups": [
     {
       "items": ["item1", "item2"],
-      "combined_name": "suggested name",
+      "combined_name": "generic name WITHOUT quantities",
       "reasoning": "why combine"
     }
   ],
@@ -182,6 +182,14 @@ Return JSON with this EXACT format:
     }
   ]
 }
+
+FOR combined_name:
+- Use GENERIC names that show combination (e.g., "Chicken Stock/Broth", "Parmesan Cheese")
+- NEVER include quantities (the system adds them automatically)
+- Show what's combined (e.g., "Stock/Broth", "Olive Oil", "Parsley", "Salt & Pepper")
+
+Good examples: "Chicken Stock/Broth", "Parmesan Cheese", "Parsley", "Olive Oil", "Salt & Pepper"
+Bad examples: "Chicken Stock", "9 cups Chicken Stock", "2 pounds clams"
 
 REMEMBER: Each item appears in ONLY ONE place - either in a group OR in separate, NEVER both!
 """
