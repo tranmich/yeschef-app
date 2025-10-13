@@ -763,7 +763,7 @@ def create_recipe():
             instructions,  # Now properly formatted
             data.get('image_url', ''),
             data.get('source', ''),
-            data.get('category', ''),
+            data.get('category', 'dinner'),  # Default to 'dinner' if not specified
             data.get('flavor_profile', ''),
             user_id  # ✅ NOW includes user_id from authentication
         ))
