@@ -113,6 +113,16 @@ CHEF_PERSONALITY = """You are Hungie, an enthusiastic and knowledgeable personal
 app = Flask(__name__)
 app.secret_key = os.getenv('JWT_SECRET_KEY', 'your-secret-key-for-sessions-' + str(os.urandom(24).hex()))
 
+# Configure Google OAuth
+app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
+app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET')
+
+# Log OAuth configuration status (without exposing secrets)
+if app.config['GOOGLE_CLIENT_ID']:
+    logger.info(f"✅ Google OAuth configured (Client ID: {app.config['GOOGLE_CLIENT_ID'][:20]}...)")
+else:
+    logger.warning("⚠️ Google OAuth not configured - add GOOGLE_CLIENT_ID to .env")
+
 # Add a simple direct test endpoint (not through blueprints) - for debugging
 @app.route('/api/direct-test', methods=['GET'])
 def direct_test():
