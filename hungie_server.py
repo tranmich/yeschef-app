@@ -1686,6 +1686,90 @@ def delete_user_recipe(recipe_id):
             'error': str(e)
         }), 500
 
+@app.route('/api/recipes/<recipe_id>/category', methods=['PUT'])
+def update_recipe_category(recipe_id):
+    """Update a recipe's category/collection"""
+    try:
+        user_id, error_response, status_code = check_authentication()
+        if error_response:
+            return error_response, status_code
+        
+        data = request.get_json()
+        new_category = data.get('category')
+        
+        if not new_category:
+            return jsonify({
+                'success': False,
+                'error': 'Category is required'
+            }), 400
+        
+        logger.info(f"📁 User {user_id} updating recipe {recipe_id} category to: {new_category}")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        # Check ownership - users can only update their own recipes
+        cursor.execute('''
+            SELECT id, title, is_template, user_id 
+            FROM recipes 
+            WHERE id = %s
+        ''', (recipe_id,))
+        
+        recipe = cursor.fetchone()
+        
+        if not recipe:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Recipe not found'
+            }), 404
+        
+        # Check if user owns this recipe
+        if recipe['is_template']:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'Cannot modify template recipes'
+            }), 403
+        
+        if recipe['user_id'] != user_id:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'error': 'You can only modify your own recipes'
+            }), 403
+        
+        # Update the category
+        cursor.execute('''
+            UPDATE recipes 
+            SET category = %s
+            WHERE id = %s AND user_id = %s
+            RETURNING id, title, category
+        ''', (new_category, recipe_id, user_id))
+        
+        updated_recipe = cursor.fetchone()
+        conn.commit()
+        conn.close()
+        
+        if updated_recipe:
+            logger.info(f"✅ Updated recipe {recipe_id} category to: {new_category}")
+            return jsonify({
+                'success': True,
+                'recipe': dict(updated_recipe)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to update category'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Update recipe category error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/recipes/<recipe_id>/info', methods=['GET'])
 def get_recipe_debug_info(recipe_id):
     """Debug endpoint to check recipe ownership and details"""
