@@ -7214,6 +7214,15 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"📰 Failed to initialize content pieces: {e}")
 
+    # Register v2 API routes (new architecture)
+    try:
+        from register_v2_routes import register_v2_routes
+        register_v2_routes(app)
+        logger.info("✅ V2 API routes registered successfully!")
+    except Exception as e:
+        logger.warning(f"⚠️ Could not register v2 routes: {e}")
+        logger.warning("Old API routes will continue to work")
+
     # Production hosting configuration (Railway/Heroku compatible)
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
