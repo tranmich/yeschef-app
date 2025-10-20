@@ -362,7 +362,9 @@ CORS(app, resources={
             "http://127.0.0.1:3004",
             "http://127.0.0.1:3005",
             "http://127.0.0.1:3006",
-            "https://yeschef-app.vercel.app"
+            "https://yeschef-app.vercel.app",
+            "https://yeschefapp.io",
+            "https://www.yeschefapp.io"
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
