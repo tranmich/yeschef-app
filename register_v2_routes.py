@@ -31,12 +31,15 @@ def register_v2_routes(app: Flask):
         # Register v2 blueprints
         from app.api.v2.users import user_bp
         from app.api.v2.recipes import recipe_bp
+        from app.api.v2.meal_plans import meal_plan_bp
         
         app.register_blueprint(user_bp)
         app.register_blueprint(recipe_bp)
+        app.register_blueprint(meal_plan_bp)
         
         logger.info("  ✅ User API v2 registered: /api/v2/users")
         logger.info("  ✅ Recipe API v2 registered: /api/v2/recipes")
+        logger.info("  ✅ MealPlan API v2 registered: /api/v2/meal-plans")
         
         # Add health check endpoint
         from flask import jsonify
@@ -67,6 +70,12 @@ def register_v2_routes(app: Flask):
         logger.info("  POST /api/v2/recipes")
         logger.info("  PATCH /api/v2/recipes/<id>")
         logger.info("  DELETE /api/v2/recipes/<id>")
+        logger.info("  GET  /api/v2/meal-plans/user/<id>  🍽️ NEW!")
+        logger.info("  GET  /api/v2/meal-plans/<id>")
+        logger.info("  POST /api/v2/meal-plans")
+        logger.info("  PATCH /api/v2/meal-plans/<id>")
+        logger.info("  DELETE /api/v2/meal-plans/<id>")
+        logger.info("  GET  /api/v2/meal-plans/<id>/grocery-list  🌟 POWER FEATURE!")
         logger.info("=" * 70)
         
         return True
