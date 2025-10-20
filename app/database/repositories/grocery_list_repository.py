@@ -58,24 +58,34 @@ class GroceryListRepository(BaseRepository):
         Returns:
             Created grocery list dict or None
         """
-        query = """
-            INSERT INTO grocery_lists 
-            (user_id, name, items_json, meal_plan_id, created_date, updated_date)
-            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            RETURNING id, user_id, name, items_json, meal_plan_id,
-                      created_date, updated_date
-        """
-        
-        items_json = json.dumps(items)
-        grocery_list = self._execute_insert(query, (user_id, name, items_json, meal_plan_id))
-        
-        if grocery_list:
-            # Parse JSON back to list
-            if grocery_list.get('items_json'):
-                grocery_list['items'] = json.loads(grocery_list['items_json'])
-                del grocery_list['items_json']
-            return grocery_list
-        return None
+        try:
+            query = """
+                INSERT INTO grocery_lists 
+                (user_id, name, items_json, meal_plan_id, created_date, updated_date)
+                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id, user_id, name, items_json, meal_plan_id,
+                          created_date, updated_date
+            """
+            
+            items_json = json.dumps(items)
+            logger.info(f"Creating grocery list: user={user_id}, name={name}, items_count={len(items)}")
+            
+            grocery_list = self._execute_insert(query, (user_id, name, items_json, meal_plan_id))
+            
+            if grocery_list:
+                logger.info(f"Grocery list created successfully: id={grocery_list['id']}")
+                # Parse JSON back to list
+                if grocery_list.get('items_json'):
+                    grocery_list['items'] = json.loads(grocery_list['items_json'])
+                    del grocery_list['items_json']
+                return grocery_list
+            else:
+                logger.error("Grocery list creation returned None")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error in create_grocery_list: {e}", exc_info=True)
+            return None
     
     # READ
     def get_grocery_list_by_id(self, list_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
