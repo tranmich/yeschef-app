@@ -48,10 +48,9 @@ class MealPlanRepository(BaseRepository):
         """
         
         plan_data_json = json.dumps(plan_data)
-        result = self.execute_query(query, (user_id, plan_name, week_start_date, plan_data_json))
+        meal_plan = self._execute_insert(query, (user_id, plan_name, week_start_date, plan_data_json))
         
-        if result:
-            meal_plan = dict(result[0])
+        if meal_plan:
             # Parse JSON back to dict
             if meal_plan.get('plan_data_json'):
                 meal_plan['plan_data'] = json.loads(meal_plan['plan_data_json'])

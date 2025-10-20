@@ -69,10 +69,9 @@ class GroceryListRepository(BaseRepository):
         """
         
         items_json = json.dumps(items)
-        result = self._execute_query(query, (user_id, name, items_json, meal_plan_id))
+        grocery_list = self._execute_insert(query, (user_id, name, items_json, meal_plan_id))
         
-        if result:
-            grocery_list = dict(result[0])
+        if grocery_list:
             # Parse JSON back to list
             if grocery_list.get('items_json'):
                 grocery_list['items'] = json.loads(grocery_list['items_json'])
