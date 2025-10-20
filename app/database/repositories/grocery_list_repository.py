@@ -17,8 +17,7 @@ class GroceryListRepository(BaseRepository):
     """Repository for grocery list data access"""
     
     def __init__(self):
-        super().__init__()
-        self.table_name = 'grocery_lists'
+        super().__init__('grocery_lists')
         self.ensure_table_exists()
     
     def ensure_table_exists(self):

@@ -17,8 +17,7 @@ class MealPlanRepository(BaseRepository):
     """Repository for meal plan data access"""
     
     def __init__(self):
-        super().__init__()
-        self.table_name = 'meal_plans'
+        super().__init__('meal_plans')
     
     # CREATE
     def create_meal_plan(
