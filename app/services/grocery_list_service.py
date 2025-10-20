@@ -63,9 +63,18 @@ class GroceryListService(BaseService):
             )
             
             if grocery_list:
-                # Add stats
-                stats = self.grocery_list_repo.get_list_stats(grocery_list['id'], user_id)
-                grocery_list['stats'] = stats
+                # Add stats - skip this if it fails
+                try:
+                    stats = self.grocery_list_repo.get_list_stats(grocery_list['id'], user_id)
+                    grocery_list['stats'] = stats
+                except Exception as e:
+                    logger.error(f"Failed to get stats, using defaults: {e}")
+                    grocery_list['stats'] = {
+                        'total_items': len(formatted_items),
+                        'purchased_items': 0,
+                        'remaining_items': len(formatted_items),
+                        'completion_percentage': 0
+                    }
                 logger.info(f"Created grocery list {grocery_list['id']} for user {user_id}")
             
             return grocery_list
