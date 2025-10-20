@@ -87,11 +87,18 @@ class BaseRepository:
         Returns:
             Dictionary (inserted row) or None
         """
-        with self._transaction() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, params or ())
-            result = cursor.fetchone()
-            return dict(result) if result else None
+        try:
+            with self._transaction() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params or ())
+                result = cursor.fetchone()
+                if result:
+                    # Convert RealDictRow to regular dict
+                    return {key: value for key, value in result.items()}
+                return None
+        except Exception as e:
+            logger.error(f"_execute_insert failed: {e}", exc_info=True)
+            raise
     
     def _execute_update(self, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
         """
@@ -104,11 +111,18 @@ class BaseRepository:
         Returns:
             Dictionary (updated row) or None
         """
-        with self._transaction() as conn:
-            cursor = conn.cursor()
-            cursor.execute(query, params or ())
-            result = cursor.fetchone()
-            return dict(result) if result else None
+        try:
+            with self._transaction() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params or ())
+                result = cursor.fetchone()
+                if result:
+                    # Convert RealDictRow to regular dict
+                    return {key: value for key, value in result.items()}
+                return None
+        except Exception as e:
+            logger.error(f"_execute_update failed: {e}", exc_info=True)
+            raise
     
     def _execute_delete(self, query: str, params: tuple = None) -> int:
         """
