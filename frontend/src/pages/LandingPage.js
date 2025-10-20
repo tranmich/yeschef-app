@@ -96,17 +96,6 @@ const LandingPage = () => {
     }
   };
 
-  const handleCTAClick = (location) => {
-    // Track CTA clicks
-    if (window.gtag) {
-      window.gtag('event', 'cta_click', {
-        event_category: 'engagement',
-        event_label: location
-      });
-    }
-    setShowWaitlistModal(true);
-  };
-
   return (
     <div className="landing-page">
       {/* Navigation Bar */}
@@ -332,7 +321,7 @@ const LandingPage = () => {
           </p>
           <button 
             className="result-cta-btn"
-            onClick={() => handleCTAClick('result')}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           >
             Join the Waitlist
           </button>
@@ -356,7 +345,7 @@ const LandingPage = () => {
             </p>
             <button 
               className="legacy-cta-btn"
-              onClick={() => handleCTAClick('legacy')}
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             >
               Start Your Collection
             </button>
