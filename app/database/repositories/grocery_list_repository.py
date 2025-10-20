@@ -36,7 +36,7 @@ class GroceryListRepository(BaseRepository):
             )
         """
         try:
-            self.execute_query(query, ())
+            self._execute_query(query, ())
             logger.info("Grocery lists table ensured")
         except Exception as e:
             logger.error(f"Error ensuring grocery_lists table: {e}")
@@ -70,7 +70,7 @@ class GroceryListRepository(BaseRepository):
         """
         
         items_json = json.dumps(items)
-        result = self.execute_query(query, (user_id, name, items_json, meal_plan_id))
+        result = self._execute_query(query, (user_id, name, items_json, meal_plan_id))
         
         if result:
             grocery_list = dict(result[0])
@@ -97,7 +97,7 @@ class GroceryListRepository(BaseRepository):
             query += " AND user_id = %s"
             params.append(user_id)
         
-        result = self.execute_query(query, tuple(params))
+        result = self._execute_query(query, tuple(params))
         
         if result:
             grocery_list = dict(result[0])
@@ -124,7 +124,7 @@ class GroceryListRepository(BaseRepository):
             LIMIT %s OFFSET %s
         """
         
-        result = self.execute_query(query, (user_id, limit, offset))
+        result = self._execute_query(query, (user_id, limit, offset))
         
         if result:
             grocery_lists = []
@@ -141,7 +141,7 @@ class GroceryListRepository(BaseRepository):
     def count_user_grocery_lists(self, user_id: int) -> int:
         """Count total grocery lists for user"""
         query = "SELECT COUNT(*) as count FROM grocery_lists WHERE user_id = %s"
-        result = self.execute_query(query, (user_id,))
+        result = self._execute_query(query, (user_id,))
         return result[0]['count'] if result else 0
     
     def get_grocery_lists_by_meal_plan(self, meal_plan_id: int, user_id: int) -> List[Dict[str, Any]]:
@@ -154,7 +154,7 @@ class GroceryListRepository(BaseRepository):
             ORDER BY created_date DESC
         """
         
-        result = self.execute_query(query, (meal_plan_id, user_id))
+        result = self._execute_query(query, (meal_plan_id, user_id))
         
         if result:
             grocery_lists = []
@@ -201,7 +201,7 @@ class GroceryListRepository(BaseRepository):
         """
         
         params.extend([list_id, user_id])
-        result = self.execute_query(query, tuple(params))
+        result = self._execute_query(query, tuple(params))
         
         if result:
             grocery_list = dict(result[0])
@@ -246,7 +246,7 @@ class GroceryListRepository(BaseRepository):
     def delete_grocery_list(self, list_id: int, user_id: int) -> bool:
         """Delete grocery list"""
         query = "DELETE FROM grocery_lists WHERE id = %s AND user_id = %s"
-        result = self.execute_query(query, (list_id, user_id))
+        result = self._execute_query(query, (list_id, user_id))
         return result is not None
     
     # HELPER METHODS
