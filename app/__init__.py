@@ -163,14 +163,15 @@ def register_blueprints(app: Flask):
     
     app.logger.info("  ✅ Health check endpoint registered: /api/v2/health")
     
-    # Phase 2+ will add more blueprints here:
-    # - app.api.v2.auth
-    # - app.api.v2.recipes
-    # - app.api.v2.profile
-    # - app.api.v2.meal_plans
-    # - etc.
+    # Register v2 API blueprints
+    from app.api.v2.users import user_bp
+    from app.api.v2.recipes import recipe_bp
     
-    app.logger.info("  ℹ️  Additional v2 endpoints will be added in Phase 2+")
+    app.register_blueprint(user_bp)
+    app.register_blueprint(recipe_bp)
+    
+    app.logger.info("  ✅ User API v2 registered: /api/v2/users")
+    app.logger.info("  ✅ Recipe API v2 registered: /api/v2/recipes")
 
 
 def register_error_handlers(app: Flask):
