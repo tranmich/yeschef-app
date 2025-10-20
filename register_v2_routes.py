@@ -32,14 +32,17 @@ def register_v2_routes(app: Flask):
         from app.api.v2.users import user_bp
         from app.api.v2.recipes import recipe_bp
         from app.api.v2.meal_plans import meal_plan_bp
+        from app.api.v2.grocery_lists import grocery_list_bp
         
         app.register_blueprint(user_bp)
         app.register_blueprint(recipe_bp)
         app.register_blueprint(meal_plan_bp)
+        app.register_blueprint(grocery_list_bp)
         
         logger.info("  ✅ User API v2 registered: /api/v2/users")
         logger.info("  ✅ Recipe API v2 registered: /api/v2/recipes")
         logger.info("  ✅ MealPlan API v2 registered: /api/v2/meal-plans")
+        logger.info("  ✅ GroceryList API v2 registered: /api/v2/grocery-lists")
         
         # Add health check endpoint
         from flask import jsonify
@@ -70,12 +73,22 @@ def register_v2_routes(app: Flask):
         logger.info("  POST /api/v2/recipes")
         logger.info("  PATCH /api/v2/recipes/<id>")
         logger.info("  DELETE /api/v2/recipes/<id>")
-        logger.info("  GET  /api/v2/meal-plans/user/<id>  🍽️ NEW!")
+        logger.info("  GET  /api/v2/meal-plans/user/<id>  🍽️")
         logger.info("  GET  /api/v2/meal-plans/<id>")
         logger.info("  POST /api/v2/meal-plans")
         logger.info("  PATCH /api/v2/meal-plans/<id>")
         logger.info("  DELETE /api/v2/meal-plans/<id>")
-        logger.info("  GET  /api/v2/meal-plans/<id>/grocery-list  🌟 POWER FEATURE!")
+        logger.info("  GET  /api/v2/meal-plans/<id>/grocery-list  🌟 POWER!")
+        logger.info("  GET  /api/v2/grocery-lists/user/<id>  🛒")
+        logger.info("  GET  /api/v2/grocery-lists/<id>")
+        logger.info("  POST /api/v2/grocery-lists")
+        logger.info("  POST /api/v2/grocery-lists/from-meal-plan/<id>  🌟 POWER!")
+        logger.info("  PATCH /api/v2/grocery-lists/<id>")
+        logger.info("  POST /api/v2/grocery-lists/<id>/items")
+        logger.info("  DELETE /api/v2/grocery-lists/<id>/items/<index>")
+        logger.info("  POST /api/v2/grocery-lists/<id>/items/<index>/purchase")
+        logger.info("  POST /api/v2/grocery-lists/<id>/clear-purchased")
+        logger.info("  DELETE /api/v2/grocery-lists/<id>")
         logger.info("=" * 70)
         
         return True
