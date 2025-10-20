@@ -103,7 +103,7 @@ const FriendsView = () => {
     }
     
     setError('');
-    setLoadingAction(true);
+    setActionLoading(true);
     
     try {
       const result = await FriendsAPI.sendFriendRequest(newFriendEmail, newFriendMessage);
@@ -119,7 +119,7 @@ const FriendsView = () => {
     } catch (error) {
       setError(error.message || 'Failed to send friend request');
     } finally {
-      setLoadingAction(false);
+      setActionLoading(false);
     }
   };
 
@@ -139,7 +139,7 @@ const FriendsView = () => {
     }
     
     setError('');
-    setLoadingAction(true);
+    setActionLoading(true);
     
     try {
       const householdData = {
@@ -160,7 +160,7 @@ const FriendsView = () => {
     } catch (error) {
       setError(error.message || 'Failed to create household');
     } finally {
-      setLoadingAction(false);
+      setActionLoading(false);
     }
   };  const handleAcceptRequest = async (request) => {
     setActionLoading(true);
