@@ -30,9 +30,7 @@ class GroceryListRepository(BaseRepository):
                 items_json TEXT NOT NULL,
                 meal_plan_id INTEGER,
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                FOREIGN KEY (meal_plan_id) REFERENCES meal_plans(id) ON DELETE SET NULL
+                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """
         if self._execute_ddl(query, ()):
