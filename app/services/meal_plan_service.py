@@ -86,7 +86,8 @@ class MealPlanService(BaseService):
                 if meal_plan and 'recipe_ids' in meal_plan:
                     recipes = []
                     for recipe_id in meal_plan['recipe_ids']:
-                        recipe = self.recipe_repo.get_recipe_by_id(recipe_id, user_id)
+                        # Don't filter by user_id - meal plans can include any recipe
+                        recipe = self.recipe_repo.find_by_id(recipe_id)
                         if recipe:
                             recipes.append(recipe)
                     meal_plan['recipes'] = recipes
