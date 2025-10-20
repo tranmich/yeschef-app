@@ -21,13 +21,14 @@ class GroceryListRepository(BaseRepository):
         self.ensure_table_exists()
     
     def ensure_table_exists(self):
-        """Create grocery_lists table if it doesn't exist"""
+        """Create grocery_lists table if it doesn't exist, migrate legacy schema"""
         # Create table if not exists
         create_query = """
             CREATE TABLE IF NOT EXISTS grocery_lists (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL,
-                items_json TEXT NOT NULL,
+                items_json TEXT NOT NULL DEFAULT '[]',
+                name TEXT NOT NULL DEFAULT 'Grocery List',
                 meal_plan_id INTEGER,
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -38,23 +39,23 @@ class GroceryListRepository(BaseRepository):
         else:
             logger.error("❌ Error ensuring grocery_lists table")
         
-        # Add name column if it doesn't exist (for existing tables from old schema)
-        alter_query = """
-            DO $$ 
-            BEGIN 
-                BEGIN
-                    ALTER TABLE grocery_lists ADD COLUMN name TEXT DEFAULT 'My Grocery List';
-                EXCEPTION
-                    WHEN duplicate_column THEN 
-                        -- Column already exists, do nothing
-                        NULL;
-                END;
-            END $$;
-        """
-        if self._execute_ddl(alter_query, ()):
-            logger.info("✅ Grocery lists 'name' column migration complete")
-        else:
-            logger.warning("⚠️ Could not run name column migration")
+        # Migrate legacy schema - add columns if they don't exist
+        migrations = [
+            "ALTER TABLE grocery_lists ADD COLUMN IF NOT EXISTS items_json TEXT NOT NULL DEFAULT '[]'",
+            "ALTER TABLE grocery_lists ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT 'Grocery List'",
+            "ALTER TABLE grocery_lists ADD COLUMN IF NOT EXISTS meal_plan_id INTEGER",
+            "ALTER TABLE grocery_lists ADD COLUMN IF NOT EXISTS created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            "ALTER TABLE grocery_lists ADD COLUMN IF NOT EXISTS updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        ]
+        
+        for migration in migrations:
+            try:
+                if self._execute_ddl(migration, ()):
+                    logger.info(f"✅ Migration: {migration[:60]}...")
+            except Exception as e:
+                logger.warning(f"⚠️ Migration skipped (may already exist): {str(e)[:60]}")
+        
+        logger.info("✅ Grocery lists schema migrations complete")
     
     # CREATE
     def create_grocery_list(
@@ -179,7 +180,7 @@ class GroceryListRepository(BaseRepository):
     def get_grocery_lists_by_meal_plan(self, meal_plan_id: int, user_id: int) -> List[Dict[str, Any]]:
         """Get all grocery lists generated from a specific meal plan"""
         query = """
-            SELECT id, user_id, name, items_json, meal_plan_id,
+            SELECT id, user_id, items_json, meal_plan_id,
                    created_date, updated_date
             FROM grocery_lists
             WHERE meal_plan_id = %s AND user_id = %s
@@ -192,6 +193,8 @@ class GroceryListRepository(BaseRepository):
             grocery_lists = []
             for row in result:
                 grocery_list = dict(row)
+                # Add name manually (legacy schema)
+                grocery_list['name'] = 'My Grocery List'
                 if grocery_list.get('items_json'):
                     grocery_list['items'] = json.loads(grocery_list['items_json'])
                     del grocery_list['items_json']
@@ -228,7 +231,7 @@ class GroceryListRepository(BaseRepository):
             UPDATE grocery_lists
             SET {', '.join(updates)}
             WHERE id = %s AND user_id = %s
-            RETURNING id, user_id, name, items_json, meal_plan_id,
+            RETURNING id, user_id, items_json, meal_plan_id,
                       created_date, updated_date
         """
         
@@ -236,6 +239,8 @@ class GroceryListRepository(BaseRepository):
         grocery_list = self._execute_update(query, tuple(params))
         
         if grocery_list:
+            # Add name manually (legacy schema)
+            grocery_list['name'] = name if name else 'My Grocery List'
             if grocery_list.get('items_json'):
                 grocery_list['items'] = json.loads(grocery_list['items_json'])
                 del grocery_list['items_json']
