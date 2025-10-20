@@ -35,11 +35,10 @@ class GroceryListRepository(BaseRepository):
                 FOREIGN KEY (meal_plan_id) REFERENCES meal_plans(id) ON DELETE SET NULL
             )
         """
-        try:
-            self._execute_query(query, ())
+        if self._execute_ddl(query, ()):
             logger.info("Grocery lists table ensured")
-        except Exception as e:
-            logger.error(f"Error ensuring grocery_lists table: {e}")
+        else:
+            logger.error("Error ensuring grocery_lists table")
     
     # CREATE
     def create_grocery_list(

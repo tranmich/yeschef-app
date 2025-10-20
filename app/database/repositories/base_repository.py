@@ -126,6 +126,26 @@ class BaseRepository:
             cursor.execute(query, params or ())
             return cursor.rowcount
     
+    def _execute_ddl(self, query: str, params: tuple = None) -> bool:
+        """
+        Execute DDL query (CREATE TABLE, ALTER TABLE, etc.) that doesn't return rows
+        
+        Args:
+            query: SQL DDL query
+            params: Query parameters (tuple)
+        
+        Returns:
+            True if successful
+        """
+        try:
+            with self._transaction() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params or ())
+                return True
+        except Exception as e:
+            logger.error(f"DDL execution failed: {e}")
+            return False
+    
     # Common CRUD operations (can be overridden)
     
     def find_by_id(self, id: int) -> Optional[Dict[str, Any]]:
