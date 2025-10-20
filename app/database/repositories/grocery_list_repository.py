@@ -78,50 +78,42 @@ class GroceryListRepository(BaseRepository):
         """
         try:
             items_json = json.dumps(items)
-            logger.info(f"Creating grocery list: user={user_id}, name={name}, items_count={len(items)}")
+            logger.info(f"🔵 Creating grocery list: user={user_id}, name={name}, items_count={len(items)}")
             
-            # If name is provided, include it; otherwise let database use DEFAULT
-            if name:
-                query = """
-                    INSERT INTO grocery_lists 
-                    (user_id, name, items_json, meal_plan_id, created_date, updated_date)
-                    VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                    RETURNING id, user_id, name, items_json, meal_plan_id,
-                              created_date, updated_date
-                """
-                params = (user_id, name, items_json, meal_plan_id)
-            else:
-                query = """
-                    INSERT INTO grocery_lists 
-                    (user_id, items_json, meal_plan_id, created_date, updated_date)
-                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                    RETURNING id, user_id, COALESCE(name, 'My Grocery List') as name, items_json, meal_plan_id,
-                              created_date, updated_date
-                """
-                params = (user_id, items_json, meal_plan_id)
+            # Work with legacy schema (no name column)
+            query = """
+                INSERT INTO grocery_lists 
+                (user_id, items_json, meal_plan_id, created_date, updated_date)
+                VALUES (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id, user_id, items_json, meal_plan_id,
+                          created_date, updated_date
+            """
+            params = (user_id, items_json, meal_plan_id)
             
             grocery_list = self._execute_insert(query, params)
             
             if grocery_list:
-                logger.info(f"Grocery list created successfully: id={grocery_list['id']}")
+                logger.info(f"✅ Grocery list created successfully: id={grocery_list['id']}")
+                # Add name back manually (since DB doesn't have it)
+                grocery_list['name'] = name or 'My Grocery List'
                 # Parse JSON back to list
                 if grocery_list.get('items_json'):
                     grocery_list['items'] = json.loads(grocery_list['items_json'])
                     del grocery_list['items_json']
                 return grocery_list
             else:
-                logger.error("Grocery list creation returned None")
+                logger.error("❌ Grocery list creation returned None")
                 return None
                 
         except Exception as e:
-            logger.error(f"Error in create_grocery_list: {e}", exc_info=True)
+            logger.error(f"❌ Error in create_grocery_list: {e}", exc_info=True)
             return None
     
     # READ
     def get_grocery_list_by_id(self, list_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """Get grocery list by ID"""
         query = """
-            SELECT id, user_id, name, items_json, meal_plan_id,
+            SELECT id, user_id, items_json, meal_plan_id,
                    created_date, updated_date
             FROM grocery_lists
             WHERE id = %s
@@ -137,6 +129,8 @@ class GroceryListRepository(BaseRepository):
         
         if result:
             grocery_list = dict(result[0])
+            # Add name manually (legacy schema doesn't have it)
+            grocery_list['name'] = 'My Grocery List'
             # Parse JSON
             if grocery_list.get('items_json'):
                 grocery_list['items'] = json.loads(grocery_list['items_json'])
@@ -152,7 +146,7 @@ class GroceryListRepository(BaseRepository):
     ) -> List[Dict[str, Any]]:
         """Get all grocery lists for a user"""
         query = """
-            SELECT id, user_id, name, items_json, meal_plan_id,
+            SELECT id, user_id, items_json, meal_plan_id,
                    created_date, updated_date
             FROM grocery_lists
             WHERE user_id = %s
@@ -166,6 +160,8 @@ class GroceryListRepository(BaseRepository):
             grocery_lists = []
             for row in result:
                 grocery_list = dict(row)
+                # Add name manually (legacy schema)
+                grocery_list['name'] = 'My Grocery List'
                 # Parse JSON
                 if grocery_list.get('items_json'):
                     grocery_list['items'] = json.loads(grocery_list['items_json'])
