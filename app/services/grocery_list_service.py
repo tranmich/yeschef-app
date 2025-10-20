@@ -102,33 +102,47 @@ class GroceryListService(BaseService):
             Created grocery list
         """
         try:
+            logger.info(f"🔵 create_from_meal_plan: meal_plan={meal_plan_id}, user={user_id}")
+            
             # Import here to avoid circular dependency
             from .meal_plan_service import MealPlanService
             
             meal_plan_service = MealPlanService()
             
             # Generate ingredients from meal plan
+            logger.info(f"🔵 Generating ingredients from meal plan {meal_plan_id}...")
             grocery_data = meal_plan_service.generate_grocery_list_from_meal_plan(
                 plan_id=meal_plan_id,
                 user_id=user_id
             )
             
             if not grocery_data or not grocery_data.get('ingredients'):
-                logger.error(f"No ingredients found in meal plan {meal_plan_id}")
+                logger.error(f"❌ No ingredients found in meal plan {meal_plan_id}")
                 return None
+            
+            logger.info(f"✅ Generated {len(grocery_data['ingredients'])} ingredients")
             
             # Create name if not provided
             if not list_name:
                 meal_plan_name = grocery_data.get('meal_plan_name', 'Meal Plan')
                 list_name = f"Grocery List - {meal_plan_name}"
             
+            logger.info(f"🔵 Creating grocery list: '{list_name}'")
+            
             # Create grocery list
-            return self.create_grocery_list(
+            result = self.create_grocery_list(
                 user_id=user_id,
                 name=list_name,
                 items=grocery_data['ingredients'],
                 meal_plan_id=meal_plan_id
             )
+            
+            if result:
+                logger.info(f"✅ Grocery list created successfully: ID={result.get('id')}")
+            else:
+                logger.error(f"❌ create_grocery_list returned None!")
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error creating grocery list from meal plan {meal_plan_id}: {e}")
