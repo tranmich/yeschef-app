@@ -34,19 +34,27 @@ class GroceryListRepository(BaseRepository):
             )
         """
         if self._execute_ddl(create_query, ()):
-            logger.info("Grocery lists table ensured")
+            logger.info("✅ Grocery lists table ensured")
         else:
-            logger.error("Error ensuring grocery_lists table")
+            logger.error("❌ Error ensuring grocery_lists table")
         
-        # Add name column if it doesn't exist (for existing tables)
+        # Add name column if it doesn't exist (for existing tables from old schema)
         alter_query = """
-            ALTER TABLE grocery_lists 
-            ADD COLUMN IF NOT EXISTS name TEXT DEFAULT 'My Grocery List'
+            DO $$ 
+            BEGIN 
+                BEGIN
+                    ALTER TABLE grocery_lists ADD COLUMN name TEXT DEFAULT 'My Grocery List';
+                EXCEPTION
+                    WHEN duplicate_column THEN 
+                        -- Column already exists, do nothing
+                        NULL;
+                END;
+            END $$;
         """
         if self._execute_ddl(alter_query, ()):
-            logger.info("Grocery lists 'name' column ensured")
+            logger.info("✅ Grocery lists 'name' column migration complete")
         else:
-            logger.warning("Could not add 'name' column (may already exist)")
+            logger.warning("⚠️ Could not run name column migration")
     
     # CREATE
     def create_grocery_list(
@@ -69,18 +77,30 @@ class GroceryListRepository(BaseRepository):
             Created grocery list dict or None
         """
         try:
-            query = """
-                INSERT INTO grocery_lists 
-                (user_id, name, items_json, meal_plan_id, created_date, updated_date)
-                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                RETURNING id, user_id, name, items_json, meal_plan_id,
-                          created_date, updated_date
-            """
-            
             items_json = json.dumps(items)
             logger.info(f"Creating grocery list: user={user_id}, name={name}, items_count={len(items)}")
             
-            grocery_list = self._execute_insert(query, (user_id, name, items_json, meal_plan_id))
+            # If name is provided, include it; otherwise let database use DEFAULT
+            if name:
+                query = """
+                    INSERT INTO grocery_lists 
+                    (user_id, name, items_json, meal_plan_id, created_date, updated_date)
+                    VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    RETURNING id, user_id, name, items_json, meal_plan_id,
+                              created_date, updated_date
+                """
+                params = (user_id, name, items_json, meal_plan_id)
+            else:
+                query = """
+                    INSERT INTO grocery_lists 
+                    (user_id, items_json, meal_plan_id, created_date, updated_date)
+                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    RETURNING id, user_id, COALESCE(name, 'My Grocery List') as name, items_json, meal_plan_id,
+                              created_date, updated_date
+                """
+                params = (user_id, items_json, meal_plan_id)
+            
+            grocery_list = self._execute_insert(query, params)
             
             if grocery_list:
                 logger.info(f"Grocery list created successfully: id={grocery_list['id']}")
