@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { DndContext, closestCenter } from '@dnd-kit/core';
+import { useAuth } from '../contexts/AuthContext';
 import SidebarContainer from '../components/SidebarContainer';
 import ChatInterface from '../components/ChatInterface';
-import CookbookSidebar from '../components/CookbookSidebar';
 import RecipeListView from '../components/RecipeListView';
+import FriendsView from '../components/FriendsView';
+import CommunityBrowser from '../components/CommunityBrowserNew';
 import RecipeEditModal from '../components/RecipeEditModal';
 import ImportRecipeModal from '../components/ImportRecipeModal';
 import RecipePanel from '../components/RecipePanel';
@@ -18,6 +20,9 @@ import * as api from '../utils/api';
 
 const MainApp = () => {
   console.log('🚀 MainApp component loaded - COOKBOOK-FIRST VERSION 2025-08-22');
+
+  // --- Authentication ---
+  const { currentUser, loading: authLoading, logout } = useAuth();
 
   // --- Enhanced Session Memory with Backend Coordination ---
   const [sessionMemory] = useState(() => new SessionMemoryManager());
@@ -37,7 +42,6 @@ const MainApp = () => {
   const [recipeCounts, setRecipeCounts] = useState({});
   const [showChat, setShowChat] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [viewingRecipe, setViewingRecipe] = useState(null);
   const [showRecipeDetail, setShowRecipeDetail] = useState(false);
 
@@ -49,6 +53,7 @@ const MainApp = () => {
     // --- Meal Planner Mode ---
   const [mealPlannerMode, setMealPlannerMode] = useState('traditional'); // 'traditional' or 'notion'
   const [activeView, setActiveView] = useState('cookbook'); // 'cookbook', 'grocery-manager', 'notion-planner'
+  const [mealPlanRecipeIds, setMealPlanRecipeIds] = useState([]); // Recipe IDs from meal planner
 
   // Recipe container state
   const [containerRecipes, setContainerRecipes] = useState([]);
@@ -82,9 +87,11 @@ const MainApp = () => {
       
       // Check for admin access
       if (response && response.admin_access) {
-        console.log('🔧 Admin access granted');
+        console.log('🔧 Admin access granted - showing ALL recipes for curation');
+        console.log('👤 Note: Regular users only see their own recipes');
         setIsAdmin(true);
       } else {
+        console.log('👤 Regular user - showing only YOUR recipes');
         setIsAdmin(false);
       }
       
@@ -228,18 +235,8 @@ const MainApp = () => {
   const handleCategorySelect = (categoryId) => {
     console.log(`📂 Category selected: ${categoryId}`);
     setSelectedCategory(categoryId);
-    
-    // Load recipes for the selected category
-    if (categoryId === 'recent-imports') {
-      console.log('📥 Loading recent imports...');
-      loadRecipes('recent-imports');
-    } else if (categoryId !== 'all') {
-      console.log(`📋 Loading category: ${categoryId}`);
-      loadRecipes(categoryId);
-    } else {
-      console.log('📚 Loading all recipes...');
-      loadRecipes('all');
-    }
+    // Note: We don't reload recipes - just filter the existing ones client-side
+    // This keeps the sidebar counts accurate across all categories
   };
 
   const handleAddCategory = (newCategory) => {
@@ -324,10 +321,16 @@ const MainApp = () => {
   };
 
   // Handle grocery list activation from navigation
-  const handleShowGroceryList = () => {
+  const handleShowGroceryList = (recipeIds = []) => {
+    // Store recipe IDs from meal planner if provided
+    if (recipeIds && recipeIds.length > 0) {
+      setMealPlanRecipeIds(recipeIds);
+    }
+    
     // Toggle functionality - if already showing grocery manager, close it
     if (activeView === 'grocery-manager') {
       setActiveView('cookbook'); // Return to cookbook view
+      setMealPlanRecipeIds([]); // Clear recipe IDs
     } else {
       setActiveView('grocery-manager');
       setShowChat(false); // Close chat if open
@@ -428,19 +431,33 @@ const MainApp = () => {
   };
 
   const handleCloseImportModal = () => {
-    setShowImportModal(false);
+    // This function is no longer needed but keeping for any legacy references
   };
 
-  // Drag and drop with meal planner and container integration
+  // Drag and drop with meal planner and container integration (simplified - no meal types)
   const dragAndDropHook = useDragAndDrop(
-    (day, mealType, recipe) => {
-      return mealPlannerHook.addRecipeToMeal(day, mealType, recipe);
+    (day, recipe) => {
+      return mealPlannerHook.addRecipeToMeal(day, recipe);
     },
     handleRecipeAddedToContainer,
-    (sourceDay, sourceMealType, sourceIndex, targetDay, targetMealType, recipe) => {
-      return mealPlannerHook.moveRecipe(sourceDay, sourceMealType, sourceIndex, targetDay, targetMealType, recipe);
+    (sourceDay, sourceIndex, targetDay, recipe) => {
+      return mealPlannerHook.moveRecipe(sourceDay, sourceIndex, targetDay, recipe);
     }
   );
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="app-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner" style={{ margin: '0 auto 20px' }}></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  console.log('👤 Current user:', currentUser);
 
   return (
     <DndContext
@@ -468,6 +485,16 @@ const MainApp = () => {
           onShowGroceryList={handleShowGroceryList}
           showChat={showChat}
           onToggleChat={handleToggleChat}
+          // Pass recipe category props to the navigation
+          selectedCategory={selectedCategory}
+          onCategorySelect={handleCategorySelect}
+          recipeCounts={recipeCounts}
+          customCategories={customCategories}
+          onAddCategory={handleAddCategory}
+          onRefreshRecipes={loadRecipes}
+          // Admin props
+          isAdmin={isAdmin}
+          onShowAdminDashboard={() => setShowAdminDashboard(true)}
           onFeatureSelect={(feature) => {
             console.log('Feature selected:', feature);
             if (feature === 'cookbook') {
@@ -482,70 +509,35 @@ const MainApp = () => {
               setActiveView('notion-planner');
               setShowChat(false);
               sidebarHook.closeAllSidebars();
+            } else if (feature === 'friends') {
+              setActiveView('friends');
+              setShowChat(false);
+              sidebarHook.closeAllSidebars();
+            } else if (feature === 'community') {
+              setActiveView('community');
+              setShowChat(false);
+              sidebarHook.closeAllSidebars();
             } else if (feature === 'import') {
-              setShowImportModal(true);
+              setActiveView('import');
+              setShowChat(false);
+              sidebarHook.closeAllSidebars();
             }
           }}
         />
 
-        {/* Cookbook Sidebar - Compact */}
-        <CookbookSidebar
-          categories={customCategories}
-          selectedCategory={selectedCategory}
-          onCategorySelect={handleCategorySelect}
-          recipeCounts={recipeCounts}
-          onAddCategory={handleAddCategory}
-          onRefreshRecipes={loadRecipes}
-        />
-
         {/* Main Content Area */}
         <div className="main-content">
-          {/* Admin Controls - Only show for admin users */}
-          {isAdmin && (
-            <div className="admin-controls" style={{
-              position: 'absolute',
-              top: '10px',
-              right: '20px',
-              zIndex: 1000,
-              display: 'flex',
-              gap: '10px',
-              alignItems: 'center'
-            }}>
-              <button
-                className={`admin-mode-toggle ${adminMode ? 'active' : ''}`}
-                onClick={() => setAdminMode(!adminMode)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: adminMode ? '#e74c3c' : '#3498db',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 'bold'
-                }}
-              >
-                {adminMode ? '🔧 Admin ON' : '⚙️ Admin Mode'}
-              </button>
-              <button
-                className="admin-dashboard-btn"
-                onClick={() => setShowAdminDashboard(true)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#9b59b6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                📊 Admin Dashboard
-              </button>
-            </div>
-          )}
+          {/* Admin controls moved to sidebar navigation */}
 
           {/* Main Content - Conditional View */}
+          {activeView === 'friends' && (
+            <FriendsView />
+          )}
+
+          {activeView === 'community' && (
+            <CommunityBrowser />
+          )}
+
           {activeView === 'cookbook' && (
             <RecipeListView
               recipes={getFilteredRecipes()}
@@ -559,9 +551,26 @@ const MainApp = () => {
             />
           )}
 
+          {activeView === 'import' && (
+            <div className="import-recipe-view">
+              <ImportRecipeModal
+                isOpen={true}
+                onClose={() => setActiveView('cookbook')}
+                onImport={(result) => {
+                  handleImportRecipe(result);
+                  setActiveView('cookbook');
+                }}
+                isInlineView={true}
+              />
+            </div>
+          )}
+
           {activeView === 'grocery-manager' && (
             <GroceryManagerWorkspace
-              mealPlanRecipes={mealPlannerHook.getAllMealPlanRecipes().map(recipe => recipe.id).filter(Boolean)}
+              mealPlanRecipes={mealPlanRecipeIds.length > 0 
+                ? mealPlanRecipeIds 
+                : mealPlannerHook.getAllMealPlanRecipes().map(recipe => recipe.id).filter(Boolean)
+              }
             />
           )}
 
@@ -606,13 +615,6 @@ const MainApp = () => {
           isOpen={!!editingRecipe}
           onClose={() => setEditingRecipe(null)}
           onSave={handleSaveRecipe}
-        />
-
-        {/* Recipe Import Modal */}
-        <ImportRecipeModal
-          isOpen={showImportModal}
-          onClose={handleCloseImportModal}
-          onImport={handleImportRecipe}
         />
 
         {/* Recipe Panel - Notion-style slide-in */}

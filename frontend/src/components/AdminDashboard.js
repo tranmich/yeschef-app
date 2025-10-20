@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import { formatRecipeText } from '../utils/recipeFormatting';
+import DebugReportViewer from '../pages/DebugReportViewer';
 import './AdminDashboard.css';
 
 // Get the correct API base URL for admin endpoints
@@ -208,6 +209,24 @@ const AdminDashboard = () => {
 
       {adminMode && (
         <div className="admin-content">
+          {/* Quick Navigation Links */}
+          <div className="admin-quick-nav">
+            <a 
+              href="/admin/waitlist" 
+              className="quick-nav-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              📧 Email Waitlist
+            </a>
+            <button 
+              className="quick-nav-link"
+              onClick={() => setActiveTab('debug')}
+            >
+              🐛 Debug Report
+            </button>
+          </div>
+
           {/* Navigation Tabs */}
         <div className="admin-tabs">
           <button 
@@ -247,6 +266,12 @@ const AdminDashboard = () => {
             📝 Admin Logs
           </button>
           <button 
+            className={activeTab === 'debug' ? 'active' : ''}
+            onClick={() => handleTabChange('debug')}
+          >
+            🐛 Debug Report
+          </button>
+          <button 
             className="refresh-data-btn"
             onClick={() => handleTabChange(activeTab)}
             title="Refresh current tab data"
@@ -283,6 +308,10 @@ const AdminDashboard = () => {
 
             {activeTab === 'logs' && data.logs && (
               <AdminLogs logs={data.logs} />
+            )}
+
+            {activeTab === 'debug' && (
+              <DebugReportViewer />
             )}
           </div>
         </div>

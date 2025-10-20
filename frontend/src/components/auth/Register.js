@@ -65,8 +65,16 @@ const Register = () => {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <h1>Join Hungie!</h1>
-          <p>Create your account to start personalized meal planning</p>
+          <div className="auth-logo">
+            <img 
+              src="/images/yeschef-logo.png" 
+              alt="YesChef Logo" 
+              className="auth-logo-image" 
+            />
+            <span className="auth-logo-text">YesChef</span>
+          </div>
+          <h1>Join YesChef!</h1>
+          <p>Create your account to start organizing your kitchen</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">

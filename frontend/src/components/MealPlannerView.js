@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MealCalendar from './MealCalendar';
-import GroceryListGenerator from './GroceryListGenerator';
 import DraggableRecipeCard from './DraggableRecipeCard';
+import ShareResourceModal from './ShareResourceModal';
 import { getApiUrl } from '../utils/api';
 import './MealPlannerView.css';
 
@@ -13,7 +13,8 @@ const MealPlannerView = ({
     mealPlan,
     setMealPlan,
     containerRecipes,
-    setContainerRecipes
+    setContainerRecipes,
+    onShowGroceryList
 }) => {
     // Use the meal plan from props (which comes from the hook)
     const currentMealPlan = mealPlan;
@@ -21,9 +22,10 @@ const MealPlannerView = ({
 
     const [savedMealPlans, setSavedMealPlans] = useState([]);
     const [currentPlanName, setCurrentPlanName] = useState('');
-    const [showGroceryList, setShowGroceryList] = useState(false);
     const [showSavedPlansModal, setShowSavedPlansModal] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [currentPlanId, setCurrentPlanId] = useState(null);
 
     // Load saved meal plans on component mount
     useEffect(() => {
@@ -59,26 +61,20 @@ const MealPlannerView = ({
         }
     };
 
-    const removeRecipeFromMealPlan = (dayId, mealType, recipeIndex) => {
+    const removeRecipeFromMealPlan = (dayId, recipeIndex) => {
         updateMealPlan(prev => ({
             ...prev,
             days: {
                 ...prev.days,
                 [dayId]: {
                     ...prev.days[dayId],
-                    meals: {
-                        ...prev.days[dayId].meals,
-                        [mealType]: {
-                            ...prev.days[dayId].meals[mealType],
-                            recipes: prev.days[dayId].meals[mealType].recipes.filter((_, index) => index !== recipeIndex)
-                        }
-                    }
+                    recipes: prev.days[dayId].recipes.filter((_, index) => index !== recipeIndex)
                 }
             }
         }));
     };
 
-    // Add new day function
+    // Add new day function - Simplified structure
     const addNewDay = () => {
         const newDayId = `day${Object.keys(currentMealPlan.days).length + 1}`;
         const dayNumber = Object.keys(currentMealPlan.days).length + 1;
@@ -89,11 +85,7 @@ const MealPlannerView = ({
                 ...prev.days,
                 [newDayId]: {
                     name: `Day ${dayNumber}`,
-                    meals: {
-                        'breakfast': { name: 'Breakfast', recipes: [] },
-                        'lunch': { name: 'Lunch', recipes: [] },
-                        'dinner': { name: 'Dinner', recipes: [] }
-                    }
+                    recipes: []  // Simple array of recipes, no meal types
                 }
             },
             dayOrder: [...prev.dayOrder, newDayId]
@@ -107,7 +99,7 @@ const MealPlannerView = ({
             return;
         }
         
-        if (window.confirm('Are you sure you want to remove this day and all its meals?')) {
+        if (window.confirm('Are you sure you want to remove this day and all its recipes?')) {
             updateMealPlan(prev => {
                 const newDays = { ...prev.days };
                 delete newDays[dayId];
@@ -116,52 +108,6 @@ const MealPlannerView = ({
                     ...prev,
                     days: newDays,
                     dayOrder: prev.dayOrder.filter(id => id !== dayId)
-                };
-            });
-        }
-    };
-
-    // Add new meal type function
-    const addMealType = (dayId, mealName = 'New Meal') => {
-        const mealId = mealName.toLowerCase().replace(/\s+/g, '');
-        
-        updateMealPlan(prev => ({
-            ...prev,
-            days: {
-                ...prev.days,
-                [dayId]: {
-                    ...prev.days[dayId],
-                    meals: {
-                        ...prev.days[dayId].meals,
-                        [mealId]: { name: mealName, recipes: [] }
-                    }
-                }
-            }
-        }));
-    };
-
-    // Remove meal type function
-    const removeMealType = (dayId, mealId) => {
-        const mealCount = Object.keys(currentMealPlan.days[dayId].meals).length;
-        if (mealCount <= 1) {
-            alert('Cannot remove the last meal type');
-            return;
-        }
-        
-        if (window.confirm('Are you sure you want to remove this meal type and all its recipes?')) {
-            updateMealPlan(prev => {
-                const newMeals = { ...prev.days[dayId].meals };
-                delete newMeals[mealId];
-                
-                return {
-                    ...prev,
-                    days: {
-                        ...prev.days,
-                        [dayId]: {
-                            ...prev.days[dayId],
-                            meals: newMeals
-                        }
-                    }
                 };
             });
         }
@@ -176,26 +122,6 @@ const MealPlannerView = ({
                 [dayId]: {
                     ...prev.days[dayId],
                     name: newName
-                }
-            }
-        }));
-    };
-
-    // Rename meal type function
-    const renameMealType = (dayId, mealId, newName) => {
-        updateMealPlan(prev => ({
-            ...prev,
-            days: {
-                ...prev.days,
-                [dayId]: {
-                    ...prev.days[dayId],
-                    meals: {
-                        ...prev.days[dayId].meals,
-                        [mealId]: {
-                            ...prev.days[dayId].meals[mealId],
-                            name: newName
-                        }
-                    }
                 }
             }
         }));
@@ -233,6 +159,7 @@ const MealPlannerView = ({
 
             if (data.success) {
                 alert('Meal plan saved successfully!');
+                setCurrentPlanId(data.plan_id); // Store the plan ID for sharing
                 setCurrentPlanName('');
                 loadSavedMealPlans();
             } else {
@@ -244,6 +171,16 @@ const MealPlannerView = ({
         } finally {
             setLoading(false);
         }
+    };
+
+    // Handle sharing meal plan with household
+    const handleShare = (household, result) => {
+        console.log('🔗 Shared meal plan with household:', household.name);
+        console.log('🔗 Share result:', result);
+        
+        // Show success message
+        const message = `✅ Shared "${currentPlanName}" with ${household.name}!\n${result.invitations_created} member(s) invited.`;
+        alert(message);
     };
 
     const loadMealPlan = async (planId) => {
@@ -266,6 +203,7 @@ const MealPlannerView = ({
             if (data.success) {
                 updateMealPlan(data.meal_plan.meal_data);
                 setCurrentPlanName(data.meal_plan.plan_name);
+                setCurrentPlanId(planId); // Store the plan ID for sharing
             } else {
                 alert('Error loading meal plan: ' + data.error);
             }
@@ -306,10 +244,8 @@ const MealPlannerView = ({
     const getAllRecipeIds = () => {
         const recipeIds = [];
         Object.values(currentMealPlan.days || {}).forEach(day => {
-            Object.values(day.meals || {}).forEach(meal => {
-                (meal.recipes || []).forEach(recipe => {
-                    recipeIds.push(recipe.id || recipe.recipe_id);
-                });
+            (day.recipes || []).forEach(recipe => {
+                recipeIds.push(recipe.id || recipe.recipe_id);
             });
         });
         return recipeIds;
@@ -368,7 +304,21 @@ const MealPlannerView = ({
                     </button>
 
                     <button
-                        onClick={() => setShowGroceryList(!showGroceryList)}
+                        onClick={() => setShowShareModal(true)}
+                        disabled={!currentPlanId}
+                        className="share-plan-btn"
+                        title={currentPlanId ? "Share this meal plan with a household" : "Save plan first to share"}
+                    >
+                        🔗 Share
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            if (onShowGroceryList) {
+                                const recipeIds = getAllRecipeIds();
+                                onShowGroceryList(recipeIds);
+                            }
+                        }}
                         className="grocery-list-btn"
                     >
                         🛒 Grocery List
@@ -384,21 +334,10 @@ const MealPlannerView = ({
                         onRemoveRecipe={removeRecipeFromMealPlan}
                         onAddDay={addNewDay}
                         onRemoveDay={removeDay}
-                        onAddMealType={addMealType}
-                        onRemoveMealType={removeMealType}
                         onRenameDay={renameDay}
-                        onRenameMealType={renameMealType}
                     />
                 </div>
             </div>
-
-            {/* Grocery List */}
-            {showGroceryList && (
-                <GroceryListGenerator
-                    recipeIds={getAllRecipeIds()}
-                    onClose={() => setShowGroceryList(false)}
-                />
-            )}
 
             {/* Saved Plans Modal */}
             {showSavedPlansModal && (
@@ -442,6 +381,16 @@ const MealPlannerView = ({
                     </div>
                 </div>
             )}
+
+            {/* Share Resource Modal */}
+            <ShareResourceModal
+                isOpen={showShareModal}
+                onClose={() => setShowShareModal(false)}
+                resourceType="meal_plan"
+                resourceId={currentPlanId}
+                resourceName={currentPlanName}
+                onShare={handleShare}
+            />
         </div>
     );
 };

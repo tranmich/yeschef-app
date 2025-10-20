@@ -20,7 +20,17 @@ const SidebarContainer = ({
     onToggleMealPlannerExpand,
     onShowGroceryList,
     showChat,
-    onToggleChat
+    onToggleChat,
+    // Recipe category props
+    selectedCategory,
+    onCategorySelect,
+    recipeCounts,
+    customCategories,
+    onAddCategory,
+    onRefreshRecipes,
+    // Admin props
+    isAdmin,
+    onShowAdminDashboard
 }) => {
     return (
         <div className="sidebar-container">
@@ -33,6 +43,16 @@ const SidebarContainer = ({
                 showChat={showChat}
                 onToggleChat={onToggleChat}
                 onFeatureSelect={onFeatureSelect}
+                // Recipe category props
+                selectedCategory={selectedCategory}
+                onCategorySelect={onCategorySelect}
+                recipeCounts={recipeCounts}
+                customCategories={customCategories}
+                onAddCategory={onAddCategory}
+                onRefreshRecipes={onRefreshRecipes}
+                // Admin props
+                isAdmin={isAdmin}
+                onShowAdminDashboard={onShowAdminDashboard}
             />
             <div className={`pantry-sidebar ${showPantry ? 'visible' : ''} ${isPantryExpanded ? 'expanded' : ''}`}>
                 <PantryManager />
@@ -46,6 +66,7 @@ const SidebarContainer = ({
                     setContainerRecipes={setContainerRecipes}
                     isVisible={showMealPlanner}
                     isCompact={showMealPlanner}
+                    onShowGroceryList={onShowGroceryList}
                 />
             </div>
         </div>

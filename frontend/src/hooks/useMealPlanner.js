@@ -2,18 +2,15 @@ import { useState } from 'react';
 
 /**
  * Custom hook for managing meal planning state and operations
+ * Simplified structure: Days contain recipes directly (no breakfast/lunch/dinner)
  */
 export const useMealPlanner = () => {
-    // Enhanced meal plan state with dynamic days and meal types
+    // Simplified meal plan state - just days with recipes
     const [mealPlan, setMealPlan] = useState({
         days: {
             'day1': { 
                 name: 'Day 1',
-                meals: {
-                    'breakfast': { name: 'Breakfast', recipes: [] },
-                    'lunch': { name: 'Lunch', recipes: [] },
-                    'dinner': { name: 'Dinner', recipes: [] }
-                }
+                recipes: []  // Direct array of recipes, no meal types
             }
         },
         dayOrder: ['day1']
@@ -22,22 +19,16 @@ export const useMealPlanner = () => {
     // Visibility state
     const [showMealPlanner, setShowMealPlanner] = useState(false);
 
-    // Add recipe to meal plan
-    const addRecipeToMeal = (dayId, mealType, recipe) => {
-        if (dayId && mealType && mealPlan.days[dayId] && mealPlan.days[dayId].meals[mealType]) {
+    // Add recipe to day (simplified - no meal type)
+    const addRecipeToMeal = (dayId, recipe) => {
+        if (dayId && mealPlan.days[dayId]) {
             setMealPlan(prev => ({
                 ...prev,
                 days: {
                     ...prev.days,
                     [dayId]: {
                         ...prev.days[dayId],
-                        meals: {
-                            ...prev.days[dayId].meals,
-                            [mealType]: {
-                                ...prev.days[dayId].meals[mealType],
-                                recipes: [...prev.days[dayId].meals[mealType].recipes, recipe]
-                            }
-                        }
+                        recipes: [...prev.days[dayId].recipes, recipe]
                     }
                 }
             }));
@@ -46,22 +37,16 @@ export const useMealPlanner = () => {
         return false;
     };
 
-    // Remove recipe from meal plan
-    const removeRecipeFromMeal = (dayId, mealType, recipeIndex) => {
-        if (dayId && mealType && mealPlan.days[dayId] && mealPlan.days[dayId].meals[mealType]) {
+    // Remove recipe from day
+    const removeRecipeFromMeal = (dayId, recipeIndex) => {
+        if (dayId && mealPlan.days[dayId]) {
             setMealPlan(prev => ({
                 ...prev,
                 days: {
                     ...prev.days,
                     [dayId]: {
                         ...prev.days[dayId],
-                        meals: {
-                            ...prev.days[dayId].meals,
-                            [mealType]: {
-                                ...prev.days[dayId].meals[mealType],
-                                recipes: prev.days[dayId].meals[mealType].recipes.filter((_, index) => index !== recipeIndex)
-                            }
-                        }
+                        recipes: prev.days[dayId].recipes.filter((_, index) => index !== recipeIndex)
                     }
                 }
             }));
@@ -70,43 +55,31 @@ export const useMealPlanner = () => {
         return false;
     };
 
-    // Move recipe between meal slots
-    const moveRecipe = (sourceDayId, sourceMealType, sourceIndex, targetDayId, targetMealType, recipe) => {
-        if (!sourceDayId || !sourceMealType || sourceIndex === undefined || !targetDayId || !targetMealType) {
+    // Move recipe between days (simplified)
+    const moveRecipe = (sourceDayId, sourceIndex, targetDayId, recipe) => {
+        if (!sourceDayId || sourceIndex === undefined || !targetDayId) {
             return false;
         }
 
         // Don't move if source and target are the same
-        if (sourceDayId === targetDayId && sourceMealType === targetMealType) {
+        if (sourceDayId === targetDayId) {
             return false;
         }
 
         setMealPlan(prev => {
             const newMealPlan = { ...prev };
             
-            // Remove from source
+            // Remove from source day
             newMealPlan.days = { ...newMealPlan.days };
             newMealPlan.days[sourceDayId] = {
                 ...newMealPlan.days[sourceDayId],
-                meals: {
-                    ...newMealPlan.days[sourceDayId].meals,
-                    [sourceMealType]: {
-                        ...newMealPlan.days[sourceDayId].meals[sourceMealType],
-                        recipes: newMealPlan.days[sourceDayId].meals[sourceMealType].recipes.filter((_, index) => index !== sourceIndex)
-                    }
-                }
+                recipes: newMealPlan.days[sourceDayId].recipes.filter((_, index) => index !== sourceIndex)
             };
 
-            // Add to target
+            // Add to target day
             newMealPlan.days[targetDayId] = {
                 ...newMealPlan.days[targetDayId],
-                meals: {
-                    ...newMealPlan.days[targetDayId].meals,
-                    [targetMealType]: {
-                        ...newMealPlan.days[targetDayId].meals[targetMealType],
-                        recipes: [...newMealPlan.days[targetDayId].meals[targetMealType].recipes, recipe]
-                    }
-                }
+                recipes: [...newMealPlan.days[targetDayId].recipes, recipe]
             };
 
             return newMealPlan;
@@ -115,31 +88,7 @@ export const useMealPlanner = () => {
         return true;
     };
 
-    // Clear specific meal
-    const clearMeal = (dayId, mealType) => {
-        if (dayId && mealType && mealPlan.days[dayId] && mealPlan.days[dayId].meals[mealType]) {
-            setMealPlan(prev => ({
-                ...prev,
-                days: {
-                    ...prev.days,
-                    [dayId]: {
-                        ...prev.days[dayId],
-                        meals: {
-                            ...prev.days[dayId].meals,
-                            [mealType]: {
-                                ...prev.days[dayId].meals[mealType],
-                                recipes: []
-                            }
-                        }
-                    }
-                }
-            }));
-            return true;
-        }
-        return false;
-    };
-
-    // Clear entire day
+    // Clear entire day (simplified)
     const clearDay = (dayId) => {
         if (dayId && mealPlan.days[dayId]) {
             setMealPlan(prev => ({
@@ -148,13 +97,7 @@ export const useMealPlanner = () => {
                     ...prev.days,
                     [dayId]: {
                         ...prev.days[dayId],
-                        meals: Object.keys(prev.days[dayId].meals).reduce((acc, mealType) => {
-                            acc[mealType] = {
-                                ...prev.days[dayId].meals[mealType],
-                                recipes: []
-                            };
-                            return acc;
-                        }, {})
+                        recipes: []
                     }
                 }
             }));
@@ -163,43 +106,32 @@ export const useMealPlanner = () => {
         return false;
     };
 
-    // Clear entire meal plan
+    // Clear entire meal plan (simplified)
     const clearAllMeals = () => {
         setMealPlan({
             days: {
                 'day1': { 
                     name: 'Day 1',
-                    meals: {
-                        'breakfast': { name: 'Breakfast', recipes: [] },
-                        'lunch': { name: 'Lunch', recipes: [] },
-                        'dinner': { name: 'Dinner', recipes: [] }
-                    }
+                    recipes: []
                 }
             },
             dayOrder: ['day1']
         });
     };
 
-    // Get all recipes in meal plan
+    // Get all recipes in meal plan (simplified)
     const getAllMealPlanRecipes = () => {
         const allRecipes = [];
         Object.values(mealPlan.days || {}).forEach(day => {
-            Object.values(day.meals || {}).forEach(meal => {
-                allRecipes.push(...(meal.recipes || []));
-            });
+            allRecipes.push(...(day.recipes || []));
         });
         return allRecipes;
     };
 
-    // Get recipes for specific day
+    // Get recipes for specific day (simplified)
     const getDayRecipes = (dayId) => {
         if (!mealPlan.days[dayId]) return [];
-
-        const dayRecipes = [];
-        Object.values(mealPlan.days[dayId].meals || {}).forEach(meal => {
-            dayRecipes.push(...(meal.recipes || []));
-        });
-        return dayRecipes;
+        return mealPlan.days[dayId].recipes || [];
     };
 
     // Toggle meal planner visibility
@@ -211,41 +143,22 @@ export const useMealPlanner = () => {
         }
     };
 
-    // Get meal plan statistics
+    // Get meal plan statistics (simplified)
     const getMealPlanStats = () => {
         const stats = {
             totalRecipes: 0,
             totalDays: 0,
-            completeDays: 0,
-            emptyDays: 0,
-            byMealType: {
-                breakfast: 0,
-                lunch: 0,
-                dinner: 0,
-                snacks: 0
-            }
+            daysWithRecipes: 0,
+            emptyDays: 0
         };
 
-        Object.keys(mealPlan).forEach(day => {
+        Object.values(mealPlan.days || {}).forEach(day => {
             stats.totalDays++;
-            let dayHasRecipes = false;
-            let dayMealCount = 0;
+            const recipeCount = day.recipes?.length || 0;
+            stats.totalRecipes += recipeCount;
 
-            Object.keys(mealPlan[day]).forEach(mealType => {
-                const mealRecipes = mealPlan[day][mealType].length;
-                stats.totalRecipes += mealRecipes;
-                stats.byMealType[mealType] += mealRecipes;
-
-                if (mealRecipes > 0) {
-                    dayHasRecipes = true;
-                    dayMealCount++;
-                }
-            });
-
-            if (dayHasRecipes) {
-                if (dayMealCount >= 3) { // Has breakfast, lunch, and dinner
-                    stats.completeDays++;
-                }
+            if (recipeCount > 0) {
+                stats.daysWithRecipes++;
             } else {
                 stats.emptyDays++;
             }
@@ -264,7 +177,6 @@ export const useMealPlanner = () => {
         addRecipeToMeal,
         removeRecipeFromMeal,
         moveRecipe,
-        clearMeal,
         clearDay,
         clearAllMeals,
         toggleMealPlanner,

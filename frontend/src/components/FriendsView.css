@@ -1,0 +1,746 @@
+/* Friends & Households View - Consistent with Recipe List Styling */
+
+.friends-view {
+  width: 100%;
+  max-width: 900px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  overflow: visible;
+  margin: 0 auto;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Header */
+.friends-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 12px 12px 0 0;
+  background: white;
+}
+
+.friends-header h2 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+.header-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+  display: flex;
+  padding: 0 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  color: #374151;
+  background: rgba(170, 198, 173, 0.1);
+}
+
+.tab-button.active {
+  color: #AAC6AD;
+  border-bottom-color: #AAC6AD;
+  background: rgba(170, 198, 173, 0.1);
+  font-weight: 600;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.primary-button {
+  background: #AAC6AD;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.primary-button:hover {
+  background: #91b496;
+}
+
+.primary-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.secondary-button:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+/* Messages */
+.message {
+  margin: 16px 20px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-message {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.success-message {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.close-message {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.close-message:hover {
+  opacity: 1;
+}
+
+/* Tab Content */
+.tab-content {
+  padding: 20px;
+  min-height: 400px;
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #AAC6AD;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+}
+
+.empty-state p {
+  margin: 0 0 24px 0;
+  font-size: 14px;
+}
+
+/* Card Styles */
+.friend-card,
+.request-card,
+.household-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.friend-card:hover,
+.request-card:hover,
+.household-card:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* Avatar Styles */
+.friend-avatar,
+.request-avatar,
+.household-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #AAC6AD;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+  flex-shrink: 0;
+}
+
+/* Info Sections */
+.friend-info,
+.request-info,
+.household-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.friend-name,
+.request-name,
+.household-name {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.friend-email,
+.request-email,
+.household-description {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.request-message {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: #374151;
+  font-style: italic;
+  font-family: 'Nunito', sans-serif;
+}
+
+.request-time {
+  margin: 0;
+  font-size: 12px;
+  color: #9ca3af;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Stats */
+.friend-stats,
+.household-stats {
+  display: flex;
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+  margin-bottom: 2px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Actions */
+.friend-actions,
+.request-actions,
+.household-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.action-button {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.action-button:disabled {
+  background: #f9fafb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.accept-button {
+  background: #AAC6AD;
+  color: white;
+  border-color: #AAC6AD;
+}
+
+.accept-button:hover {
+  background: #91b496;
+  border-color: #91b496;
+}
+
+.decline-button,
+.remove-button {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.decline-button:hover,
+.remove-button:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+.outgoing-status {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+  padding: 8px 12px;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.close-button {
+  background: #f3f4f6;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  color: #111827;
+  transition: border-color 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #AAC6AD;
+  box-shadow: 0 0 0 3px rgba(170, 198, 173, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+/* Mint-colored scrollbar for friends view */
+.friends-view::-webkit-scrollbar {
+  width: 8px;
+}
+
+.friends-view::-webkit-scrollbar-track {
+  background: #f0f9ff;
+  border-radius: 4px;
+}
+
+.friends-view::-webkit-scrollbar-thumb {
+  background: #AAC6AD;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.friends-view::-webkit-scrollbar-thumb:hover {
+  background: #91b496;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .friends-view {
+    max-width: 95%;
+    margin: 0 auto;
+    border-radius: 8px;
+  }
+  
+  .tab-navigation {
+    padding: 0 16px;
+  }
+  
+  .tab-button {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+  
+  .action-buttons {
+    padding: 12px 16px;
+    flex-direction: column;
+  }
+  
+  .friend-stats,
+  .household-stats {
+    gap: 16px;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+}
+
+/* Additional Household Management Styles */
+.large-modal {
+  max-width: 800px;
+  max-height: 90vh;
+}
+
+/* Household Tabs */
+.household-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.household-tab {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.household-tab:hover {
+  color: #374151;
+  background: rgba(170, 198, 173, 0.1);
+}
+
+.household-tab.active {
+  color: #AAC6AD;
+  border-bottom-color: #AAC6AD;
+  background: rgba(170, 198, 173, 0.1);
+  font-weight: 600;
+}
+
+.household-tab-content {
+  min-height: 400px;
+}
+
+.household-modal-description {
+  margin: 0 0 20px 0;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  color: #6b7280;
+  font-style: italic;
+  font-family: 'Nunito', sans-serif;
+}
+
+.household-actions-section {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.danger-button {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.danger-button:hover {
+  background: #b91c1c;
+}
+
+.members-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.no-members {
+  color: #6b7280;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+  font-family: 'Nunito', sans-serif;
+}
+
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.member-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #AAC6AD;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+  flex-shrink: 0;
+}
+
+.member-avatar.small {
+  width: 36px;
+  height: 36px;
+  font-size: 13px;
+}
+
+.member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-name {
+  margin: 0 0 2px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.member-role {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.modal-instruction {
+  margin: 0 0 16px 0;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+.friends-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.friend-selection-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.friend-selection-item:hover {
+  background: #f9fafb;
+}
+
+.empty-state.small {
+  padding: 30px 20px;
+}
+
+.empty-state.small p {
+  margin: 0;
+}

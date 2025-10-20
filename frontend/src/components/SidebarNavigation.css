@@ -1,22 +1,37 @@
-/* SidebarNavigation.css - Clean Original Design Match */
+/* SidebarNavigation.css - Clean Original Design Match with Brand Colors */
+
+/* CSS Variables */
+:root {
+  --mint-primary: #AAC6AD;
+  --mint-light: #c2ddc6;
+  --mint-lighter: #e8f3ea;
+  --charcoal: #1f2937;
+  --gray-dark: #374151;
+  --gray-medium: #6b7280;
+  --gray-light: #e5e7eb;
+  --white: #ffffff;
+  --font-heading: 'Nunito', sans-serif;
+  --font-body: 'Nunito', sans-serif;
+}
 
 /* === MAIN CONTAINER === */
 .sidebar-navigation {
-  width: 180px;
-  background: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  width: 220px; /* Increased from 180px to accommodate categories */
+  background: var(--white);
+  border-right: 1px solid var(--gray-light);
   height: 100vh;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   flex-shrink: 0;
+  font-family: var(--font-body);
 }
 
 /* === HEADER === */
 .sidebar-navigation .navigation-header {
   padding: 1rem;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
+  border-bottom: 1px solid var(--gray-light);
+  background: var(--white);
 }
 
 .sidebar-navigation .navigation-header .header-left {
@@ -30,16 +45,18 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex: 1;
 }
 
 .sidebar-navigation .navigation-header .logo-icon {
-  font-size: 1.2rem;
+  width: 40px;
+  height: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .sidebar-navigation .navigation-header .logo-text {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1f2937;
+  display: none; /* Logo includes text */
 }
 
 /* === USER MENU === */
@@ -59,34 +76,34 @@
 }
 
 .sidebar-navigation .avatar-circle {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: #e5e7eb;
+  background: var(--mint-lighter);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-dark);
 }
 
 .sidebar-navigation .avatar-initials {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: #e5e7eb;
+  background: var(--mint-lighter);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-dark);
 }
 
 .sidebar-navigation .user-avatar:hover .avatar-circle,
 .sidebar-navigation .user-avatar:hover .avatar-initials {
-  background: #d1d5db;
+  background: var(--mint-light);
 }
 
 .sidebar-navigation .user-dropdown {
@@ -184,6 +201,10 @@
 }
 
 /* === FEATURE BUTTONS - ORIGINAL CLEAN DESIGN === */
+.sidebar-navigation .feature-container {
+  position: relative;
+}
+
 .sidebar-navigation .feature-card {
   display: flex;
   align-items: center;
@@ -194,22 +215,23 @@
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
-  color: #374151;
+  color: var(--gray-dark);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  font-family: var(--font-body);
   width: 100%;
   min-height: 36px;
 }
 
 .sidebar-navigation .feature-card:hover {
-  background: #f3f4f6;
-  color: #1f2937;
+  background: var(--mint-lighter);
+  color: var(--charcoal);
 }
 
 .sidebar-navigation .feature-card.active {
-  background: #3b82f6;
+  background: var(--mint-primary);
   color: white;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .sidebar-navigation .feature-card.disabled {
@@ -219,7 +241,7 @@
 
 .sidebar-navigation .feature-card.disabled:hover {
   background: transparent;
-  color: #374151;
+  color: var(--gray-dark);
 }
 
 /* === FEATURE ICONS === */
@@ -243,6 +265,178 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+/* === DROPDOWN ARROW === */
+.sidebar-navigation .dropdown-arrow {
+  font-size: 10px;
+  margin-left: 0.5rem;
+  color: var(--gray-medium);
+  transition: transform 0.15s ease;
+}
+
+/* === RECIPE CATEGORIES INLINE SECTION === */
+.sidebar-navigation .recipe-categories-section {
+  margin-top: 0.25rem;
+  margin-left: 0.75rem;
+  border-left: 2px solid var(--gray-light);
+  padding-left: 0.75rem;
+}
+
+.sidebar-navigation .categories-toggle {
+  display: flex;
+  align-items: center;
+  padding: 0.375rem 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--gray-medium);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  width: 100%;
+  text-align: left;
+  border-radius: 4px;
+  gap: 0.5rem;
+}
+
+.sidebar-navigation .categories-toggle:hover {
+  background: var(--mint-lighter);
+  color: var(--charcoal);
+}
+
+.sidebar-navigation .toggle-icon {
+  font-size: 12px; /* Increased from 10px */
+  width: 14px; /* Increased from 12px */
+  text-align: center;
+  transition: transform 0.15s ease;
+}
+
+.sidebar-navigation .toggle-label {
+  flex: 1;
+  font-size: 14px; /* Increased from 12px */
+  font-family: var(--font-body);
+}
+
+.sidebar-navigation .categories-count {
+  font-size: 12px; /* Increased from 10px */
+  font-family: var(--font-body);
+  color: var(--gray-medium);
+}
+
+.sidebar-navigation .categories-list-inline {
+  margin-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar-navigation .category-item-inline {
+  display: flex;
+  align-items: center;
+  padding: 0.375rem 0.5rem; /* Increased padding from 0.25rem */
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-radius: 4px;
+  gap: 0.5rem;
+  font-size: 13px; /* Increased from 11px */
+  font-family: var(--font-body);
+  text-align: left;
+  width: 100%;
+  border-left: 2px solid transparent;
+}
+
+.sidebar-navigation .category-item-inline:hover {
+  background: var(--mint-lighter);
+  border-left-color: var(--category-color);
+}
+
+.sidebar-navigation .category-item-inline.active {
+  background: var(--mint-light);
+  border-left-color: var(--category-color);
+  font-weight: 600;
+  color: var(--charcoal);
+}
+
+/* Special styling for Recent Imports */
+.sidebar-navigation .category-item-inline[data-category="recent-imports"] {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #22c55e;
+  border-radius: 4px;
+  margin: 0.125rem 0;
+  border-left: 2px solid #22c55e;
+}
+
+.sidebar-navigation .category-item-inline[data-category="recent-imports"]:hover {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: #16a34a;
+  border-left-color: #16a34a;
+}
+
+.sidebar-navigation .category-item-inline[data-category="recent-imports"].active {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  border-color: #059669;
+  border-left-color: #059669;
+}
+
+.sidebar-navigation .category-item-inline .category-icon {
+  font-size: 14px; /* Increased from 12px */
+  width: 16px; /* Increased from 14px */
+  text-align: center;
+}
+
+.sidebar-navigation .category-item-inline .category-name {
+  flex: 1;
+  font-size: 13px; /* Increased from 11px */
+  font-family: var(--font-body);
+  color: inherit;
+}
+
+.sidebar-navigation .category-item-inline .category-count {
+  font-size: 11px; /* Increased from 9px */
+  font-family: var(--font-body);
+  color: var(--gray-medium);
+  font-weight: 400;
+}
+
+.sidebar-navigation .category-item-inline[data-category="recent-imports"] .category-count {
+  background: #22c55e;
+  color: white;
+  padding: 2px 5px; /* Increased padding */
+  border-radius: 8px;
+  font-size: 10px; /* Increased from 8px */
+  font-family: var(--font-body);
+  font-weight: 600;
+  min-width: 18px; /* Increased from 16px */
+  text-align: center;
+}
+
+.sidebar-navigation .categories-footer-inline {
+  margin-top: 0.5rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--gray-light);
+}
+
+.sidebar-navigation .refresh-recipes-btn {
+  background: transparent;
+  border: 1px solid var(--gray-light);
+  color: var(--gray-medium);
+  padding: 0.375rem 0.5rem; /* Increased padding */
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px; /* Increased from 10px */
+  font-family: var(--font-body);
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.sidebar-navigation .refresh-recipes-btn:hover {
+  background: var(--mint-lighter);
+  border-color: var(--mint-primary);
+  color: var(--charcoal);
 }
 
 /* === COMING SOON BADGE === */
@@ -274,4 +468,50 @@
 
 .sidebar-navigation::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
+}
+
+/* === ADMIN SECTION === */
+.admin-section {
+  margin-top: auto; /* Push to bottom */
+  padding: 1rem;
+  border-top: 1px solid var(--gray-light);
+  background: #f9fafb;
+}
+
+.admin-dashboard-btn {
+  width: 100%;
+  background: linear-gradient(135deg, var(--mint-primary) 0%, #7ba37f 100%);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.admin-dashboard-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(170, 198, 173, 0.3);
+  background: linear-gradient(135deg, #98b49b 0%, #6a8d6e 100%);
+}
+
+.admin-dashboard-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.admin-icon {
+  font-size: 16px;
+}
+
+.admin-label {
+  font-size: 14px;
+  font-weight: 600;
 }

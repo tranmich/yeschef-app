@@ -27,7 +27,6 @@
   display: flex;
   flex-direction: column;
   transform: translateX(0);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden; /* Prevent internal scrolling in normal mode */
 }
 
@@ -41,19 +40,7 @@
   overflow-y: auto; /* Allow page-level scrolling in full-screen */
 }
 
-/* Panel entrance animation */
-.recipe-panel {
-  animation: slideInFromRight 0.3s ease-out;
-}
-
-@keyframes slideInFromRight {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
+/* Removed distracting entrance animation */
 
 /* Header Section - Clean Notion-style */
 .recipe-panel .recipe-panel-header {
@@ -90,9 +77,8 @@
 
 .recipe-panel .expand-panel-btn:hover {
   background: #e9ecef;
-  color: #28a745;
-  transform: scale(1.05);
-  border-color: #28a745;
+  color: #10b981;
+  border-color: #10b981;
 }
 
 .recipe-panel .recipe-title-section {
@@ -143,7 +129,6 @@
 .recipe-panel .close-panel-btn:hover {
   background: #e5e7eb;
   color: #374151;
-  transform: scale(1.1);
 }
 
 /* Recipe Metadata Bar - Component-scoped */
@@ -552,5 +537,293 @@
     width: 32px;
     height: 32px;
     font-size: 14px;
+  }
+}
+
+/* ==================== VIEW/EDIT MODE STYLES ==================== */
+
+/* View Mode - Beautiful, magazine-style presentation */
+.recipe-panel-view .ingredients-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recipe-panel-view .ingredient-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #374151;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.recipe-panel-view .ingredient-item::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #10b981;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.recipe-panel-view .ingredient-item:last-child {
+  border-bottom: none;
+}
+
+.recipe-panel-view .instructions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: step-counter;
+}
+
+.recipe-panel-view .instruction-step {
+  padding: 1rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #374151;
+  position: relative;
+  padding-left: 3rem;
+  counter-increment: step-counter;
+}
+
+.recipe-panel-view .instruction-step::before {
+  content: counter(step-counter);
+  position: absolute;
+  left: 0;
+  top: 1rem;
+  background: #10b981;
+  color: white;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.recipe-panel-view .instruction-step:last-child {
+  border-bottom: none;
+}
+
+.recipe-panel-view .empty-state {
+  color: #9ca3af;
+  font-style: italic;
+  padding: 1rem;
+  text-align: center;
+}
+
+.recipe-panel-view .recipe-description {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: #4b5563;
+  margin: 0;
+}
+
+.recipe-panel-view .recipe-source {
+  font-size: 0.95rem;
+  color: #6b7280;
+  font-style: italic;
+  margin: 1rem 0;
+}
+
+.recipe-panel-view .source-label {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Edit Recipe Button in View Mode */
+.edit-recipe-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.edit-recipe-btn:hover {
+  background: #059669;
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2);
+}
+
+/* Edit Mode - Clear form-style presentation */
+.recipe-panel-edit {
+  background: #f9fafb;
+}
+
+.recipe-panel-header-editing {
+  background: #fff7ed;
+  border-bottom: 2px solid #fed7aa;
+}
+
+.editing-indicator {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ea580c;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recipe-panel-backdrop-editing {
+  background: rgba(0, 0, 0, 0.3);
+  cursor: not-allowed;
+}
+
+/* Edit Mode Fields */
+.edit-field-block {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #e5e7eb;
+}
+
+.edit-field-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.edit-field-hint {
+  font-size: 0.8rem;
+  font-weight: normal;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.edit-input,
+.edit-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: #1f2937;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.edit-input:focus,
+.edit-textarea:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.edit-title-input {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.edit-textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+.edit-ingredients-textarea,
+.edit-instructions-textarea {
+  font-family: 'Courier New', monospace;
+  line-height: 1.8;
+}
+
+/* Metadata Grid in Edit Mode */
+.edit-metadata-block {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #e5e7eb;
+}
+
+.edit-metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.edit-field-compact {
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-field-label-compact {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 0.4rem;
+}
+
+.edit-input-compact {
+  padding: 0.6rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: #1f2937;
+  transition: all 0.2s ease;
+}
+
+.edit-input-compact:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* Save/Cancel Buttons */
+.cancel-edit-btn,
+.save-edit-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-edit-btn {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.cancel-edit-btn:hover {
+  background: #e5e7eb;
+}
+
+.save-edit-btn {
+  background: #10b981;
+  color: white;
+}
+
+.save-edit-btn:hover {
+  background: #059669;
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.2);
+}
+
+/* Footer buttons removed per user request */
+
+/* Responsive Edit Mode */
+@media (max-width: 768px) {
+  .edit-metadata-grid {
+    grid-template-columns: 1fr;
   }
 }

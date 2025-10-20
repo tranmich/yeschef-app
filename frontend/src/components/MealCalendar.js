@@ -2,7 +2,7 @@ import React from 'react';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import './MealCalendar.css';
 
-const MealCalendar = ({ mealPlan, onRemoveRecipe, onAddDay, onRemoveDay, onAddMealType, onRemoveMealType, onRenameDay, onRenameMealType }) => {
+const MealCalendar = ({ mealPlan, onRemoveRecipe, onAddDay, onRemoveDay, onRenameDay }) => {
     // Safety check for mealPlan structure
     if (!mealPlan || !mealPlan.days) {
         return (
@@ -17,24 +17,16 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onAddDay, onRemoveDay, onAddMe
         );
     }
 
-    // Get dynamic days and meal types from the meal plan
+    // Get dynamic days from the meal plan
     const days = mealPlan.dayOrder || Object.keys(mealPlan.days || {});
     
     const formatDayName = (dayId) => {
         return mealPlan.days[dayId]?.name || dayId;
     };
 
-    const formatMealType = (mealType, dayId) => {
-        return mealPlan.days[dayId]?.meals[mealType]?.name || mealType;
-    };
-
-    const getMealTypes = (dayId) => {
-        return Object.keys(mealPlan.days[dayId]?.meals || {});
-    };
-
-    // Draggable planned recipe component
-    const PlannedRecipe = ({ recipe, index, dayId, mealType }) => {
-        const draggableId = `planned-${dayId}-${mealType}-${index}`;
+    // Draggable planned recipe component - Simplified
+    const PlannedRecipe = ({ recipe, index, dayId }) => {
+        const draggableId = `planned-${dayId}-${index}`;
 
         const {
             attributes,
@@ -48,7 +40,6 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onAddDay, onRemoveDay, onAddMe
                 type: 'planned-recipe',
                 recipe: recipe,
                 sourceDay: dayId,
-                sourceMealType: mealType,
                 sourceIndex: index
             },
         });
@@ -70,7 +61,7 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onAddDay, onRemoveDay, onAddMe
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
-                        onRemoveRecipe(dayId, mealType, index);
+                        onRemoveRecipe(dayId, index);
                     }}
                     className="remove-recipe-btn"
                     title="Remove recipe from meal plan"
@@ -97,63 +88,36 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onAddDay, onRemoveDay, onAddMe
         );
     };
 
-    const MealSlot = ({ dayId, mealType, recipes, dayData }) => {
+    // Simplified Day Slot - No meal types, just recipes per day
+    const DaySlot = ({ dayId, recipes }) => {
         const { isOver, setNodeRef } = useDroppable({
-            id: `${dayId}-${mealType}`,
+            id: dayId,
         });
 
         const style = {
-            backgroundColor: isOver ? '#e3f2fd' : 'white',
-            border: isOver ? '2px dashed #2196f3' : '1px solid #e0e0e0',
+            backgroundColor: isOver ? '#e8f5e9' : 'white',
+            border: isOver ? '2px dashed #AAC6AD' : '2px solid #e5e7eb',
         };
 
         return (
             <div
                 ref={setNodeRef}
-                className="meal-slot"
+                className="day-slot"
                 style={style}
             >
-                <div className="meal-slot-header">
-                    <span 
-                        className="meal-type editable" 
-                        onClick={() => {
-                            const newName = prompt('Rename meal type:', formatMealType(mealType, dayId));
-                            if (newName && newName.trim() && onRenameMealType) {
-                                onRenameMealType(dayId, mealType, newName.trim());
-                            }
-                        }}
-                        title="Click to rename"
-                    >
-                        {formatMealType(mealType, dayId)}
-                    </span>
-                    {recipes.length > 0 && (
-                        <span className="recipe-count">({recipes.length})</span>
-                    )}
-                    {Object.keys(dayData.meals).length > 1 && (
-                        <button
-                            onClick={() => onRemoveMealType && onRemoveMealType(dayId, mealType)}
-                            className="remove-meal-btn"
-                            title="Remove meal type"
-                        >
-                            ✕
-                        </button>
-                    )}
-                </div>
-
-                <div className="meal-slot-content">
+                <div className="day-slot-content">
                     {recipes.length === 0 ? (
                         <div className="empty-slot">
-                            <span className="drop-hint">Drop recipe here</span>
+                            <span className="drop-hint">Drop recipes here</span>
                         </div>
                     ) : (
                         <div className="planned-recipes">
                             {recipes.map((recipe, index) => (
                                 <PlannedRecipe
-                                    key={`${dayId}-${mealType}-${index}`}
+                                    key={`${dayId}-${index}`}
                                     recipe={recipe}
                                     index={index}
                                     dayId={dayId}
-                                    mealType={mealType}
                                 />
                             ))}
                         </div>
@@ -169,18 +133,16 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onAddDay, onRemoveDay, onAddMe
                 <h3>📅 Meal Plan</h3>
             </div>
 
-            <div className="calendar-grid-dynamic">
-                {/* Render days dynamically */}
+            <div className="calendar-grid-simple">
+                {/* Render days dynamically - Simplified structure */}
                 {days.map(dayId => {
                     const dayData = mealPlan.days[dayId];
                     if (!dayData) return null;
                     
-                    const mealTypes = getMealTypes(dayId);
-                    
                     return (
-                        <div key={dayId} className="day-column">
+                        <div key={dayId} className="day-card">
                             {/* Day Header */}
-                            <div className="day-header-dynamic">
+                            <div className="day-header">
                                 <span 
                                     className="day-name editable"
                                     onClick={() => {
@@ -193,86 +155,39 @@ const MealCalendar = ({ mealPlan, onRemoveRecipe, onAddDay, onRemoveDay, onAddMe
                                 >
                                     {dayData.name}
                                 </span>
-                                <div className="day-controls">
+                                {(dayData.recipes?.length > 0) && (
+                                    <span className="recipe-count">{dayData.recipes.length} {dayData.recipes.length === 1 ? 'recipe' : 'recipes'}</span>
+                                )}
+                                {days.length > 1 && (
                                     <button
-                                        onClick={() => {
-                                            const mealName = prompt('New meal type name:', 'Snacks');
-                                            if (mealName && mealName.trim() && onAddMealType) {
-                                                onAddMealType(dayId, mealName.trim());
-                                            }
-                                        }}
-                                        className="add-meal-btn"
-                                        title="Add meal type"
+                                        onClick={() => onRemoveDay && onRemoveDay(dayId)}
+                                        className="remove-day-btn"
+                                        title="Remove day"
                                     >
-                                        ➕
+                                        ✕
                                     </button>
-                                    {days.length > 1 && (
-                                        <button
-                                            onClick={() => onRemoveDay && onRemoveDay(dayId)}
-                                            className="remove-day-btn"
-                                            title="Remove day"
-                                        >
-                                            🗑️
-                                        </button>
-                                    )}
-                                </div>
+                                )}
                             </div>
 
-                            {/* Meal Slots */}
-                            <div className="day-meals">
-                                {mealTypes.map(mealType => (
-                                    <MealSlot
-                                        key={`${dayId}-${mealType}`}
-                                        dayId={dayId}
-                                        mealType={mealType}
-                                        recipes={dayData.meals[mealType]?.recipes || []}
-                                        dayData={dayData}
-                                    />
-                                ))}
-                            </div>
+                            {/* Day Content - Just recipes, no meal types */}
+                            <DaySlot
+                                dayId={dayId}
+                                recipes={dayData.recipes || []}
+                            />
                         </div>
                     );
                 })}
-            </div>
-
-            <div className="calendar-footer">
-                <div className="calendar-stats">
-                    <span>Total Recipes: {getTotalRecipeCount(mealPlan)}</span>
-                    <span>Days Planned: {days.length}</span>
-                </div>
             </div>
         </div>
     );
 };
 
-// Helper functions
-const getCurrentWeekRange = () => {
-    const today = new Date();
-    const firstDayOfWeek = today.getDate() - today.getDay() + 1; // Monday
-    const monday = new Date(today.setDate(firstDayOfWeek));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-
-    return `${monday.toLocaleDateString()} - ${sunday.toLocaleDateString()}`;
-};
-
-const getDayDate = (dayName) => {
-    const dayIndex = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].indexOf(dayName);
-    const today = new Date();
-    const firstDayOfWeek = today.getDate() - today.getDay() + 1; // Monday
-    const targetDay = new Date(today.setDate(firstDayOfWeek + dayIndex));
-
-    return targetDay.getDate();
-};
-
+// Helper function to count total recipes
 const getTotalRecipeCount = (mealPlan) => {
-    let count = 0;
-    Object.values(mealPlan.days || {}).forEach(day => {
-        Object.values(day.meals || {}).forEach(meal => {
-            count += (meal.recipes || []).length;
-        });
-    });
-    return count;
+    if (!mealPlan || !mealPlan.days) return 0;
+    return Object.values(mealPlan.days).reduce((total, day) => {
+        return total + (day.recipes?.length || 0);
+    }, 0);
 };
 
 export default MealCalendar;

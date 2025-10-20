@@ -15,7 +15,7 @@ const Login = () => {
 
   // Redirect if already logged in
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/app" replace />;
   }
 
   const handleChange = (e) => {
@@ -44,6 +44,14 @@ const Login = () => {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
+          <div className="auth-logo">
+            <img 
+              src="/images/yeschef-stacklogo.png" 
+              alt="YesChef Logo" 
+              className="auth-logo-image" 
+            />
+            <span className="auth-logo-text">YesChef</span>
+          </div>
           <h1>Welcome Back!</h1>
           <p>Sign in to access your personalized meal planning</p>
         </div>

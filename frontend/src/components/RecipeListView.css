@@ -1,12 +1,36 @@
-/* VS Code Explorer Style Recipe List */
+/* VS Code Explorer Style Recipe List - Centered Container Design */
 .recipe-list-view {
-  flex: 1;
-  padding: 8px 12px;
+  width: 100%;
+  max-width: 900px; /* Constrain to 3/4 of typical screen width */
   background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
   overflow: visible;
   font-size: 10px !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   position: relative;
+  margin: 0 auto; /* Center the container */
+}
+
+/* Mint-colored scrollbar for recipe list */
+.recipe-list-view::-webkit-scrollbar {
+  width: 8px;
+}
+
+.recipe-list-view::-webkit-scrollbar-track {
+  background: #f0f9ff;
+  border-radius: 4px;
+}
+
+.recipe-list-view::-webkit-scrollbar-thumb {
+  background: #AAC6AD;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.recipe-list-view::-webkit-scrollbar-thumb:hover {
+  background: #91b496;
 }
 
 .recipe-list-header {
@@ -14,8 +38,10 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
-  padding-bottom: 6px;
+  padding: 12px 16px 8px 16px; /* Add horizontal padding */
   border-bottom: 1px solid #e5e7eb;
+  border-radius: 12px 12px 0 0; /* Top rounded corners to match container */
+  background: white; /* Ensure background matches */
 }
 
 .category-title {
@@ -26,13 +52,13 @@
 
 .category-title h2 {
   margin: 0;
-  font-size: 11px !important;
+  font-size: 18px !important; /* Increased from 11px */
   font-weight: 600;
   color: #374151;
 }
 
 .recipe-count {
-  font-size: 9px !important;
+  font-size: 14px !important; /* Increased from 9px */
   color: #6b7280;
   font-weight: 400;
 }
@@ -48,7 +74,7 @@
   padding: 3px 6px;
   border: 1px solid #d1d5db;
   border-radius: 3px;
-  font-size: 9px !important;
+  font-size: 12px !important; /* Increased from 9px */
   outline: none;
 }
 
@@ -61,7 +87,7 @@
   padding: 3px 4px;
   border: 1px solid #d1d5db;
   border-radius: 3px;
-  font-size: 9px !important;
+  font-size: 12px !important; /* Increased from 9px */
   background: white;
   outline: none;
 }
@@ -71,6 +97,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  padding: 0 16px 16px 16px; /* Add horizontal padding and bottom padding */
 }
 
 .category-tree {
@@ -91,7 +118,7 @@
   align-items: center;
   gap: 4px;
   padding: 3px 6px;
-  font-size: 10px !important;
+  font-size: 13px !important; /* Increased from 10px */
   font-weight: 500;
   color: #374151;
   background: #f9fafb;
@@ -100,7 +127,7 @@
 }
 
 .category-icon {
-  font-size: 9px !important;
+  font-size: 12px !important; /* Increased from 9px */
 }
 
 .category-name {
@@ -108,7 +135,7 @@
 }
 
 .category-count {
-  font-size: 8px !important;
+  font-size: 11px !important; /* Increased from 8px */
   color: #6b7280;
   font-weight: 400;
 }
@@ -122,24 +149,20 @@
 
 /* Recipe Card Styles */
 
-/* VS Code Style Recipe Card */
+/* VS Code Style Recipe Card - Clean Single Line Design */
 .recipe-card {
   position: relative;
   background: transparent;
   cursor: pointer;
   transition: background-color 0.1s ease;
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: visible !important;
   z-index: 1;
+  font-family: 'Nunito', sans-serif;
 }
 
 .recipe-card:hover {
-  background: #f3f4f6;
-  z-index: 10;
-}
-
-.recipe-card.hovered {
-  background: #e0f2fe;
+  background: #e8f3ea;
   z-index: 10;
 }
 
@@ -147,51 +170,105 @@
   opacity: 0.6;
 }
 
-.recipe-card-header {
+.recipe-card-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 3px 7px;
-  height: 20px;
-  transition: background-color 0.1s ease;
+  padding: 8px 12px;
+  min-height: 42px;
+  gap: 16px;
 }
 
-.recipe-title-container {
+.recipe-info-left {
   display: flex;
   align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.recipe-title-section {
+  display: flex;
+  flex-direction: column;
   gap: 4px;
   flex: 1;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .tree-indent {
   color: #d1d5db;
-  font-size: 7px !important;
+  font-size: 10px;
   white-space: pre;
 }
 
-.recipe-icon {
-  font-size: 9px !important;
-  flex-shrink: 0;
-}
-
 .recipe-title {
-  font-weight: 400;
-  color: #374151;
-  font-size: 10px !important;
-  line-height: 1.2;
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
+}
+
+.recipe-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.recipe-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.meal-tag {
+  background: #AAC6AD;
+  color: white;
+}
+
+.one-pot-tag {
+  background: #22c55e;
+  color: white;
+}
+
+.complexity-tag {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+.recipe-info-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.recipe-quick-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.info-item {
+  font-size: 12px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 .child-item {
-  margin-left: 8px;
+  margin-left: 16px;
 }
 
 .child-item:hover {
-  background: #f0f9ff;
+  background: #e8f3ea;
 }
 
 .recipe-actions {
@@ -199,8 +276,6 @@
   gap: 4px;
   opacity: 0;
   transition: opacity 0.15s ease;
-  flex-direction: row;
-  align-items: center;
   flex-shrink: 0;
 }
 
@@ -209,29 +284,25 @@
 }
 
 .action-btn {
-  background: none;
-  border: none;
+  background: transparent;
+  border: 1px solid #d1d5db;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 2px;
-  font-size: 8px !important;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 14px;
   color: #6b7280;
-  transition: all 0.1s ease;
-  height: 16px;
-  width: 16px;
+  transition: all 0.15s ease;
+  height: 28px;
+  width: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .action-btn:hover {
-  background: #e5e7eb;
-  color: #374151;
-}
-
-.edit-btn:hover {
-  background: #dbeafe;
-  color: #3b82f6;
+  background: #AAC6AD;
+  color: white;
+  border-color: #AAC6AD;
 }
 
 /* Compact Menu Container */
@@ -362,9 +433,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 30px 15px;
+  padding: 40px 20px;
   color: #6b7280;
-  font-size: 10px;
+  font-size: 11px;
+  min-height: 200px; /* Ensure adequate height in the constrained container */
 }
 
 .loading-spinner {
@@ -384,6 +456,12 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .recipe-list-view {
+    max-width: 95%; /* More of screen width on mobile */
+    margin: 0 auto;
+    border-radius: 8px; /* Smaller radius on mobile */
+  }
+  
   .search-input {
     width: 80px;
   }
@@ -394,6 +472,18 @@
   
   .recipe-preview {
     padding: 4px 6px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .recipe-list-view {
+    max-width: 1000px; /* Slightly larger on big screens */
+  }
+}
+
+@media (min-width: 1400px) {
+  .recipe-list-view {
+    max-width: 1100px; /* Even larger on very big screens */
   }
 }
 

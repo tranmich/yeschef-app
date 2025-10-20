@@ -1,25 +1,83 @@
 /* New Layout Styles - COOKBOOK-FIRST v4.0 */
+
+/* CSS Variables for consistent branding */
+:root {
+  --mint-primary: #AAC6AD;
+  --mint-light: #c2ddc6;
+  --mint-lighter: #e8f3ea;
+  --yellow-primary: #EFFD5F;
+  --yellow-light: #f7fea8;
+  --charcoal: #1f2937;
+  --gray-dark: #374151;
+  --gray-medium: #6b7280;
+  --gray-light: #e5e7eb;
+  --white: #ffffff;
+  --off-white: #fafafa;
+  
+  --font-heading: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
 .app-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #ffffff;
+  background: var(--white);
+  font-family: var(--font-body);
 }
 
-/* Cookbook-First Layout */
+/* Cookbook-First Layout - Updated for 2-panel with centered recipe container */
 .app-container.cookbook-first {
   flex-direction: row;
+  background: linear-gradient(135deg, #c2ddc6 0%, #ffffff 50%, #fffde0 100%);
+  min-height: 100vh;
 }
 
 .app-container.cookbook-first .main-content {
   flex: 1;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   min-height: 0;
   position: relative;
   transition: all 0.3s ease;
-  /* Adjust for smaller cookbook sidebar */
-  margin-left: 0;
+  /* Create centered container for recipes */
+  padding: 2rem;
+  align-items: center;
+  justify-content: flex-start;
+  overflow-y: auto;
+}
+
+/* Mint-colored scrollbar for main content */
+.app-container.cookbook-first .main-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.app-container.cookbook-first .main-content::-webkit-scrollbar-track {
+  background: rgba(240, 249, 255, 0.5);
+  border-radius: 4px;
+}
+
+.app-container.cookbook-first .main-content::-webkit-scrollbar-thumb {
+  background: #AAC6AD;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.app-container.cookbook-first .main-content::-webkit-scrollbar-thumb:hover {
+  background: #91b496;
+}
+
+/* Import Recipe View - Consistent with Recipe List Design */
+.import-recipe-view {
+  width: 100%;
+  max-width: 900px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  overflow: visible;
+  margin: 0 auto;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* Chat Panel Overlay */
@@ -29,7 +87,7 @@
   right: 0;
   width: 400px;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.05);
   z-index: 1000;
   display: flex;
   justify-content: flex-end;
@@ -38,17 +96,17 @@
 .chat-panel {
   width: 380px;
   height: 100vh;
-  background: white;
-  border-left: 1px solid #e5e7eb;
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  background: var(--white);
+  border-left: 1px solid var(--gray-light);
+  box-shadow: -2px 0 20px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
 }
 
 .chat-header {
   padding: 16px 20px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fafafa;
+  border-bottom: 1px solid var(--gray-light);
+  background: var(--off-white);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -57,8 +115,9 @@
 .chat-header h3 {
   margin: 0;
   font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
+  font-weight: 700;
+  font-family: var(--font-heading);
+  color: var(--charcoal);
 }
 
 .close-chat-btn {
@@ -66,7 +125,7 @@
   border: none;
   font-size: 20px;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--gray-medium);
   width: 28px;
   height: 28px;
   display: flex;
@@ -77,8 +136,8 @@
 }
 
 .close-chat-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--mint-lighter);
+  color: var(--charcoal);
 }
 
 /* Original Layout Styles for backward compatibility */

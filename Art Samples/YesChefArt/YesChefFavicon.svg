@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="512"
+   height="512"
+   viewBox="0 0 135.46667 135.46667"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   sodipodi:docname="YesChefFavicon.svg"
+   inkscape:export-filename="YesChefFavicon.png"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     inkscape:zoom="0.73139029"
+     inkscape:cx="336.34573"
+     inkscape:cy="379.41439"
+     inkscape:window-width="1920"
+     inkscape:window-height="1017"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:#8deabc;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;fill-opacity:1"
+       id="rect1"
+       width="140.72229"
+       height="141.08405"
+       x="-2.5322778"
+       y="-2.8940318" />
+    <g
+       id="g186"
+       transform="matrix(0.59198673,0.12896997,-0.12896997,0.59198673,191.43709,210.20178)"
+       style="stroke-width:1.65051">
+      <path
+         id="path183-7"
+         d="m -291.43263,-142.36606 c -59.35579,-7.7621 -73.8702,-87.61861 -77.18089,-113.44333 0,0 58.00091,67.35076 152.64844,75.13365 58.54846,8.21006 89.91832,67.54723 89.91832,67.54723 -38.95755,-58.79967 -93.86973,-19.88496 -165.38599,-29.23748"
+         style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.0303129;stroke-opacity:1"
+         sodipodi:nodetypes="ccccc" />
+      <path
+         id="path184-0"
+         d="m -213.61857,-182.5223 c -94.64778,-7.78182 -154.35123,-75.67157 -154.35123,-75.67157 -1.40835,-0.78439 -0.87589,-10.57676 -0.87589,-10.57676 19.85943,25.65992 79.10473,31.38762 79.10473,31.38762 157.43819,22.68426 164.41839,123.69145 164.41839,123.69145 0,0 -29.74544,-60.61977 -88.29468,-68.83071"
+         style="fill:#caf6de;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.0303129"
+         sodipodi:nodetypes="cccccc" />
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,645 @@
+/* Recipe Sharing - Consistent with App Styling */
+
+.recipe-sharing {
+  width: 100%;
+  max-width: 900px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  overflow: visible;
+  margin: 0 auto;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Header */
+.sharing-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 12px 12px 0 0;
+  background: white;
+}
+
+.sharing-header h2 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+.header-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+  display: flex;
+  padding: 0 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  color: #374151;
+  background: rgba(170, 198, 173, 0.1);
+}
+
+.tab-button.active {
+  color: #AAC6AD;
+  border-bottom-color: #AAC6AD;
+  background: rgba(170, 198, 173, 0.1);
+  font-weight: 600;
+}
+
+/* Messages */
+.message {
+  margin: 16px 20px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-message {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.success-message {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.close-message {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.close-message:hover {
+  opacity: 1;
+}
+
+/* Tab Content */
+.tab-content {
+  padding: 20px;
+  min-height: 400px;
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #AAC6AD;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+}
+
+.empty-state p {
+  margin: 0 0 24px 0;
+  font-size: 14px;
+}
+
+.primary-button {
+  background: #AAC6AD;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.primary-button:hover {
+  background: #91b496;
+}
+
+.primary-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.secondary-button:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+/* Recipe Cards */
+.shared-recipe-card,
+.my-shared-recipe-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.shared-recipe-card:hover,
+.my-shared-recipe-card:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.recipe-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.recipe-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.recipe-title {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.recipe-description {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+  line-height: 1.4;
+}
+
+.sharing-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shared-by {
+  font-size: 14px;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+.shared-time {
+  font-size: 12px;
+  color: #9ca3af;
+  font-family: 'Nunito', sans-serif;
+}
+
+.sharing-stats {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.stat {
+  font-size: 12px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Recipe Actions */
+.recipe-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.action-button {
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.action-button.primary {
+  background: #AAC6AD;
+  color: white;
+  border-color: #AAC6AD;
+}
+
+.action-button.primary:hover {
+  background: #91b496;
+  border-color: #91b496;
+}
+
+.action-button.secondary {
+  background: white;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.action-button.secondary:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+/* Recipe Meta */
+.recipe-meta {
+  display: flex;
+  gap: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+}
+
+.meta-value {
+  font-size: 14px;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+}
+
+/* Shared With Info */
+.shared-with-info {
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.shared-with-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+.shared-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shared-target {
+  background: #AAC6AD;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.large-modal {
+  max-width: 700px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.close-button {
+  background: #f3f4f6;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-instruction {
+  margin: 0 0 20px 0;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Share Sections */
+.share-section {
+  margin-bottom: 24px;
+}
+
+.share-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.share-targets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.share-target-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.share-target-item:hover {
+  background: #f9fafb;
+  border-color: #AAC6AD;
+}
+
+.share-target-item input[type="checkbox"] {
+  margin: 0;
+  accent-color: #AAC6AD;
+}
+
+.target-name {
+  font-size: 14px;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+}
+
+.share-message-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.share-message-input:focus {
+  outline: none;
+  border-color: #AAC6AD;
+  box-shadow: 0 0 0 3px rgba(170, 198, 173, 0.1);
+}
+
+/* Share Summary */
+.share-summary {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.share-summary h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #166534;
+  font-family: 'Nunito', sans-serif;
+}
+
+.share-summary p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #166534;
+  font-family: 'Nunito', sans-serif;
+}
+
+.selected-targets {
+  margin: 0;
+  padding-left: 20px;
+  color: #166534;
+  font-family: 'Nunito', sans-serif;
+}
+
+.selected-targets li {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+/* Custom scrollbar */
+.modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: #f0f9ff;
+  border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: #AAC6AD;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+  background: #91b496;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .recipe-sharing {
+    max-width: 95%;
+    margin: 0 auto;
+    border-radius: 8px;
+  }
+  
+  .sharing-header {
+    padding: 16px;
+  }
+  
+  .tab-navigation {
+    padding: 0 16px;
+  }
+  
+  .tab-button {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+  
+  .tab-content {
+    padding: 16px;
+  }
+  
+  .recipe-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .recipe-actions {
+    justify-content: flex-start;
+  }
+  
+  .recipe-meta {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .share-targets-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .sharing-stats {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}

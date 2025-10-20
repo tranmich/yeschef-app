@@ -3,17 +3,28 @@ import { formatRecipeText } from '../utils/recipeFormatting';
 import './RecipePanel.css';
 
 const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
-  // Inline editing states for different fields
-  const [editingField, setEditingField] = useState(null);
-  const [tempValues, setTempValues] = useState({});
+  // Main mode state: 'view' or 'edit'
+  const [mode, setMode] = useState('view');
+  
+  // Edited recipe data (only used in edit mode)
+  const [editedRecipe, setEditedRecipe] = useState(null);
   
   // Full-screen mode state
   const [isFullScreen, setIsFullScreen] = useState(false);
   
   // Refs for auto-focus
-  const inputRefs = useRef({});
+  const ingredientsRef = useRef(null);
+  const instructionsRef = useRef(null);
 
-  // 🔧 Enhanced OCR text repair (from mobile app)
+  // Reset to view mode when recipe changes
+  useEffect(() => {
+    if (recipe) {
+      setMode('view');
+      setEditedRecipe(null);
+    }
+  }, [recipe?.id]);
+
+  // 🔧 Enhanced OCR text repair
   const repairOCRText = (text) => {
     if (!text || typeof text !== 'string') return text;
     
@@ -27,24 +38,37 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
       .replace(/refrig erate/g, 'refrigerate');
   };
 
-  // 📋 Enhanced Recipe Field Parsing (from mobile app)
+  // 📋 Enhanced Recipe Field Parsing - converts to display array
   const formatRecipeField = (field) => {
     if (!field) return [];
     
-    let text = field;
-    if (typeof field === 'object') {
+    // Handle array of objects (from backend)
+    if (Array.isArray(field)) {
+      return field
+        .filter(item => item)
+        .map(item => {
+          if (typeof item === 'object') {
+            return item.ingredient || item.text || item.name || String(item);
+          }
+          return String(item);
+        })
+        .map(text => repairOCRText(text.trim()))
+        .filter(text => text && text !== '[object Object]');
+    }
+
+    // Handle JSON string
+    if (typeof field === 'string' && field.trim().startsWith('[')) {
       try {
-        text = typeof field === 'string' ? field : JSON.stringify(field);
+        const parsed = JSON.parse(field);
+        return formatRecipeField(parsed); // Recursive call
       } catch (e) {
-        console.warn('Failed to parse recipe field:', e);
-        return ['Unable to parse recipe data'];
+        // Continue to text parsing
       }
     }
 
-    // Clean up the text
-    text = repairOCRText(text.toString());
+    // Handle plain text
+    let text = repairOCRText(field.toString());
     
-    // Convert various formats to array
     if (text.includes('\n')) {
       return text.split('\n')
         .map(item => item.trim())
@@ -52,449 +76,406 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
     } else if (text.includes('•')) {
       return text.split('•')
         .map(item => item.trim())
-        .filter(item => item && item !== '\\n' && item !== 'null');
-    } else if (text.includes('. ')) {
-      return text.split('. ')
-        .map(item => item.trim())
-        .filter(item => item && item !== '\\n' && item !== 'null');
+        .filter(item => item);
     } else {
       return [text];
     }
   };
 
-  // Handle keyboard shortcuts (moved before early return)
+  // Convert array back to editable text format
+  const arrayToEditableText = (arr) => {
+    if (!arr || !Array.isArray(arr)) return '';
+    return arr.join('\n');
+  };
+
+  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isFullScreen) {
-        setIsFullScreen(false);
-      } else if (e.key === 'f' && e.ctrlKey) { // Ctrl+F for full-screen
-        e.preventDefault();
-        toggleFullScreen();
+      if (e.key === 'Escape') {
+        if (isFullScreen) {
+          setIsFullScreen(false);
+        } else if (mode === 'edit') {
+          handleCancelEdit();
+        }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isFullScreen]);
+  }, [isFullScreen, mode]);
 
   // Full-screen mode handlers
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
 
-  // Early return AFTER all hooks are declared
+  // Early return AFTER all hooks
   if (!isOpen || !recipe) return null;
 
-  // Helper function to parse recipe fields that might be JSON strings
-  function parseRecipeField(field) {
-    if (!field) return field;
-    
-    // If it's already an array, return as is
-    if (Array.isArray(field)) {
-      return field;
-    }
-    
-    // If it's a string that looks like JSON array, try to parse it
-    if (typeof field === 'string') {
-      // Check if it starts and ends with brackets (JSON array)
-      if (field.trim().startsWith('[') && field.trim().endsWith(']')) {
-        try {
-          return JSON.parse(field);
-        } catch (e) {
-          console.warn('Failed to parse JSON field:', field);
-          return field;
-        }
-      }
-      // Regular string, return as is
-      return field;
-    }
-    
-    return field;
-  }
+  // Process recipe data for display
+  const ingredients = formatRecipeField(recipe.ingredients);
+  const instructions = formatRecipeField(recipe.instructions);
 
-  // Debug logging to see what we're receiving
-  console.log('🎨 RecipePanel - Recipe data:', recipe);
-  console.log('🎨 RecipePanel - Ingredients type:', typeof recipe.ingredients, recipe.ingredients);
-  console.log('🎨 RecipePanel - Instructions type:', typeof recipe.instructions, recipe.instructions);
-  
-  // Check if ingredients is an array of objects
-  if (Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0) {
-    console.log('🎨 RecipePanel - First ingredient:', recipe.ingredients[0]);
-    console.log('🎨 RecipePanel - Ingredient keys:', Object.keys(recipe.ingredients[0] || {}));
-  }
-
-  // Pre-process recipe data to handle JSON strings and format properly
-  const processedRecipe = {
-    ...recipe,
-    ingredients: parseRecipeField(recipe.ingredients),
-    instructions: parseRecipeField(recipe.instructions)
-  };
-
-  // 📋 Enhanced formatting using mobile app logic
-  const ingredients = formatRecipeField(processedRecipe.ingredients);
-  const instructions = formatRecipeField(processedRecipe.instructions);
-
-  // Format metadata fields for display
+  // Format metadata
   const formattedServings = recipe.servings ? `${recipe.servings} servings` : null;
-  const formattedTime = recipe.cookTime || recipe.totalTime || recipe.prepTime ? 
-    `${recipe.cookTime || recipe.totalTime || recipe.prepTime} min` : null;
-  const formattedDifficulty = recipe.difficulty ? recipe.difficulty.charAt(0).toUpperCase() + recipe.difficulty.slice(1) : null;
+  const formattedTime = recipe.cookTime || recipe.totalTime || recipe.prep_time ? 
+    `${recipe.cookTime || recipe.totalTime || recipe.prep_time} min` : null;
+  const formattedDifficulty = recipe.difficulty ? 
+    recipe.difficulty.charAt(0).toUpperCase() + recipe.difficulty.slice(1) : null;
 
-  console.log('🎨 RecipePanel - Processed ingredients:', ingredients);
-  console.log('🎨 RecipePanel - Processed instructions:', instructions);
-
-  // Helper function to clean text for editing (remove formatting characters)
-  const cleanTextForEditing = (text) => {
-    if (!text) return '';
+  // ==================== EDIT MODE HANDLERS ====================
+  
+  const handleStartEdit = () => {
+    // Initialize edited recipe with current data
+    setEditedRecipe({
+      ...recipe,
+      ingredients: arrayToEditableText(ingredients),
+      instructions: arrayToEditableText(instructions)
+    });
+    setMode('edit');
     
-    // If it's formatted ingredients or instructions, clean them up
-    let cleaned = text;
-    
-    // Handle JSON stringified arrays first
-    if (typeof cleaned === 'string' && cleaned.startsWith('[') && cleaned.endsWith(']')) {
-      try {
-        const parsed = JSON.parse(cleaned);
-        if (Array.isArray(parsed)) {
-          // Extract text from array of objects or strings
-          cleaned = parsed.map(item => {
-            if (typeof item === 'object' && item.ingredient) {
-              return item.ingredient;
-            } else if (typeof item === 'object' && item.text) {
-              return item.text;
-            } else if (typeof item === 'string') {
-              return item;
-            }
-            return String(item);
-          }).join('\n');
-        }
-      } catch (e) {
-        // If parsing fails, continue with string processing
-      }
-    }
-    
-    // Convert to string if not already
-    cleaned = String(cleaned);
-    
-    // Remove bullet points and numbers from formatted text
-    cleaned = cleaned.replace(/^[•\-\*]\s*/gm, ''); // Remove bullet points
-    cleaned = cleaned.replace(/^\d+\.\s*/gm, ''); // Remove numbered lists
-    cleaned = cleaned.replace(/\n\s*\n/g, '\n'); // Remove extra line breaks
-    cleaned = cleaned.trim();
-    
-    return cleaned;
-  };
-
-  // Helper function to convert back to display format
-  const formatTextForDisplay = (text, fieldName) => {
-    if (!text) return '';
-    
-    // For ingredients and instructions, apply basic formatting
-    if (fieldName === 'ingredients') {
-      return text.split('\n').filter(line => line.trim()).map(line => 
-        line.trim().startsWith('•') ? line.trim() : `• ${line.trim()}`
-      ).join('\n');
-    } else if (fieldName === 'instructions') {
-      return text.split('\n').filter(line => line.trim()).map((line, index) => 
-        line.trim().match(/^\d+\./) ? line.trim() : `${index + 1}. ${line.trim()}`
-      ).join('\n');
-    }
-    
-    return text;
-  };
-
-  // Inline editing handlers
-  const startEdit = (fieldName, currentValue) => {
-    console.log(`✏️ Starting edit for ${fieldName}:`, currentValue);
-    console.log(`✏️ Value type:`, typeof currentValue);
-    console.log(`✏️ Is ingredients/instructions:`, fieldName === 'ingredients' || fieldName === 'instructions');
-    
-    // Clean the text for a better editing experience
-    const cleanedValue = fieldName === 'ingredients' || fieldName === 'instructions' 
-      ? cleanTextForEditing(currentValue) 
-      : currentValue;
-    
-    console.log(`✏️ Cleaned value:`, cleanedValue);
-    
-    setEditingField(fieldName);
-    setTempValues(prev => ({
-      ...prev,
-      [fieldName]: cleanedValue || ''
-    }));
-    
-    // Auto-focus the input after state update
+    // Auto-focus first field after state update
     setTimeout(() => {
-      const input = inputRefs.current[fieldName];
-      if (input) {
-        input.focus();
-        input.select();
+      if (ingredientsRef.current) {
+        ingredientsRef.current.focus();
       }
-    }, 0);
+    }, 100);
   };
 
-  const saveEdit = (fieldName) => {
-    const newValue = tempValues[fieldName];
-    console.log(`💾 Saving edit for ${fieldName}:`, newValue);
+  const handleSaveEdit = async () => {
+    if (!editedRecipe) return;
     
-    if (newValue && newValue.trim() !== '') {
-      // Apply formatting for specific fields before saving
-      const formattedValue = formatTextForDisplay(newValue.trim(), fieldName);
-      
-      // Create updated recipe object
-      const updatedRecipe = {
-        ...recipe,
-        [fieldName]: formattedValue
-      };
-      
-      console.log('📝 Updated recipe:', updatedRecipe);
-      
-      // Call the parent edit handler
-      if (onEdit) {
-        onEdit(updatedRecipe);
-      }
-    }
+    console.log('💾 Saving recipe edits:', editedRecipe);
     
-    // Clear editing state
-    setEditingField(null);
-    setTempValues(prev => {
-      const newState = { ...prev };
-      delete newState[fieldName];
-      return newState;
-    });
-  };
-
-  const cancelEdit = (fieldName) => {
-    console.log(`❌ Canceling edit for ${fieldName}`);
-    setEditingField(null);
-    setTempValues(prev => {
-      const newState = { ...prev };
-      delete newState[fieldName];
-      return newState;
-    });
-  };
-
-  const handleKeyDown = (e, fieldName) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      saveEdit(fieldName);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelEdit(fieldName);
-    }
-  };
-
-  // Editable text component
-  const EditableText = ({ 
-    fieldName, 
-    value, 
-    placeholder = "Click to edit", 
-    className = "", 
-    multiline = false,
-    displayValue = null 
-  }) => {
-    const isEditing = editingField === fieldName;
-    const displayText = displayValue || value || placeholder;
-    
-    // Auto-resize function for textareas
-    const autoResize = (textarea) => {
-      if (textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
-      }
+    // Convert text back to array format for storage
+    const updatedRecipe = {
+      ...editedRecipe,
+      ingredients: editedRecipe.ingredients.split('\n').filter(line => line.trim()),
+      instructions: editedRecipe.instructions.split('\n').filter(line => line.trim())
     };
     
-    if (isEditing) {
-      const InputComponent = multiline ? 'textarea' : 'input';
-      return (
-        <InputComponent
-          ref={el => {
-            inputRefs.current[fieldName] = el;
-            if (multiline && el) {
-              // Auto-resize on mount
-              setTimeout(() => autoResize(el), 0);
-            }
-          }}
-          type={multiline ? undefined : "text"}
-          value={tempValues[fieldName] || ''}
-          onChange={(e) => {
-            setTempValues(prev => ({
-              ...prev,
-              [fieldName]: e.target.value
-            }));
-            // Auto-resize on change
-            if (multiline) {
-              autoResize(e.target);
-            }
-          }}
-          onBlur={() => saveEdit(fieldName)}
-          onKeyDown={(e) => handleKeyDown(e, fieldName)}
-          className={`inline-edit-input ${className}`}
-          placeholder={placeholder}
-          style={multiline ? { 
-            overflow: 'hidden', // Hide scrollbar
-            resize: 'none' // Disable manual resize
-          } : {}}
-        />
-      );
+    // Call parent handler to save to backend
+    if (onEdit) {
+      await onEdit(updatedRecipe);
     }
-
-    return (
-      <span
-        className={`inline-edit-text ${className}`}
-        onClick={() => startEdit(fieldName, value)} // Use raw value, not displayValue
-        title="Click to edit"
-      >
-        {displayText}
-      </span>
-    );
+    
+    // Return to view mode
+    setMode('view');
+    setEditedRecipe(null);
   };
 
+  const handleCancelEdit = () => {
+    console.log('❌ Canceling recipe edits');
+    setMode('view');
+    setEditedRecipe(null);
+  };
+
+  const updateEditedField = (fieldName, value) => {
+    setEditedRecipe(prev => ({
+      ...prev,
+      [fieldName]: value
+    }));
+  };
+
+  // Auto-resize textarea
+  const autoResize = (textarea) => {
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+  };
+
+  // ==================== RENDER VIEW MODE ====================
+  
+  if (mode === 'view') {
+    return (
+      <>
+        {/* Background overlay */}
+        {!isFullScreen && (
+          <div className="recipe-panel-backdrop" onClick={onClose} />
+        )}
+        
+        {/* Recipe Panel - View Mode */}
+        <div className={`recipe-panel recipe-panel-view ${isFullScreen ? 'recipe-panel-fullscreen' : ''}`}>
+          
+          {/* Header */}
+          <div className="recipe-panel-header">
+            <div className="header-left-actions">
+              <button 
+                className="expand-panel-btn" 
+                onClick={toggleFullScreen}
+                title={isFullScreen ? "Exit full-screen (Esc)" : "Expand to full-screen"}
+              >
+                {isFullScreen ? '→' : '←'}
+              </button>
+            </div>
+            <div className="recipe-title-section">
+              <h1 className="recipe-title-large">{recipe.title || 'Untitled Recipe'}</h1>
+            </div>
+            <div className="header-actions">
+              <button 
+                className="edit-recipe-btn" 
+                onClick={handleStartEdit}
+                title="Edit this recipe"
+              >
+                ✏️ Edit
+              </button>
+              <button className="close-panel-btn" onClick={onClose}>✕</button>
+            </div>
+          </div>
+
+          {/* Recipe Metadata Bar */}
+          <div className="recipe-metadata-bar">
+            {formattedServings && (
+              <div className="metadata-item">
+                <span className="metadata-icon">🍽️</span>
+                <span className="metadata-value">{formattedServings}</span>
+              </div>
+            )}
+            
+            {formattedTime && (
+              <div className="metadata-item">
+                <span className="metadata-icon">⏱️</span>
+                <span className="metadata-value">{formattedTime}</span>
+              </div>
+            )}
+            
+            {formattedDifficulty && (
+              <div className="metadata-item">
+                <span className="metadata-icon">📊</span>
+                <span className="metadata-label">Level:</span>
+                <span className="metadata-value">{formattedDifficulty}</span>
+              </div>
+            )}
+            
+            {recipe.rating && (
+              <div className="metadata-item">
+                <span className="metadata-icon">⭐</span>
+                <span className="metadata-label">Rating:</span>
+                <span className="metadata-value">{recipe.rating}/5</span>
+              </div>
+            )}
+          </div>
+
+          {/* Recipe Content */}
+          <div className={`recipe-content-flow ${isFullScreen ? 'recipe-content-fullscreen' : ''}`}>
+            
+            {/* Description */}
+            {recipe.description && (
+              <div className="recipe-block description-block">
+                <div className="block-content">
+                  <p className="recipe-description">{recipe.description}</p>
+                </div>
+              </div>
+            )}
+            
+            {/* Ingredients */}
+            <div className="recipe-block ingredients-block">
+              <h2 className="block-title">
+                🛒 Ingredients {ingredients.length > 0 && `(${ingredients.length})`}
+              </h2>
+              <div className="block-content">
+                {ingredients.length > 0 ? (
+                  <ul className="ingredients-list">
+                    {ingredients.map((ing, idx) => (
+                      <li key={idx} className="ingredient-item">
+                        {ing}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">No ingredients listed</p>
+                )}
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div className="recipe-block instructions-block">
+              <h2 className="block-title">
+                👨‍🍳 Instructions {instructions.length > 0 && `(${instructions.length} steps)`}
+              </h2>
+              <div className="block-content">
+                {instructions.length > 0 ? (
+                  <ol className="instructions-list">
+                    {instructions.map((inst, idx) => (
+                      <li key={idx} className="instruction-step">
+                        {inst}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="empty-state">No instructions provided</p>
+                )}
+              </div>
+            </div>
+
+            {/* Source */}
+            {recipe.source && (
+              <div className="recipe-block source-block">
+                <p className="recipe-source">
+                  <span className="source-label">Source:</span> {recipe.source}
+                </p>
+              </div>
+            )}
+
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ==================== RENDER EDIT MODE ====================
+  
   return (
     <>
-      {/* Background overlay - clickable to close, but not in full-screen */}
-      {!isFullScreen && (
-        <div className="recipe-panel-backdrop" onClick={onClose} />
-      )}
+      {/* Background overlay - not closeable in edit mode */}
+      <div className="recipe-panel-backdrop recipe-panel-backdrop-editing" />
       
-      {/* Slide-in panel from right with full-screen capability */}
-      <div className={`recipe-panel ${isFullScreen ? 'recipe-panel-fullscreen' : ''}`}>
+      {/* Recipe Panel - Edit Mode */}
+      <div className={`recipe-panel recipe-panel-edit ${isFullScreen ? 'recipe-panel-fullscreen' : ''}`}>
         
-        {/* Header Section - Notion-style with inline editing and expand button */}
-        <div className="recipe-panel-header">
+        {/* Header with Save/Cancel */}
+        <div className="recipe-panel-header recipe-panel-header-editing">
           <div className="header-left-actions">
-            <button 
-              className="expand-panel-btn" 
-              onClick={toggleFullScreen}
-              title={isFullScreen ? "Exit full-screen (Esc)" : "Expand to full-screen"}
-            >
-              {isFullScreen ? '→' : '←'}
-            </button>
-          </div>
-          <div className="recipe-title-section">
-            <EditableText
-              fieldName="title"
-              value={recipe.title}
-              placeholder="Untitled Recipe"
-              className="recipe-title-large"
-            />
+            <span className="editing-indicator">✏️ Editing Recipe</span>
           </div>
           <div className="header-actions">
-            <button className="close-panel-btn" onClick={onClose}>✕</button>
+            <button 
+              className="cancel-edit-btn" 
+              onClick={handleCancelEdit}
+              title="Cancel editing (Esc)"
+            >
+              Cancel
+            </button>
+            <button 
+              className="save-edit-btn" 
+              onClick={handleSaveEdit}
+              title="Save changes"
+            >
+              💾 Save
+            </button>
           </div>
         </div>
 
-        {/* Recipe Metadata Bar - with inline editing */}
-        <div className="recipe-metadata-bar">
-          {(formattedServings || editingField === 'servings') && (
-            <div className="metadata-item">
-              <span className="metadata-icon">🍽️</span>
-              <EditableText
-                fieldName="servings"
-                value={recipe.servings}
-                placeholder="Add servings"
-                className="metadata-value"
-                displayValue={formattedServings}
-              />
-            </div>
-          )}
-          
-          {(formattedTime || editingField === 'cooking_time') && (
-            <div className="metadata-item">
-              <span className="metadata-icon">⏱️</span>
-              <EditableText
-                fieldName="cooking_time"
-                value={recipe.cooking_time || recipe.time_min || recipe.prep_time}
-                placeholder="Add time"
-                className="metadata-value"
-                displayValue={formattedTime}
-              />
-            </div>
-          )}
-          
-          {(formattedDifficulty || editingField === 'difficulty') && (
-            <div className="metadata-item">
-              <span className="metadata-icon">📊</span>
-              <span className="metadata-label">Level:</span>
-              <EditableText
-                fieldName="difficulty"
-                value={recipe.difficulty}
-                placeholder="Add difficulty"
-                className="metadata-value"
-                displayValue={formattedDifficulty}
-              />
-            </div>
-          )}
-          
-          {(recipe.rating || editingField === 'rating') && (
-            <div className="metadata-item">
-              <span className="metadata-icon">⭐</span>
-              <span className="metadata-label">Rating:</span>
-              <EditableText
-                fieldName="rating"
-                value={recipe.rating}
-                placeholder="Add rating"
-                className="metadata-value"
-                displayValue={recipe.rating ? `${recipe.rating}/5` : null}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Recipe Content - Block-based structure with inline editing */}
+        {/* Edit Form */}
         <div className={`recipe-content-flow ${isFullScreen ? 'recipe-content-fullscreen' : ''}`}>
           
-          {/* Description Block */}
-          <div className="recipe-block description-block">
-            <div className="block-content">
-              <EditableText
-                fieldName="description"
-                value={recipe.description}
-                placeholder="Add a description for this recipe..."
-                className="recipe-description"
-                multiline={true}
-              />
-            </div>
-          </div>
-          
-          {/* Ingredients Block */}
-          <div className="recipe-block ingredients-block">
-            <EditableText
-              fieldName="ingredients-title"
-              value={`🛒 Ingredients${ingredients && ingredients.length > 0 ? ` (${ingredients.length})` : ''}`}
-              className="block-title"
+          {/* Title Field */}
+          <div className="recipe-block edit-field-block">
+            <label className="edit-field-label">Recipe Title</label>
+            <input
+              type="text"
+              className="edit-input edit-title-input"
+              value={editedRecipe?.title || ''}
+              onChange={(e) => updateEditedField('title', e.target.value)}
+              placeholder="Enter recipe title..."
             />
-            <div className="block-content">
-              <EditableText
-                fieldName="ingredients"
-                value={typeof processedRecipe.ingredients === 'string' ? processedRecipe.ingredients : JSON.stringify(processedRecipe.ingredients)}
-                placeholder="Add ingredients..."
-                className="formatted-recipe-text"
-                displayValue={ingredients && ingredients.length > 0 ? ingredients.map(ing => `• ${ing}`).join('\n') : ''}
-                multiline={true}
-              />
+          </div>
+
+          {/* Description Field */}
+          <div className="recipe-block edit-field-block">
+            <label className="edit-field-label">Description</label>
+            <textarea
+              className="edit-textarea edit-description-textarea"
+              value={editedRecipe?.description || ''}
+              onChange={(e) => {
+                updateEditedField('description', e.target.value);
+                autoResize(e.target);
+              }}
+              placeholder="Add a description for this recipe..."
+              rows={3}
+            />
+          </div>
+
+          {/* Metadata Fields */}
+          <div className="recipe-block edit-metadata-block">
+            <div className="edit-metadata-grid">
+              <div className="edit-field-compact">
+                <label className="edit-field-label-compact">Servings</label>
+                <input
+                  type="text"
+                  className="edit-input-compact"
+                  value={editedRecipe?.servings || ''}
+                  onChange={(e) => updateEditedField('servings', e.target.value)}
+                  placeholder="e.g., 4"
+                />
+              </div>
+              <div className="edit-field-compact">
+                <label className="edit-field-label-compact">Prep Time (min)</label>
+                <input
+                  type="text"
+                  className="edit-input-compact"
+                  value={editedRecipe?.prep_time || editedRecipe?.cookTime || ''}
+                  onChange={(e) => updateEditedField('prep_time', e.target.value)}
+                  placeholder="e.g., 30"
+                />
+              </div>
+              <div className="edit-field-compact">
+                <label className="edit-field-label-compact">Difficulty</label>
+                <select
+                  className="edit-input-compact"
+                  value={editedRecipe?.difficulty || 'medium'}
+                  onChange={(e) => updateEditedField('difficulty', e.target.value)}
+                >
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Instructions Block */}
-          <div className="recipe-block instructions-block">
-            <EditableText
-              fieldName="instructions-title"
-              value={`👨‍🍳 Instructions${instructions && instructions.length > 0 ? ` (${instructions.length} steps)` : ''}`}
-              className="block-title"
+          {/* Ingredients Field */}
+          <div className="recipe-block edit-field-block">
+            <label className="edit-field-label">
+              🛒 Ingredients
+              <span className="edit-field-hint">One ingredient per line</span>
+            </label>
+            <textarea
+              ref={ingredientsRef}
+              className="edit-textarea edit-ingredients-textarea"
+              value={editedRecipe?.ingredients || ''}
+              onChange={(e) => {
+                updateEditedField('ingredients', e.target.value);
+                autoResize(e.target);
+              }}
+              placeholder="2 cups all-purpose flour&#10;1 tsp baking powder&#10;1/2 cup sugar&#10;..."
+              rows={8}
             />
-            <div className="block-content">
-              <EditableText
-                fieldName="instructions"
-                value={typeof processedRecipe.instructions === 'string' ? processedRecipe.instructions : JSON.stringify(processedRecipe.instructions)}
-                placeholder="Add cooking instructions..."
-                className="formatted-recipe-text"
-                displayValue={instructions && instructions.length > 0 ? instructions.map((inst, idx) => `${idx + 1}. ${inst}`).join('\n') : ''}
-                multiline={true}
-              />
-            </div>
+          </div>
+
+          {/* Instructions Field */}
+          <div className="recipe-block edit-field-block">
+            <label className="edit-field-label">
+              👨‍🍳 Instructions
+              <span className="edit-field-hint">One step per line</span>
+            </label>
+            <textarea
+              ref={instructionsRef}
+              className="edit-textarea edit-instructions-textarea"
+              value={editedRecipe?.instructions || ''}
+              onChange={(e) => {
+                updateEditedField('instructions', e.target.value);
+                autoResize(e.target);
+              }}
+              placeholder="Preheat oven to 350°F&#10;Mix dry ingredients in a bowl&#10;Add wet ingredients and stir&#10;..."
+              rows={10}
+            />
+          </div>
+
+          {/* Source Field */}
+          <div className="recipe-block edit-field-block">
+            <label className="edit-field-label">Source (Optional)</label>
+            <input
+              type="text"
+              className="edit-input"
+              value={editedRecipe?.source || ''}
+              onChange={(e) => updateEditedField('source', e.target.value)}
+              placeholder="e.g., Grandma's cookbook, NYT Cooking..."
+            />
           </div>
 
         </div>
-
       </div>
     </>
   );

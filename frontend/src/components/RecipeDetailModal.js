@@ -10,42 +10,142 @@ const RecipeDetailModal = ({ recipe, isOpen, onClose, onEdit }) => {
     if (!text || typeof text !== 'string') return text;
     
     return text
+      // Fix common OCR errors
       .replace(/extr a-virgin/g, 'extra-virgin')
       .replace(/ol ive oil/g, 'olive oil') 
       .replace(/unsal ted but ter/g, 'unsalted butter')
       .replace(/gr ated/g, 'grated')
       .replace(/sea son/g, 'season')
       .replace(/tem perature/g, 'temperature')
-      .replace(/refrig erate/g, 'refrigerate');
+      .replace(/refrig erate/g, 'refrigerate')
+      // Fix fraction characters
+      .replace(/¼/g, '1/4')
+      .replace(/½/g, '1/2')
+      .replace(/¾/g, '3/4')
+      .replace(/⅓/g, '1/3')
+      .replace(/⅔/g, '2/3')
+      .replace(/⅛/g, '1/8')
+      .replace(/⅜/g, '3/8')
+      .replace(/⅝/g, '5/8')
+      .replace(/⅞/g, '7/8')
+      // Fix degree symbol
+      .replace(/°/g, '°')
+      // Remove extra quotes and brackets
+      .replace(/^["'\[\]]+|["'\[\]]+$/g, '')
+      // Fix double spaces
+      .replace(/\s+/g, ' ')
+      .trim();
   };
 
   // 📋 Enhanced Recipe Field Parsing (from mobile app)
   const formatRecipeField = (field) => {
     if (!field) return [];
     
-    let text = field;
-    if (typeof field === 'object') {
-      try {
-        text = typeof field === 'string' ? field : JSON.stringify(field);
-      } catch (e) {
-        console.warn('Failed to parse recipe field:', e);
-        return ['Unable to parse recipe data'];
+    let processedField = field;
+    
+    // Handle JSON string input
+    if (typeof field === 'string') {
+      // Check if it's a JSON array string
+      if (field.trim().startsWith('[') && field.trim().endsWith(']')) {
+        try {
+          processedField = JSON.parse(field);
+        } catch (e) {
+          // If JSON parsing fails, treat as regular string
+          processedField = field;
+        }
       }
     }
+    
+    // Handle array input (could be strings or objects)
+    if (Array.isArray(processedField)) {
+      const result = processedField
+        .filter(item => {
+          // Better filtering - check if item exists and has usable content
+          if (!item) return false;
+          
+          // If it's an object, check if it has meaningful properties
+          if (typeof item === 'object') {
+            const hasUsefulData = item.ingredient || item.text || item.name || item.description;
+            return !!hasUsefulData;
+          }
+          
+          // If it's a string, check if it's not empty or just '[object Object]'
+          const stringValue = item.toString().trim();
+          return stringValue && stringValue !== '[object Object]' && !stringValue.startsWith('[');
+        })
+        .map((item) => {
+          let formatted = '';
+          
+          // Handle object items (key fix for inconsistencies!)
+          if (typeof item === 'object' && item !== null) {
+            // Try different common object structures
+            if (item.ingredient) {
+              formatted = item.ingredient;
+            } else if (item.text) {
+              formatted = item.text;
+            } else if (item.name) {
+              const parts = [];
+              if (item.quantity) parts.push(item.quantity);
+              if (item.unit) parts.push(item.unit);
+              parts.push(item.name);
+              formatted = parts.join(' ');
+            } else if (item.description) {
+              formatted = item.description;
+            } else {
+              // Try to extract meaningful text from object
+              const values = Object.values(item).filter(v => 
+                v && typeof v === 'string' && v.trim() && v !== '[object Object]'
+              );
+              formatted = values.join(' ') || '[Unable to parse item]';
+            }
+          } else {
+            // Handle string items
+            formatted = item.toString().trim();
+          }
+          
+          // Remove extra whitespace
+          formatted = formatted.replace(/\s+/g, ' ');
+          
+          // Handle unicode characters
+          formatted = formatted.replace(/\\u([0-9a-fA-F]{4})/g, (match, unicode) => {
+            return String.fromCharCode(parseInt(unicode, 16));
+          });
+          
+          // Clean up OCR artifacts and JSON remnants
+          formatted = repairOCRText(formatted);
+          
+          // Remove any remaining JSON brackets or quotes
+          formatted = formatted.replace(/^["'\[\]]+|["'\[\]]+$/g, '');
+          
+          return formatted;
+        })
+        .filter(item => item && item.trim()); // Remove any empty items
+        
+      return result;
+    }
 
+    // Handle string input - including long concatenated strings
+    let text = processedField.toString();
+    
     // Clean up the text
-    text = repairOCRText(text.toString());
+    text = repairOCRText(text);
+    
+    // Handle long concatenated strings with multiple items separated by quotes
+    if (text.includes('","') || text.includes('","')) {
+      const items = text.split(/[",]+/).filter(item => item.trim() && item !== '[' && item !== ']');
+      return items.map(item => item.trim().replace(/^["'\[\]]+|["'\[\]]+$/g, ''));
+    }
     
     // Convert various formats to array
     if (text.includes('\n')) {
       return text.split('\n')
         .map(item => item.trim())
-        .filter(item => item && item !== '\\n' && item !== 'null');
+        .filter(item => item && item !== '\\n' && item !== 'null' && !item.startsWith('['));
     } else if (text.includes('•')) {
       return text.split('•')
         .map(item => item.trim())
         .filter(item => item && item !== '\\n' && item !== 'null');
-    } else if (text.includes('. ')) {
+    } else if (text.includes('. ') && !text.match(/^\d+\./)) {
       return text.split('. ')
         .map(item => item.trim())
         .filter(item => item && item !== '\\n' && item !== 'null');

@@ -1,192 +1,239 @@
-/* Grocery Manager Workspace - Matching Cookbook Design */
+/* Grocery Manager Workspace - Clean Mint Green Design */
 .grocery-manager-workspace {
     display: flex;
+    justify-content: center;
     height: 100vh;
-    background: #f8f9fa;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: transparent;
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+    padding: 0 1rem;
 }
 
-/* Left Sidebar - Matching Cookbook Sidebar */
+/* Left Sidebar - Clean Design */
 .grocery-sidebar {
-    width: 300px;
+    width: 320px;
     background: white;
-    border-right: 1px solid #e9ecef;
+    border-right: 2px solid #e5e7eb;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
 }
 
+/* Custom scrollbar for sidebar */
+.grocery-sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.grocery-sidebar::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+.grocery-sidebar::-webkit-scrollbar-thumb {
+    background: #AAC6AD;
+    border-radius: 4px;
+}
+
+.grocery-sidebar::-webkit-scrollbar-thumb:hover {
+    background: #98b89b;
+}
+
 .grocery-sidebar-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid #e9ecef;
+    padding: 24px;
+    border-bottom: 2px solid #e5e7eb;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(135deg, #28a745, #20c997);
+    background: linear-gradient(135deg, #AAC6AD 0%, #98b89b 100%);
     color: white;
+    box-shadow: 0 2px 8px rgba(170, 198, 173, 0.2);
 }
 
 .grocery-sidebar-header h3 {
     margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
+    font-size: 22px;
+    font-weight: 800;
+    color: white;
+    font-family: 'Nunito', sans-serif;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .create-list-btn {
-    background: rgba(255, 255, 255, 0.2);
+    background: white;
     border: none;
-    color: white;
-    width: 36px;
-    height: 36px;
+    color: #AAC6AD;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     cursor: pointer;
-    font-size: 1rem;
-    transition: all 0.2s;
+    font-size: 20px;
+    transition: all 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .create-list-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(1.05);
+    background: #f0fdf4;
+    transform: scale(1.1) rotate(90deg);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 /* Create List Form */
 .create-list-form {
-    padding: 1rem;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e9ecef;
+    padding: 20px;
+    background: #f9fafb;
+    border-bottom: 2px solid #e5e7eb;
 }
 
 .new-list-input {
     width: 100%;
-    padding: 0.75rem;
-    border: 2px solid #ced4da;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    margin-bottom: 0.75rem;
-    transition: border-color 0.2s;
+    padding: 12px 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Nunito', sans-serif;
+    margin-bottom: 12px;
+    transition: all 0.15s ease;
+    background: white;
 }
 
 .new-list-input:focus {
     outline: none;
-    border-color: #28a745;
-    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+    border-color: #AAC6AD;
+    box-shadow: 0 0 0 4px rgba(170, 198, 173, 0.1);
 }
 
 .create-list-actions {
     display: flex;
-    gap: 0.5rem;
+    gap: 8px;
 }
 
 .save-btn, .cancel-btn {
     flex: 1;
-    padding: 0.5rem;
+    padding: 10px;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.2s;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'Nunito', sans-serif;
+    transition: all 0.15s ease;
 }
 
 .save-btn {
-    background: #28a745;
+    background: #AAC6AD;
     color: white;
+    box-shadow: 0 2px 4px rgba(170, 198, 173, 0.2);
 }
 
 .save-btn:hover {
-    background: #218838;
+    background: #98b89b;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(170, 198, 173, 0.3);
 }
 
 .cancel-btn {
-    background: #6c757d;
-    color: white;
+    background: #f3f4f6;
+    color: #6b7280;
 }
 
 .cancel-btn:hover {
-    background: #5a6268;
+    background: #e5e7eb;
+    color: #374151;
 }
 
 /* Current List Indicator */
 .current-list-indicator {
-    padding: 1rem;
-    background: rgba(40, 167, 69, 0.1);
-    border-bottom: 1px solid #e9ecef;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+    border-bottom: 2px solid #c8e6c9;
+    border-left: 4px solid #AAC6AD;
 }
 
 .current-list-name {
-    font-weight: 600;
-    color: #495057;
+    font-weight: 800;
+    color: #1f2937;
     display: block;
-    margin-bottom: 0.25rem;
+    margin-bottom: 6px;
+    font-size: 15px;
+    font-family: 'Nunito', sans-serif;
 }
 
 .meal-plan-badge {
-    background: #17a2b8;
+    background: linear-gradient(135deg, #AAC6AD 0%, #98b89b 100%);
     color: white;
-    padding: 0.25rem 0.5rem;
+    padding: 4px 10px;
     border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-block;
+    box-shadow: 0 2px 4px rgba(170, 198, 173, 0.3);
 }
 
 /* Folders and Lists */
 .folders-container {
     flex: 1;
-    padding: 1rem 0;
+    padding: 12px 0;
 }
 
 .folder {
-    margin-bottom: 0.5rem;
+    margin-bottom: 8px;
 }
 
 .folder-header {
-    padding: 0.75rem 1rem;
+    padding: 12px 20px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    transition: background-color 0.2s;
+    gap: 10px;
+    transition: all 0.15s ease;
+    font-weight: 700;
+    font-size: 14px;
+    color: #374151;
+    font-family: 'Nunito', sans-serif;
 }
 
 .folder-header:hover {
-    background-color: #f8f9fa;
+    background: #f9fafb;
 }
 
 .folder-name {
     flex: 1;
-    font-weight: 500;
-    color: #495057;
+    font-weight: 700;
+    color: #1f2937;
 }
 
 .folder-toggle {
-    font-size: 0.8rem;
+    font-size: 14px;
+    color: #6b7280;
 }
 
 .folder-lists {
-    background: #f8f9fa;
+    background: #fafafa;
 }
 
 .list-item {
-    padding: 0.75rem 1rem;
+    padding: 12px 20px 12px 40px;
     border-left: 3px solid transparent;
-    transition: all 0.2s;
+    transition: all 0.15s ease;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 0.5rem;
+    gap: 10px;
 }
 
 .list-item:hover {
-    background-color: #e9ecef;
-    border-left-color: #28a745;
+    background: linear-gradient(to right, #f9fafb 0%, #f0fdf4 100%);
+    border-left-color: #AAC6AD;
 }
 
 .list-item.selected {
-    background-color: rgba(40, 167, 69, 0.1);
-    border-left-color: #28a745;
+    background: linear-gradient(to right, #e8f5e9 0%, #dcf4e0 100%);
+    border-left-color: #AAC6AD;
+    box-shadow: inset 0 1px 2px rgba(170, 198, 173, 0.1);
 }
 
 .list-content {
@@ -195,26 +242,26 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 0.5rem;
+    padding: 0 8px;
 }
 
 .delete-list-btn {
-    background: #dc3545;
-    color: white;
+    background: #ffe4e6;
+    color: #881337;
     border: none;
-    border-radius: 4px;
-    padding: 0.25rem 0.4rem;
+    border-radius: 6px;
+    padding: 6px 10px;
     cursor: pointer;
-    font-size: 0.8rem;
-    transition: all 0.2s ease;
-    opacity: 0.7;
+    font-size: 12px;
+    font-weight: 700;
+    transition: all 0.15s ease;
+    opacity: 0;
     flex-shrink: 0;
 }
 
 .delete-list-btn:hover {
-    background: #c82333;
-    opacity: 1;
-    transform: scale(1.1);
+    background: #fecdd3;
+    transform: scale(1.05);
 }
 
 .list-item:hover .delete-list-btn {
@@ -222,33 +269,40 @@
 }
 
 .list-name {
-    font-weight: 500;
-    color: #495057;
+    font-weight: 700;
+    color: #1f2937;
+    font-size: 14px;
+    font-family: 'Nunito', sans-serif;
 }
 
 .list-meta {
-    font-size: 0.8rem;
-    color: #6c757d;
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 600;
 }
 
 .empty-folder {
-    padding: 1rem 1.5rem;
-    color: #6c757d;
+    padding: 20px 24px;
+    color: #9ca3af;
     font-style: italic;
     text-align: center;
+    font-size: 13px;
 }
 
 .sidebar-loading, .sidebar-error {
-    padding: 1rem;
+    padding: 20px;
     text-align: center;
-    font-size: 0.9rem;
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 600;
 }
 
 .sidebar-error {
-    color: #dc3545;
+    color: #dc2626;
+    font-weight: 700;
 }
 
-/* Main Content Area - Matching Cookbook Layout */
+/* Main Content Area - Clean Design */
 .grocery-main-content {
     flex: 1;
     display: flex;
@@ -257,66 +311,183 @@
 }
 
 .grocery-workspace-header {
-    padding: 1.5rem 2rem;
-    background: white;
-    border-bottom: 1px solid #e9ecef;
+    padding: 24px 32px;
+    background: linear-gradient(to right, white 0%, #f9fafb 100%);
+    border-bottom: 3px solid #AAC6AD;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow: 0 2px 8px rgba(170, 198, 173, 0.1);
 }
 
-.grocery-workspace-header h2 {
+.header-title-section {
+    width: 100%;
+}
+
+.list-name-title {
     margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #495057;
+    font-size: 26px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: 'Nunito', sans-serif;
+    cursor: pointer;
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.list-name-title:hover {
+    background: #f3f4f6;
+    -webkit-text-fill-color: #1f2937;
+}
+
+.unsaved-dot {
+    color: #AAC6AD;
+    font-size: 12px;
+    margin-right: 8px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.list-name-input {
+    width: 100%;
+    max-width: 600px;
+    font-size: 26px;
+    font-weight: 800;
+    font-family: 'Nunito', sans-serif;
+    border: 2px solid #10b981;
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: white;
+    color: #1f2937;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .workspace-controls {
     display: flex;
-    gap: 1rem;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
 }
 
 .export-btn, .workspace-controls .save-btn {
-    padding: 0.75rem 1.5rem;
+    padding: 10px 18px;
     border: none;
-    border-radius: 6px;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: all 0.2s;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'Nunito', sans-serif;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    min-width: fit-content;
 }
 
 .export-btn {
-    background: #17a2b8;
-    color: white;
+    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+    border: 2px solid #d8b4fe;
+    color: #581c87;
 }
 
 .export-btn:hover {
-    background: #138496;
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, #e9d5ff 0%, #d8b4fe 100%);
+    border-color: #c084fc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(168, 85, 247, 0.25);
 }
 
 .workspace-controls .save-btn {
-    background: #28a745;
+    background: #e5e7eb !important;
+    color: #6b7280 !important;
+    border: 2px solid #d1d5db !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+    transition: all 0.2s ease !important;
+    white-space: nowrap !important;
+    min-width: fit-content !important;
+    flex-shrink: 0 !important;
+    width: auto !important;
+    flex-grow: 0 !important;
+}
+
+.workspace-controls .save-btn.has-changes {
+    background: linear-gradient(135deg, #AAC6AD 0%, #98b89b 100%);
     color: white;
+    border: 2px solid transparent;
+    box-shadow: 0 2px 8px rgba(170, 198, 173, 0.3);
+    animation: highlight-pulse 2s ease-in-out infinite;
+}
+
+@keyframes highlight-pulse {
+    0%, 100% { box-shadow: 0 2px 8px rgba(170, 198, 173, 0.3); }
+    50% { box-shadow: 0 4px 16px rgba(170, 198, 173, 0.5); }
 }
 
 .workspace-controls .save-btn:hover {
-    background: #218838;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+}
+
+.workspace-controls .save-btn.has-changes:hover {
+    background: linear-gradient(135deg, #98b89b 0%, #87a78b 100%);
+    box-shadow: 0 4px 16px rgba(170, 198, 173, 0.4);
+}
+
+.load-btn {
+    background: #AAC6AD;
+    border: 2px solid #AAC6AD;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'Nunito', sans-serif;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.load-btn:hover {
+    background: #98b89b;
+    border-color: #98b89b;
+    box-shadow: 0 4px 12px rgba(170, 198, 173, 0.3);
+}
+
+.combine-btn-disabled {
+    background: #e5e7eb;
+    border: 2px solid #d1d5db;
+    color: #9ca3af;
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: not-allowed;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'Nunito', sans-serif;
+    opacity: 0.6;
+    white-space: nowrap;
+    min-width: fit-content;
 }
 
 .consolidate-btn {
-    background: #6f42c1;
-    color: white;
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    border: 2px solid #7dd3fc;
+    color: #0c4a6e;
 }
 
 .consolidate-btn:hover {
-    background: #5a32a3;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(111, 66, 193, 0.3);
+    background: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%);
+    border-color: #38bdf8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(14, 165, 233, 0.25);
 }
 
 .consolidate-btn:active {
@@ -324,28 +495,98 @@
 }
 
 .show-hidden-btn {
-    background: #17a2b8;
-    color: white;
+    background: linear-gradient(135deg, #d4e5d6 0%, #c2dac4 100%);
+    border: 2px solid #AAC6AD;
+    color: #4a5f4c;
+    white-space: nowrap;
+    min-width: fit-content;
+    flex-shrink: 0;
 }
 
 .show-hidden-btn:hover {
-    background: #138496;
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, #c2dac4 0%, #AAC6AD 100%);
+    border-color: #98b89b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(170, 198, 173, 0.25);
 }
 
 .show-hidden-btn.active {
-    background: #138496;
-    box-shadow: 0 0 0 2px rgba(23, 162, 184, 0.3);
+    background: #AAC6AD;
+    color: white;
+    box-shadow: 0 0 0 2px rgba(170, 198, 173, 0.3);
 }
 
-/* Grocery Columns - Notion-style Layout */
-.grocery-columns {
-    display: flex;
-    gap: 2rem;
-    padding: 2rem;
-    overflow-x: auto;
+/* Unified Grocery List - Single Scrollable List */
+.unified-grocery-list {
     flex: 1;
-    align-items: flex-start;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 24px;
+    background: #fafafa;
+}
+
+/* Custom scrollbar */
+.unified-grocery-list::-webkit-scrollbar {
+    width: 10px;
+}
+
+.unified-grocery-list::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 5px;
+}
+
+.unified-grocery-list::-webkit-scrollbar-thumb {
+    background: #AAC6AD;
+    border-radius: 5px;
+}
+
+.unified-grocery-list::-webkit-scrollbar-thumb:hover {
+    background: #98b89b;
+}
+
+.unified-items-container {
+    max-width: 700px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 40px;
+}
+
+.empty-list-message {
+    max-width: 700px;
+    margin: 60px auto;
+    text-align: center;
+    padding: 40px;
+    background: white;
+    border-radius: 12px;
+    border: 2px dashed #e5e7eb;
+}
+
+.empty-list-message p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: 'Nunito', sans-serif;
+}
+
+/* Remove old section styles */
+.unified-section {
+    display: none;
+}
+
+.unified-section-header {
+    display: none;
+}
+
+.unified-items {
+    display: none;
+}
+
+/* Old column styles - kept for compatibility but hidden */
+.grocery-columns {
+    display: none;
 }
 
 .grocery-column {
@@ -386,23 +627,25 @@
 }
 
 .add-item-btn {
-    background: #28a745;
+    background: linear-gradient(135deg, #AAC6AD 0%, #98b89b 100%);
     color: white;
     border: none;
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     cursor: pointer;
-    font-size: 0.8rem;
-    transition: all 0.2s;
+    font-size: 16px;
+    transition: all 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 2px 8px rgba(170, 198, 173, 0.3);
 }
 
 .add-item-btn:hover {
-    background: #218838;
-    transform: scale(1.1);
+    background: linear-gradient(135deg, #98b89b 0%, #87a78b 100%);
+    transform: scale(1.15) rotate(90deg);
+    box-shadow: 0 4px 16px rgba(170, 198, 173, 0.4);
 }
 
 /* Column Items */
@@ -416,80 +659,115 @@
 }
 
 .grocery-item-card {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 1rem;
-    transition: all 0.2s;
-    cursor: grab;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 12px;
+    transition: all 0.15s ease;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .grocery-item-card:hover {
-    background: #e9ecef;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(to right, #ffffff 0%, #f0fdf4 100%);
+    border-color: #AAC6AD;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(170, 198, 173, 0.2);
 }
 
 .grocery-item-card:active {
+    cursor: default;
+}
+
+/* Drag handle - now on the left, Notion-style (hidden until hover) */
+.drag-handle {
+    color: #d1d5db;
+    font-size: 18px;
+    cursor: grab;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0;
+}
+
+.drag-handle:hover {
+    color: #AAC6AD;
+    background: #f0fdf4;
+}
+
+.drag-handle:active {
     cursor: grabbing;
+}
+
+.grocery-item-card:hover .drag-handle {
+    opacity: 1;
+    color: #6b7280;
 }
 
 .item-content {
     flex: 1;
+    min-width: 0;
 }
 
 .item-name {
-    font-weight: 500;
-    color: #495057;
+    font-weight: 700;
+    color: #1f2937;
     display: block;
-    margin-bottom: 0.25rem;
+    margin-bottom: 4px;
     cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 3px;
-    transition: all 0.2s ease;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+    font-family: 'Nunito', sans-serif;
+    font-size: 14px;
 }
 
 .item-name:hover {
-    background: rgba(40, 167, 69, 0.1);
-    color: #28a745;
+    background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+    color: #2e7d32;
+    box-shadow: 0 1px 3px rgba(170, 198, 173, 0.1);
 }
 
-/* Inline Editing Styles - Notion-like */
+/* Inline Editing Styles */
 .item-name-input {
-    font-weight: 500;
-    color: #495057;
+    font-weight: 700;
+    color: #1f2937;
     display: block;
-    margin-bottom: 0.25rem;
+    margin-bottom: 4px;
     width: 100%;
-    border: 2px solid #28a745;
-    border-radius: 4px;
-    padding: 2px 6px;
-    font-size: inherit;
-    font-family: inherit;
+    border: 2px solid #AAC6AD;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 14px;
+    font-family: 'Nunito', sans-serif;
     background: white;
-    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+    box-shadow: 0 0 0 4px rgba(170, 198, 173, 0.1);
     outline: none;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .item-name-input:focus {
-    border-color: #1e7e34;
-    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+    border-color: #98b89b;
+    box-shadow: 0 0 0 4px rgba(170, 198, 173, 0.2);
 }
 
 .grocery-item-card.editing {
-    background: rgba(40, 167, 69, 0.02);
-    border-color: #28a745;
-    box-shadow: 0 0 0 1px rgba(40, 167, 69, 0.2);
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-color: #AAC6AD;
+    box-shadow: 0 0 0 3px rgba(170, 198, 173, 0.2), 0 4px 12px rgba(170, 198, 173, 0.15);
 }
 
 .item-recipes {
-    font-size: 0.8rem;
-    color: #6c757d;
+    font-size: 12px;
+    color: #6b7280;
     font-style: italic;
+    font-weight: 600;
 }
 
 /* Consolidation badges and info */
@@ -698,7 +976,7 @@
 }
 
 .hide-btn, .unhide-btn {
-    background: #28a745;
+    background: #AAC6AD;
     color: white;
     border: none;
     padding: 4px 8px;
@@ -709,52 +987,74 @@
 }
 
 .hide-btn:hover {
-    background: #218838;
+    background: #98b89b;
     transform: scale(1.05);
 }
 
 .unhide-btn {
-    background: #17a2b8;
+    background: #87a78b;
 }
 
 .unhide-btn:hover {
-    background: #138496;
+    background: #77977b;
     transform: scale(1.05);
 }
 
+/* Remove old item-actions container - no longer needed */
 .item-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    display: none;
 }
 
+/* Remove button - now positioned on the right */
 .remove-btn {
-    background: none;
+    background: #ffe4e6;
     border: none;
-    color: #dc3545;
+    color: #881337;
     cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    opacity: 0.7;
-    transition: opacity 0.2s;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 18px;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
 }
 
 .remove-btn:hover {
-    opacity: 1;
-    background: rgba(220, 53, 69, 0.1);
+    background: #fecdd3;
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(244, 63, 94, 0.2);
+}
+
+.remove-btn:active {
+    transform: scale(0.95);
 }
 
 .drag-handle {
-    color: #6c757d;
-    font-size: 1rem;
+    color: #9ca3af;
+    font-size: 20px;
     cursor: grab;
-    opacity: 0.6;
-    transition: opacity 0.2s;
+    padding: 8px 6px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.drag-handle:hover {
+    color: #6b7280;
+    background: #f3f4f6;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
 }
 
 .grocery-item-card:hover .drag-handle {
-    opacity: 1;
+    color: #6b7280;
 }
 
 /* Empty States */
@@ -954,4 +1254,381 @@
 
 .drop-indicator.active {
     opacity: 1;
+}
+
+/* === USER REQUESTED CHANGES === */
+/* Hide Smart Combine and Export buttons */
+.consolidate-btn,
+.export-btn {
+    display: none !important;
+}
+
+/* Hide the left sidebar to expand main content */
+.grocery-sidebar {
+    display: none !important;
+}
+
+/* Expand main content to full width - single unified window with rounded corners */
+.grocery-main-content {
+    min-width: 900px;
+    max-width: 1400px;
+    flex: 1;
+    background: white;
+    margin: 1rem 0;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Make scrollbar mint green */
+.grocery-main-content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.grocery-main-content::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+.grocery-main-content::-webkit-scrollbar-thumb {
+    background: #AAC6AD;
+    border-radius: 5px;
+}
+
+.grocery-main-content::-webkit-scrollbar-thumb:hover {
+    background: #98b89b;
+}
+
+/* === NOTION-STYLE INLINE ADDING === */
+.empty-list-hint {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.empty-list-hint p {
+    margin: 0;
+    font-size: 15px;
+}
+
+.inline-add-container {
+    margin: 16px 24px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    opacity: 1;
+    background: #f9fafb;
+    border: 2px dashed #e5e7eb;
+}
+
+.inline-add-container:hover,
+.inline-add-container.show {
+    opacity: 1;
+    background: #f0fdf4;
+    border-color: #AAC6AD;
+}
+
+.inline-add-trigger {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    cursor: pointer;
+    font-size: 15px;
+    color: #6b7280;
+    font-family: 'Nunito', sans-serif;
+    width: 100%;
+    text-align: left;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.inline-add-trigger:hover {
+    background: white;
+    color: #AAC6AD;
+    box-shadow: 0 2px 8px rgba(170, 198, 173, 0.1);
+}
+
+.plus-icon {
+    font-size: 18px;
+    font-weight: bold;
+    color: #AAC6AD;
+}
+
+.add-text {
+    font-weight: 500;
+    font-style: italic;
+}
+
+.inline-add-input-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 2px solid #AAC6AD;
+    box-shadow: 0 2px 8px rgba(170, 198, 173, 0.15);
+}
+
+.input-prefix {
+    font-size: 16px;
+    color: #AAC6AD;
+    font-weight: bold;
+}
+
+.inline-add-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    font-family: 'Nunito', sans-serif;
+    color: #1f2937;
+    background: transparent;
+}
+
+.inline-add-input::placeholder {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* Modal Dialog Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(170, 198, 173, 0.15);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 
+        0 20px 40px rgba(170, 198, 173, 0.3),
+        0 8px 16px rgba(0, 0, 0, 0.1);
+    font-family: 'Nunito', sans-serif;
+    border: 1px solid rgba(170, 198, 173, 0.1);
+    animation: modalSlideIn 0.3s ease-out;
+    position: relative;
+}
+
+@keyframes modalSlideIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(-20px) scale(0.95); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+    }
+}
+
+.modal-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #AAC6AD 0%, #98b89b 100%);
+    border-radius: 16px 16px 0 0;
+}
+
+.modal-content h3 {
+    margin: 0 0 20px 0;
+    color: #1f2937;
+    font-size: 24px;
+    font-weight: 700;
+    font-family: 'Nunito', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modal-content p {
+    margin: 0 0 16px 0;
+    color: #4b5563;
+    line-height: 1.6;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.modal-content p strong {
+    color: #AAC6AD;
+    font-weight: 700;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 16px 20px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 16px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 500;
+    margin: 16px 0;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.modal-content input:focus {
+    outline: none;
+    border-color: #AAC6AD;
+    box-shadow: 0 0 0 4px rgba(170, 198, 173, 0.1);
+    background: #f8fffe;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 28px;
+    flex-wrap: wrap;
+}
+
+.modal-buttons button {
+    padding: 14px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'Nunito', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    min-width: 120px;
+    justify-content: center;
+}
+
+.modal-buttons button:hover {
+    transform: translateY(-1px);
+}
+
+.cancel-btn {
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 2px solid #e5e7eb;
+}
+
+.cancel-btn:hover {
+    background: #e5e7eb;
+    color: #4b5563;
+    border-color: #d1d5db;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.save-btn {
+    background: linear-gradient(135deg, #AAC6AD 0%, #98b89b 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(170, 198, 173, 0.3);
+}
+
+.save-btn:hover {
+    background: linear-gradient(135deg, #98b89b 0%, #87a88a 100%);
+    box-shadow: 0 6px 16px rgba(170, 198, 173, 0.4);
+}
+
+.save-btn:disabled {
+    background: #d1d5db;
+    color: #9ca3af;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Share Button */
+.share-btn {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    font-family: 'Nunito', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.share-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+    transform: translateY(-2px);
+}
+
+.share-btn:disabled {
+    background: #d1d5db;
+    color: #9ca3af;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+    opacity: 0.6;
+}
+
+.secondary-btn {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.secondary-btn:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.danger-btn {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.danger-btn:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .modal-content {
+        margin: 20px;
+        padding: 24px;
+        max-width: none;
+        width: calc(100% - 40px);
+    }
+    
+    .modal-buttons {
+        flex-direction: column;
+    }
+    
+    .modal-buttons button {
+        min-width: auto;
+        width: 100%;
+    }
 }

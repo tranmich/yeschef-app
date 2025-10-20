@@ -1,0 +1,390 @@
+/* Shared Grocery List - Consistent with App Styling */
+
+.shared-grocery-list {
+  width: 100%;
+  max-width: 900px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  overflow: visible;
+  margin: 0 auto;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.shared-grocery-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.shared-grocery-loading .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #AAC6AD;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Header */
+.grocery-header {
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 12px 12px 0 0;
+  background: white;
+}
+
+.grocery-header h3 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+.grocery-subtitle {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.grocery-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #AAC6AD;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  font-family: 'Nunito', sans-serif;
+  white-space: nowrap;
+}
+
+/* Messages */
+.message {
+  margin: 16px 20px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-message {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.success-message {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.close-message {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.close-message:hover {
+  opacity: 1;
+}
+
+/* Add Item Form */
+.add-item-form {
+  display: flex;
+  gap: 12px;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.add-item-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  transition: border-color 0.2s ease;
+}
+
+.add-item-input:focus {
+  outline: none;
+  border-color: #AAC6AD;
+  box-shadow: 0 0 0 3px rgba(170, 198, 173, 0.1);
+}
+
+.add-item-button {
+  background: #AAC6AD;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.add-item-button:hover {
+  background: #91b496;
+}
+
+/* Grocery List Content */
+.grocery-list-content {
+  padding: 20px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+/* Custom scrollbar for grocery list */
+.grocery-list-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.grocery-list-content::-webkit-scrollbar-track {
+  background: #f0f9ff;
+  border-radius: 4px;
+}
+
+.grocery-list-content::-webkit-scrollbar-thumb {
+  background: #AAC6AD;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.grocery-list-content::-webkit-scrollbar-thumb:hover {
+  background: #91b496;
+}
+
+/* Empty State */
+.empty-grocery-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.empty-grocery-list .empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-grocery-list h4 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+}
+
+.empty-grocery-list p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Category Styles */
+.grocery-category {
+  margin-bottom: 24px;
+}
+
+.category-header {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.category-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Grocery Item Styles */
+.grocery-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.grocery-item:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.grocery-item.completed {
+  opacity: 0.7;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.item-checkbox {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.item-checkbox:hover {
+  background: rgba(170, 198, 173, 0.1);
+}
+
+.item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-name {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+  margin-bottom: 2px;
+}
+
+.grocery-item.completed .item-name {
+  text-decoration: line-through;
+  color: #6b7280;
+}
+
+.item-meta {
+  font-size: 12px;
+  color: #9ca3af;
+  font-family: 'Nunito', sans-serif;
+}
+
+.remove-item-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.remove-item-button:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Footer */
+.grocery-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 0 0 12px 12px;
+}
+
+.collaboration-note {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+  text-align: center;
+}
+
+.collaboration-note strong {
+  color: #374151;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .shared-grocery-list {
+    max-width: 95%;
+    margin: 0 auto;
+    border-radius: 8px;
+  }
+  
+  .grocery-header {
+    padding: 16px;
+  }
+  
+  .add-item-form {
+    padding: 16px;
+    flex-direction: column;
+  }
+  
+  .grocery-list-content {
+    padding: 16px;
+    max-height: 500px;
+  }
+  
+  .grocery-progress {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .progress-text {
+    text-align: center;
+  }
+  
+  .grocery-item {
+    padding: 10px 12px;
+  }
+  
+  .item-name {
+    font-size: 15px;
+  }
+}

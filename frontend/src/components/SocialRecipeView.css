@@ -1,0 +1,713 @@
+/* Social Recipe View - Detailed recipe view with social features */
+
+.social-recipe-view {
+  width: 100%;
+  max-width: 900px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  overflow: visible;
+  margin: 0 auto;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.social-recipe-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.social-recipe-loading .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #AAC6AD;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Recipe Header */
+.recipe-header {
+  border-radius: 12px 12px 0 0;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+}
+
+.close-button {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.recipe-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.action-button {
+  background: #f9fafb;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.action-button.liked {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.action-button.saved {
+  background: #f0fdf4;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+/* Recipe Banner */
+.recipe-banner {
+  padding: 30px 20px;
+  border-radius: 0;
+}
+
+.banner-content {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.recipe-icon-large {
+  font-size: 80px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.recipe-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.recipe-title {
+  margin: 0 0 12px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+  line-height: 1.2;
+}
+
+.recipe-description {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  color: #4b5563;
+  font-family: 'Nunito', sans-serif;
+  line-height: 1.5;
+}
+
+.recipe-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.meta-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.rating-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stars-container {
+  display: flex;
+  gap: 2px;
+}
+
+.star {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: default;
+  padding: 0;
+  transition: transform 0.2s ease;
+}
+
+.star.interactive {
+  cursor: pointer;
+}
+
+.star.interactive:hover {
+  transform: scale(1.1);
+}
+
+.star.filled {
+  filter: brightness(1);
+}
+
+.star:not(.filled) {
+  filter: grayscale(1) brightness(0.7);
+}
+
+.rating-text {
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+}
+
+/* Author Section */
+.author-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.author-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.author-avatar-large {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #AAC6AD;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+}
+
+.author-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.author-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.shared-info {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.recipe-stats {
+  display: flex;
+  gap: 24px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Messages */
+.message {
+  margin: 16px 20px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-message {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.success-message {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.close-message {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.close-message:hover {
+  opacity: 1;
+}
+
+/* Recipe Content */
+.recipe-content {
+  padding: 30px 20px;
+}
+
+.ingredients-section,
+.instructions-section {
+  margin-bottom: 32px;
+}
+
+.ingredients-section h3,
+.instructions-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ingredients-list,
+.instructions-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.ingredient-item,
+.instruction-step {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+  line-height: 1.4;
+}
+
+.instructions-list {
+  counter-reset: step-counter;
+}
+
+.instruction-step {
+  counter-increment: step-counter;
+  position: relative;
+  padding-left: 48px;
+}
+
+.instruction-step::before {
+  content: counter(step-counter);
+  position: absolute;
+  left: 16px;
+  top: 12px;
+  width: 24px;
+  height: 24px;
+  background: #AAC6AD;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Comments Section */
+.comments-section {
+  padding: 30px 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.comments-section h3 {
+  margin: 0 0 24px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Add Comment Form */
+.add-comment-form {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.add-comment-form h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.rating-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rating-input span {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+.comment-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  resize: vertical;
+  margin-bottom: 16px;
+  transition: border-color 0.2s ease;
+}
+
+.comment-input:focus {
+  outline: none;
+  border-color: #AAC6AD;
+  box-shadow: 0 0 0 3px rgba(170, 198, 173, 0.1);
+}
+
+.submit-comment-button {
+  background: #AAC6AD;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.submit-comment-button:hover:not(:disabled) {
+  background: #91b496;
+}
+
+.submit-comment-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Comments List */
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.no-comments {
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.comment-item {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.commenter-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.commenter-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #AAC6AD;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+}
+
+.commenter-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.commenter-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: #9ca3af;
+  font-family: 'Nunito', sans-serif;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.like-comment-button {
+  background: white;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.like-comment-button:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.comment-content {
+  line-height: 1.5;
+}
+
+.comment-content p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+.helpful-badge {
+  display: inline-block;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+}
+
+/* Custom scrollbar */
+.social-recipe-view::-webkit-scrollbar {
+  width: 8px;
+}
+
+.social-recipe-view::-webkit-scrollbar-track {
+  background: #f0f9ff;
+  border-radius: 4px;
+}
+
+.social-recipe-view::-webkit-scrollbar-thumb {
+  background: #AAC6AD;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.social-recipe-view::-webkit-scrollbar-thumb:hover {
+  background: #91b496;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .social-recipe-view {
+    max-width: 95%;
+    margin: 0 auto;
+    border-radius: 8px;
+  }
+  
+  .header-top {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .recipe-actions {
+    justify-content: center;
+  }
+  
+  .recipe-banner {
+    padding: 20px 16px;
+  }
+  
+  .banner-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+  
+  .recipe-icon-large {
+    font-size: 60px;
+    align-self: center;
+  }
+  
+  .recipe-title {
+    font-size: 24px;
+  }
+  
+  .meta-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .rating-section {
+    justify-content: center;
+  }
+  
+  .author-section {
+    padding: 16px;
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .recipe-stats {
+    justify-content: center;
+  }
+  
+  .recipe-content {
+    padding: 20px 16px;
+  }
+  
+  .comments-section {
+    padding: 20px 16px;
+  }
+  
+  .add-comment-form {
+    padding: 16px;
+  }
+  
+  .comment-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .comment-actions {
+    justify-content: flex-start;
+  }
+}

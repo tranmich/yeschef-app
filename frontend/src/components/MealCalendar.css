@@ -1,180 +1,200 @@
-/* Meal Calendar Styles */
+/* Meal Calendar - Simplified Day-Based Design */
 .meal-calendar {
     height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* Container manages its own overflow, children handle scrolling */
-    position: relative;
-    /* Ensure proper stacking context */
+    background: #fafafa;
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Header Section */
 .calendar-header {
-    padding: 1rem;
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #e0e0e0;
+    padding: 20px 24px;
+    background: white;
+    border-bottom: 2px solid #e5e7eb;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .calendar-header h3 {
     margin: 0;
-    font-size: 1.1rem;
-    color: #333;
+    font-size: 20px;
+    font-weight: 800;
+    color: #1f2937;
+    font-family: 'Nunito', sans-serif;
 }
 
-.week-info {
-    font-size: 0.9rem;
-    color: #666;
-    font-weight: normal;
+.add-day-btn {
+    background: #AAC6AD;
+    border: none;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'Nunito', sans-serif;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 4px rgba(170, 198, 173, 0.2);
 }
 
-.calendar-grid {
+.add-day-btn:hover {
+    background: #98b89b;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(170, 198, 173, 0.3);
+}
+
+/* Grid Layout - Simplified for Days */
+.calendar-grid-simple {
     flex: 1;
     overflow-y: auto;
-    overflow-x: auto;
-    /* Enable horizontal scrolling */
-    min-height: 0;
-    min-width: 0;
-    /* Allow shrinking below content width */
-    /* Ensure scrolling is smooth and responsive */
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    /* For mobile devices */
-}
-
-/* Make sure scrollbars are visible */
-.calendar-grid::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-}
-
-.calendar-grid::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 6px;
-}
-
-.calendar-grid::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 6px;
-}
-
-.calendar-grid::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
-/* Force scrollbars to always be visible */
-.calendar-grid::-webkit-scrollbar:horizontal {
-    height: 12px;
-}
-
-.calendar-grid::-webkit-scrollbar:vertical {
-    width: 12px;
-}
-
-.calendar-row {
+    overflow-x: hidden;
+    padding: 20px;
     display: grid;
-    grid-template-columns: 120px 220px 220px 220px;
-    /* Fixed width columns: 120px day label + 3 x 220px meal columns */
-    border-bottom: 1px solid #e0e0e0;
-    min-height: 80px;
-    width: 780px;
-    /* Fixed total width: 120px + (3 * 220px) = 780px */
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    align-content: start;
 }
 
-.calendar-row:last-child {
-    border-bottom: none;
+/* Custom scrollbar */
+.calendar-grid-simple::-webkit-scrollbar {
+    width: 10px;
 }
 
-.header-row {
-    background-color: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
-    min-height: 40px;
+.calendar-grid-simple::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 5px;
 }
 
-.day-header,
-.meal-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 0.9rem;
-    color: #495057;
-    border-right: 1px solid #e0e0e0;
-    padding: 0.5rem;
+.calendar-grid-simple::-webkit-scrollbar-thumb {
+    background: #AAC6AD;
+    border-radius: 5px;
 }
 
-.day-label {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background-color: #f8f9fa;
-    border-right: 1px solid #e0e0e0;
-    padding: 0.5rem;
+.calendar-grid-simple::-webkit-scrollbar-thumb:hover {
+    background: #98b89b;
 }
 
-.day-name {
-    font-weight: bold;
-    font-size: 0.9rem;
-    color: #333;
-}
-
-.day-date {
-    font-size: 0.8rem;
-    color: #666;
-    margin-top: 0.25rem;
-}
-
-/* Meal Slots */
-.meal-slot {
-    border-right: 1px solid #e0e0e0;
-    display: flex;
-    flex-direction: column;
-    min-height: 80px;
-    transition: all 0.2s ease;
+/* Day Card Styling */
+.day-card {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
     overflow: hidden;
-    /* Prevent content from expanding the column */
-    width: 100%;
-    /* Ensure slot respects grid column width */
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
 }
 
-.meal-slot:hover {
-    background-color: #f8f9fa;
+.day-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #d1d5db;
 }
 
-.meal-slot-header {
-    padding: 0.25rem 0.5rem;
-    background-color: #f1f3f4;
-    border-bottom: 1px solid #e0e0e0;
+/* Day Header */
+.day-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.8rem;
+    padding: 16px 20px;
+    background: #fafafa;
+    border-bottom: 2px solid #e5e7eb;
 }
 
-.meal-type {
-    font-weight: 500;
-    color: #495057;
+.day-name {
+    font-weight: 800;
+    font-size: 16px;
+    color: #1f2937;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    font-family: 'Nunito', sans-serif;
+}
+
+.day-name:hover {
+    color: #AAC6AD;
+}
+
+.day-name.editable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.day-name.editable:hover {
+    color: #AAC6AD;
 }
 
 .recipe-count {
-    color: #6c757d;
-    font-size: 0.7rem;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    background: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-family: 'Nunito', sans-serif;
 }
 
-.meal-slot-content {
+.remove-day-btn {
+    background: #ffe4e6;
+    border: none;
+    color: #881337;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-day-btn:hover {
+    background: #fecdd3;
+    transform: scale(1.1);
+}
+
+/* Day Slot - Drop Zone */
+.day-slot {
     flex: 1;
-    padding: 0.5rem;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    /* Prevent overflow from expanding column */
-    width: 100%;
-    /* Ensure content respects column width */
-    box-sizing: border-box;
-    /* Include padding in width calculation */
+    padding: 16px;
+    min-height: 150px;
+    transition: all 0.2s ease;
+}
+
+.day-slot-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Empty State */
+.empty-slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 100px;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    background: #f9fafb;
+    transition: all 0.2s ease;
+}
+
+.drop-hint {
+    color: #9ca3af;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Nunito', sans-serif;
+    text-align: center;
 }
 
 .empty-slot {
@@ -203,36 +223,34 @@
 .planned-recipes {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 8px;
 }
 
 .planned-recipe {
-    background-color: #e3f2fd;
-    border: 1px solid #bbdefb;
-    border-radius: 4px;
-    padding: 0.5rem;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
     display: block;
-    /* Changed from flex to block for better positioning */
     position: relative;
-    /* Enable absolute positioning for the remove button */
     transition: all 0.2s ease;
     cursor: grab;
-    padding-top: 1.5rem;
-    /* Add extra top padding for the remove button */
+    padding-top: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .planned-recipe:hover {
-    background-color: #d1ecf1;
-    border-color: #85cdea;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: #f9fafb;
+    border-color: #AAC6AD;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(170, 198, 173, 0.15);
 }
 
 .planned-recipe:active,
 .planned-recipe.dragging {
     cursor: grabbing;
-    opacity: 0.7;
-    transform: rotate(2deg);
+    opacity: 0.6;
+    transform: rotate(1deg) scale(0.98);
     z-index: 1000;
 }
 
@@ -242,312 +260,91 @@
 }
 
 .recipe-title {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: #0d47a1;
-    margin-bottom: 0.25rem;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 6px;
     word-wrap: break-word;
-    word-break: break-word;
     overflow-wrap: break-word;
-    hyphens: auto;
-    line-height: 1.2;
-    max-width: 100%;
-    /* Ensure title respects container width */
+    line-height: 1.3;
+    font-family: 'Nunito', sans-serif;
 }
 
 .recipe-time,
 .recipe-servings {
-    font-size: 0.7rem;
-    color: #1565c0;
-    margin-right: 0.5rem;
+    font-size: 12px;
+    color: #6b7280;
+    margin-right: 8px;
     display: inline-block;
+    font-weight: 600;
+    font-family: 'Nunito', sans-serif;
 }
 
 .remove-recipe-btn {
     position: absolute;
-    top: 4px;
-    right: 4px;
-    background: rgba(244, 67, 54, 0.9);
-    border: 1px solid rgba(244, 67, 54, 0.5);
-    color: white;
+    top: 8px;
+    right: 8px;
+    background: #ffe4e6;
+    border: none;
+    color: #881337;
     cursor: pointer;
-    font-size: 0.6rem;
-    padding: 0.1rem 0.2rem;
-    border-radius: 3px;
-    transition: all 0.2s ease;
+    font-size: 14px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    transition: all 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 14px;
-    height: 14px;
-    line-height: 1;
+    font-weight: 700;
     z-index: 10;
-    /* Ensure it appears above other content */
 }
 
 .remove-recipe-btn:hover {
-    background-color: rgba(244, 67, 54, 1);
-    border-color: rgba(244, 67, 54, 0.8);
-    transform: scale(1.1);
+    background: #fecdd3;
+    transform: scale(1.15);
+    box-shadow: 0 2px 8px rgba(244, 63, 94, 0.2);
 }
 
-/* Calendar Footer */
-.calendar-footer {
-    padding: 0.75rem 1rem;
-    background-color: #f8f9fa;
-    border-top: 1px solid #e0e0e0;
-}
-
-.calendar-stats {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.9rem;
-    color: #6c757d;
-}
-
-.calendar-stats span {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-/* Responsive Design */
+/* Responsive Design - Simplified */
 @media (max-width: 1024px) {
-    .calendar-row {
-        grid-template-columns: 100px 200px 200px 200px;
-        /* Fixed width columns for tablet: 100px day label + 3 x 200px meal columns */
-        width: 700px;
-        /* Fixed total width: 100px + (3 * 200px) = 700px */
+    .calendar-grid-simple {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        padding: 16px;
+        gap: 16px;
     }
-
-    .day-label {
-        padding: 0.25rem;
-    }
-
-    .day-name {
-        font-size: 0.8rem;
-    }
-
-    .day-date {
-        font-size: 0.7rem;
-    }
-}
-
-@media (max-width: 768px) {
-    .calendar-row {
-        grid-template-columns: 80px 170px 170px 170px;
-        /* Fixed width columns for mobile: 80px day label + 3 x 170px meal columns */
-        min-height: 100px;
-        width: 590px;
-        /* Fixed total width: 80px + (3 * 170px) = 590px */
-    }
-
-    .meal-slot-header {
-        font-size: 0.7rem;
-    }
-
-    .recipe-title {
-        font-size: 0.7rem;
-    }
-}
-
-@media (max-width: 480px) {
+    
     .calendar-header {
-        flex-direction: column;
-        gap: 0.5rem;
-        text-align: center;
-    }
-
-    .calendar-row {
-        grid-template-columns: 70px repeat(3, minmax(120px, 1fr));
-        /* Keep all 3 meal types even on mobile */
-        min-width: 430px;
-        /* 70px + (3 * 120px) = 430px - will require horizontal scrolling */
-    }
-
-    .planned-recipe {
-        padding: 0.25rem;
-    }
-
-    .recipe-title {
-        font-size: 0.6rem;
-    }
-
-    .recipe-time,
-    .recipe-servings {
-        font-size: 0.6rem;
-    }
-}
-
-/* Dynamic Layout Styles */
-.calendar-grid-dynamic {
-    flex: 1;
-    overflow-x: auto;
-    overflow-y: auto;
-    padding: 1rem;
-    display: flex;
-    gap: 1rem;
-    min-height: 0;
-    scroll-behavior: smooth;
-}
-
-.day-column {
-    min-width: 300px;
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.day-header-dynamic {
-    background: #f5f5f5;
-    padding: 1rem;
-    border-bottom: 1px solid #e0e0e0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.day-name.editable {
-    font-weight: 600;
-    font-size: 1.1rem;
-    cursor: pointer;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
-.day-name.editable:hover {
-    background-color: #e3f2fd;
-}
-
-.day-controls {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.add-meal-btn, .remove-day-btn {
-    padding: 0.25rem 0.5rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    transition: background-color 0.2s;
-}
-
-.add-meal-btn {
-    background: #e8f5e8;
-    color: #2e7d32;
-}
-
-.add-meal-btn:hover {
-    background: #c8e6c9;
-}
-
-.remove-day-btn {
-    background: #ffebee;
-    color: #c62828;
-}
-
-.remove-day-btn:hover {
-    background: #ffcdd2;
-}
-
-.day-meals {
-    flex: 1;
-    padding: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.meal-slot {
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    min-height: 100px;
-    transition: all 0.2s;
-}
-
-.meal-slot-header {
-    padding: 0.5rem;
-    background: #fafafa;
-    border-bottom: 1px solid #e0e0e0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.meal-type.editable {
-    font-weight: 500;
-    cursor: pointer;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
-.meal-type.editable:hover {
-    background-color: #e3f2fd;
-}
-
-.remove-meal-btn {
-    padding: 0.125rem 0.25rem;
-    border: none;
-    border-radius: 3px;
-    background: #ffebee;
-    color: #c62828;
-    cursor: pointer;
-    font-size: 0.7rem;
-    transition: background-color 0.2s;
-}
-
-.remove-meal-btn:hover {
-    background: #ffcdd2;
-}
-
-.meal-slot-content {
-    padding: 0.5rem;
-    min-height: 60px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-/* Enhanced button styles */
-.add-day-btn {
-    background: #e8f5e8;
-    color: #2e7d32;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s;
-    margin-right: 0.5rem;
-}
-
-.add-day-btn:hover {
-    background: #c8e6c9;
-    transform: translateY(-1px);
-}
-
-/* Mobile responsiveness for dynamic layout */
-@media (max-width: 768px) {
-    .calendar-grid-dynamic {
-        padding: 0.5rem;
-        gap: 0.5rem;
+        padding: 16px 20px;
     }
     
-    .day-column {
-        min-width: 250px;
+    .calendar-header h3 {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 640px) {
+    .calendar-grid-simple {
+        grid-template-columns: 1fr;
+        padding: 12px;
+        gap: 12px;
     }
     
-    .day-header-dynamic {
-        padding: 0.75rem;
+    .calendar-header {
+        padding: 12px 16px;
     }
     
-    .day-name.editable {
-        font-size: 1rem;
+    .day-header {
+        padding: 12px 16px;
+    }
+    
+    .day-slot {
+        padding: 12px;
+        min-height: 120px;
+    }
+    
+    .add-day-btn {
+        font-size: 12px;
+        padding: 6px 12px;
     }
 }

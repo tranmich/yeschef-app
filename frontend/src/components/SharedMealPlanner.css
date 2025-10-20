@@ -1,0 +1,556 @@
+/* Shared Meal Planner - Consistent with App Styling */
+
+.shared-meal-planner {
+  width: 100%;
+  max-width: 900px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  overflow: visible;
+  margin: 0 auto;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.shared-meal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.shared-meal-loading .loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #AAC6AD;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Header */
+.meal-planner-header {
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 12px 12px 0 0;
+  background: white;
+}
+
+.meal-planner-header h3 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+.meal-planner-subtitle {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Week Navigation */
+.week-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.week-nav-button {
+  background: #AAC6AD;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.week-nav-button:hover {
+  background: #91b496;
+}
+
+.week-display {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+  text-align: center;
+  flex: 1;
+}
+
+/* Action Buttons */
+.meal-plan-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.primary-button {
+  background: #AAC6AD;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+.primary-button:hover {
+  background: #91b496;
+}
+
+/* Messages */
+.message {
+  margin: 16px 20px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-message {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.success-message {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.close-message {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.close-message:hover {
+  opacity: 1;
+}
+
+/* Meal Plan Grid */
+.meal-plan-grid {
+  padding: 20px;
+  overflow-x: auto;
+}
+
+.meal-grid-header {
+  display: grid;
+  grid-template-columns: 120px repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.time-slot-header {
+  /* Empty space for day names in grid layout */
+  background: transparent;
+}
+
+.meal-type-header {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+  padding: 8px;
+}
+
+.meal-day-row {
+  display: grid;
+  grid-template-columns: 120px repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+  align-items: stretch;
+}
+
+.day-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px 8px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  color: #374151;
+  text-align: center;
+}
+
+.meal-slot {
+  min-height: 100px;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.meal-slot:hover {
+  border-color: #AAC6AD;
+  background: rgba(170, 198, 173, 0.05);
+}
+
+/* Add Meal Button */
+.add-meal-button {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 20px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  width: 100%;
+  height: 100%;
+}
+
+.add-meal-button:hover {
+  color: #AAC6AD;
+  background: rgba(170, 198, 173, 0.1);
+}
+
+/* Planned Meal */
+.planned-meal {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 12px;
+  width: 100%;
+  position: relative;
+}
+
+.meal-title {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #166534;
+  font-family: 'Nunito', sans-serif;
+  line-height: 1.3;
+}
+
+.meal-meta {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  color: #16a34a;
+  font-family: 'Nunito', sans-serif;
+}
+
+.meal-assigned {
+  margin: 0;
+  font-size: 11px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+  font-style: italic;
+}
+
+.remove-meal-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  font-size: 14px;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.remove-meal-button:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Footer */
+.meal-planner-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 0 0 12px 12px;
+}
+
+.collaboration-note {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+  text-align: center;
+}
+
+.collaboration-note strong {
+  color: #374151;
+}
+
+/* Modal Styles for Recipe Selection */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.close-button {
+  background: #f3f4f6;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-instruction {
+  margin: 0 0 16px 0;
+  color: #374151;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Recipe Selection */
+.recipe-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.recipe-selection-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.recipe-selection-item:hover {
+  background: #f9fafb;
+  border-color: #AAC6AD;
+}
+
+.recipe-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.recipe-title {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  font-family: 'Nunito', sans-serif;
+}
+
+.recipe-meta {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-family: 'Nunito', sans-serif;
+}
+
+.select-recipe-button {
+  background: #AAC6AD;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.select-recipe-button:hover {
+  background: #91b496;
+}
+
+/* Custom scrollbar */
+.meal-plan-grid::-webkit-scrollbar,
+.recipe-selection-list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.meal-plan-grid::-webkit-scrollbar-track,
+.recipe-selection-list::-webkit-scrollbar-track {
+  background: #f0f9ff;
+  border-radius: 4px;
+}
+
+.meal-plan-grid::-webkit-scrollbar-thumb,
+.recipe-selection-list::-webkit-scrollbar-thumb {
+  background: #AAC6AD;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.meal-plan-grid::-webkit-scrollbar-thumb:hover,
+.recipe-selection-list::-webkit-scrollbar-thumb:hover {
+  background: #91b496;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .shared-meal-planner {
+    max-width: 95%;
+    margin: 0 auto;
+    border-radius: 8px;
+  }
+  
+  .meal-planner-header {
+    padding: 16px;
+  }
+  
+  .week-navigation {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .week-nav-button {
+    padding: 10px 16px;
+  }
+  
+  .meal-plan-grid {
+    padding: 16px;
+  }
+  
+  .meal-grid-header,
+  .meal-day-row {
+    grid-template-columns: 100px repeat(3, 1fr);
+    gap: 8px;
+  }
+  
+  .day-header {
+    padding: 12px 4px;
+    font-size: 12px;
+  }
+  
+  .meal-slot {
+    min-height: 80px;
+  }
+  
+  .meal-title {
+    font-size: 13px;
+  }
+  
+  .meal-meta {
+    font-size: 11px;
+  }
+  
+  .meal-assigned {
+    font-size: 10px;
+  }
+  
+  .add-meal-button {
+    font-size: 12px;
+    padding: 16px 8px;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .recipe-selection-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .select-recipe-button {
+    width: 100%;
+  }
+}

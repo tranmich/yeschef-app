@@ -6,6 +6,8 @@ import { CSS } from '@dnd-kit/utilities';
 import './GroceryManagerWorkspace.css';
 import { getApiUrl } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import LoadGroceryListPanel from './LoadGroceryListPanel';
+import ShareResourceModal from './ShareResourceModal';
 
 const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
     // Authentication hook
@@ -47,6 +49,18 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
     ]);
     const [isCreatingList, setIsCreatingList] = useState(false);
     const [newListName, setNewListName] = useState('');
+    const [showLoadPanel, setShowLoadPanel] = useState(false);
+
+    // Notion-style inline adding
+    const [showInlineAdd, setShowInlineAdd] = useState(false);
+    const [inlineItemName, setInlineItemName] = useState('');
+    const [isAddingInline, setIsAddingInline] = useState(false);
+
+    // Track unsaved changes
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+    // Share modal state
+    const [showShareModal, setShowShareModal] = useState(false);
 
     // Load saved lists and pantry on component mount
     useEffect(() => {
@@ -57,13 +71,46 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
         }
     }, [mealPlanRecipes]);
 
-    // Load pantry when token becomes available
+    // Load pantry and reload lists when token becomes available
     useEffect(() => {
         if (token) {
-            console.log('🔑 Token available, loading pantry items...');
+            console.log('🔑 Token available, loading pantry items and grocery lists...');
             loadPantryItems();
+            loadSavedLists(); // Reload lists with authentication
         }
     }, [token]);
+
+    // Load from localStorage on mount
+    useEffect(() => {
+        const savedData = localStorage.getItem('groceryList_current');
+        if (savedData) {
+            try {
+                const parsed = JSON.parse(savedData);
+                if (parsed.currentList) setCurrentList(parsed.currentList);
+                if (parsed.sections) setSections(parsed.sections);
+                console.log('📦 Loaded grocery list from localStorage');
+            } catch (err) {
+                console.error('Failed to load from localStorage:', err);
+            }
+        } else {
+            // Initialize with default empty list
+            setCurrentList({ name: 'My Grocery List', isFromMealPlan: false });
+        }
+    }, []);
+
+    // Auto-save to localStorage whenever currentList or sections change
+    useEffect(() => {
+        if (currentList || Object.keys(sections).some(key => sections[key].items.length > 0)) {
+            const dataToSave = {
+                currentList,
+                sections,
+                lastModified: new Date().toISOString()
+            };
+            localStorage.setItem('groceryList_current', JSON.stringify(dataToSave));
+            setHasUnsavedChanges(true);
+            console.log('💾 Auto-saved to localStorage');
+        }
+    }, [currentList, sections]);
 
     const loadPantryItems = async () => {
         try {
@@ -104,22 +151,47 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
     const loadSavedLists = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${getApiUrl()}/api/grocery-lists`);
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            // Add auth token if available
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await fetch(`${getApiUrl()}/api/grocery-lists`, {
+                headers
+            });
             const data = await response.json();
 
             if (data.success) {
-                setSavedLists(data.grocery_lists);
+                const allLists = data.grocery_lists || [];
+                console.log(`📋 Loaded ${allLists.length} grocery lists:`, allLists);
+                setSavedLists(allLists);
+                
                 // Organize into folders
-                const recentLists = data.grocery_lists.slice(0, 5);
-                setFolders(prev => prev.map(folder => 
-                    folder.id === 'recent' 
-                        ? { ...folder, lists: recentLists }
-                        : folder
-                ));
+                // Recent: All lists sorted by date (most recent first)
+                const recentLists = [...allLists]
+                    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+                    .slice(0, 10); // Show last 10 lists
+                
+                // Favorites: Lists marked as favorites (if we have that field)
+                // For now, showing all lists in favorites too until we add favorite feature
+                const favoriteLists = [...allLists]
+                    .sort((a, b) => a.list_name.localeCompare(b.list_name)); // Alphabetically
+                
+                setFolders([
+                    { id: 'recent', name: 'Recent Lists', lists: recentLists },
+                    { id: 'favorites', name: 'All Lists', lists: favoriteLists }
+                ]);
+                
+                console.log(`📁 Recent lists: ${recentLists.length}, All lists: ${favoriteLists.length}`);
             } else {
                 setError(data.error || 'Failed to load grocery lists');
             }
         } catch (err) {
+            console.error('❌ Error loading grocery lists:', err);
             setError('Network error: ' + err.message);
         } finally {
             setLoading(false);
@@ -312,6 +384,19 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                 items: [...prev[sectionKey].items, newItem]
             }
         }));
+    };
+
+    // Notion-style inline adding
+    const handleInlineAdd = () => {
+        if (!inlineItemName.trim()) return;
+        
+        // Add to 'other' section by default
+        addCustomItem('other', inlineItemName.trim());
+        
+        // Reset state
+        setInlineItemName('');
+        setIsAddingInline(false);
+        setShowInlineAdd(false);
     };
 
     const removeItem = (sectionKey, itemId) => {
@@ -766,11 +851,59 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
     // Save current list functionality
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saveListName, setSaveListName] = useState('');
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [editedListName, setEditedListName] = useState('');
+    const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
+    const [duplicateListInfo, setDuplicateListInfo] = useState(null);
 
-    const saveCurrentList = async () => {
-        if (!saveListName.trim()) {
+    // Function to check if a list name already exists
+    const checkForDuplicateName = async (listName) => {
+        try {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${getApiUrl()}/api/grocery-lists`, {
+                headers
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                const existingLists = data.grocery_lists || [];
+                const duplicateList = existingLists.find(list => 
+                    list.list_name.toLowerCase().trim() === listName.toLowerCase().trim()
+                );
+                return duplicateList || null;
+            }
+            return null;
+        } catch (error) {
+            console.error('❌ Error checking for duplicate names:', error);
+            return null;
+        }
+    };
+
+    const saveCurrentList = async (forceOverwrite = false) => {
+        const listName = currentList?.name || saveListName || 'New Grocery List';
+        
+        if (!listName.trim()) {
             alert('Please enter a name for your grocery list');
             return;
+        }
+
+        // Check for duplicate names unless we're forcing an overwrite
+        if (!forceOverwrite) {
+            const duplicateList = await checkForDuplicateName(listName.trim());
+            if (duplicateList) {
+                // Found a duplicate - show overwrite dialog
+                setDuplicateListInfo(duplicateList);
+                setShowOverwriteDialog(true);
+                setShowSaveDialog(false); // Hide the save dialog
+                return;
+            }
         }
 
         // Debug: Check if we have any items to save
@@ -801,23 +934,33 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                 return total + (sections[sectionKey]?.items?.length || 0);
             }, 0);
             
-            // Create the list data with item count
-            const listDataWithCount = {
+            // Create the list data - this IS the sections object
+            const listDataToSave = {
                 ...sections,
                 ingredient_count: totalItemCount
             };
             
-            console.log('💾 List data with count:', listDataWithCount);
+            const listName = currentList?.name || saveListName || 'My Grocery List';
             
-            const response = await fetch(`${getApiUrl()}/api/grocery-lists`, {
-                method: 'POST',
+            console.log('💾 List data being saved:', JSON.stringify(listDataToSave, null, 2));
+            console.log('💾 List name:', listName);
+            
+            // If we're overwriting, use PUT to update existing list
+            const isOverwrite = forceOverwrite && duplicateListInfo;
+            const method = isOverwrite ? 'PUT' : 'POST';
+            const url = isOverwrite 
+                ? `${getApiUrl()}/api/grocery-lists/${duplicateListInfo.id}`
+                : `${getApiUrl()}/api/grocery-lists`;
+            
+            const response = await fetch(url, {
+                method: method,
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    list_name: saveListName.trim(),
-                    list_data: listDataWithCount,
+                    list_name: listName.trim(),
+                    list_data: listDataToSave,
                     recipe_ids: currentList?.isFromMealPlan ? mealPlanRecipes : []
                 })
             });
@@ -826,12 +969,18 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                 const data = await response.json();
                 console.log('✅ List saved successfully:', data);
                 setShowSaveDialog(false);
+                setShowOverwriteDialog(false);
                 setSaveListName('');
+                setDuplicateListInfo(null);
+                
+                // Clear unsaved changes flag
+                setHasUnsavedChanges(false);
                 
                 // Update current list to the saved version
+                const listId = isOverwrite ? duplicateListInfo.id : data.list_id;
                 setCurrentList({
-                    id: data.list_id,
-                    name: saveListName.trim(),
+                    id: listId,
+                    name: listName.trim(),
                     isFromMealPlan: false
                 });
                 
@@ -839,6 +988,11 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                 if (typeof loadSavedLists === 'function') {
                     loadSavedLists();
                 }
+                
+                const successMessage = isOverwrite 
+                    ? '✅ Grocery list updated successfully!' 
+                    : '✅ Grocery list saved successfully!';
+                alert(successMessage);
             } else {
                 const errorData = await response.json();
                 console.error('❌ Save error details:', errorData);
@@ -847,6 +1001,25 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
         } catch (error) {
             console.error('❌ Error saving list:', error);
             alert('Failed to save grocery list. Please try again.');
+        }
+    };
+
+    // Handle sharing grocery list with household
+    const handleShare = (household, result) => {
+        console.log('🔗 Shared with household:', household.name);
+        console.log('🔗 Share result:', result);
+        
+        // Show success message
+        const message = `✅ Shared "${currentList?.name}" with ${household.name}!\n${result.invitations_created} member(s) invited.`;
+        alert(message);
+        
+        // Optionally mark this list as shared in UI
+        if (currentList) {
+            setCurrentList({
+                ...currentList,
+                isShared: true,
+                sharedWith: household.name
+            });
         }
     };
 
@@ -1263,6 +1436,120 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
         }
     };
 
+    // Handler for loading a saved list
+    const handleLoadList = (loadedList) => {
+        console.log('📂 Loading saved grocery list:', loadedList);
+        console.log('📂 List data structure:', loadedList.list_data);
+        console.log('📂 List data type:', typeof loadedList.list_data);
+        console.log('📂 List data keys:', loadedList.list_data ? Object.keys(loadedList.list_data) : 'null');
+        
+        // Set the current list
+        setCurrentList({
+            id: loadedList.id,
+            name: loadedList.list_name,
+            data: loadedList.list_data
+        });
+        
+        // Initialize empty sections with proper structure
+        const emptySections = {
+            produce: { name: 'Produce', items: [] },
+            meat_seafood: { name: 'Meat & Seafood', items: [] },
+            pantry: { name: 'Pantry', items: [] },
+            other: { name: 'Other', items: [] }
+        };
+        
+        // Parse and set the grocery list data
+        if (loadedList.list_data && typeof loadedList.list_data === 'object') {
+            console.log('📂 Processing list_data...');
+            
+            // Check if list_data has sections property
+            if (loadedList.list_data.sections && typeof loadedList.list_data.sections === 'object') {
+                console.log('📂 Loading from list_data.sections');
+                console.log('📂 Sections data:', loadedList.list_data.sections);
+                setSections({ ...emptySections, ...loadedList.list_data.sections });
+            } 
+            // Check if list_data IS the sections object (has section keys)
+            else if (loadedList.list_data.produce || loadedList.list_data.meat_seafood || 
+                     loadedList.list_data.dairy || loadedList.list_data.pantry || 
+                     loadedList.list_data.other) {
+                console.log('📂 Loading from list_data directly (is sections)');
+                
+                // Remove non-section fields like ingredient_count
+                const { ingredient_count, ...sectionsData } = loadedList.list_data;
+                console.log('📂 Extracted sections data:', sectionsData);
+                
+                // Convert mobile format to web format if needed
+                const convertedSections = {};
+                Object.keys(sectionsData).forEach(sectionKey => {
+                    const sectionData = sectionsData[sectionKey];
+                    
+                    // Check if this is mobile format (plain array) or web format (object with items)
+                    if (Array.isArray(sectionData)) {
+                        console.log(`📂 Converting mobile format for section ${sectionKey}`);
+                        // Mobile format - convert to web format
+                        convertedSections[sectionKey] = {
+                            name: emptySections[sectionKey]?.name || sectionKey,
+                            items: sectionData.map(item => ({
+                                id: item.id || `item-${Date.now()}-${Math.random()}`,
+                                name: item.name,
+                                checked: item.checked || false,
+                                display_text: item.display_text || item.name
+                            }))
+                        };
+                    } else if (sectionData && typeof sectionData === 'object' && sectionData.items) {
+                        console.log(`📂 Web format detected for section ${sectionKey}`);
+                        // Web format - use as is
+                        convertedSections[sectionKey] = sectionData;
+                    }
+                });
+                
+                console.log('📂 Converted sections:', convertedSections);
+                
+                // Merge with empty structure to ensure all sections exist
+                setSections({ ...emptySections, ...convertedSections });
+            } 
+            // Check if this is mobile simple format (plain array)
+            else if (Array.isArray(loadedList.list_data)) {
+                console.log('📂 Loading mobile simple array format');
+                
+                // Convert mobile array to web sections format
+                const convertedSections = { ...emptySections };
+                convertedSections.other.items = loadedList.list_data.map(item => ({
+                    id: item.id || `item-${Date.now()}-${Math.random()}`,
+                    name: item.name,
+                    checked: item.checked || false,
+                    display_text: item.display_text || item.name
+                }));
+                
+                console.log('📂 Converted mobile array to sections:', convertedSections);
+                setSections(convertedSections);
+            }
+            // Try to interpret as sections anyway
+            else {
+                console.warn('📂 Unknown list_data structure, attempting to parse:', loadedList.list_data);
+                
+                // Try to merge with empty structure
+                setSections({ ...emptySections, ...loadedList.list_data });
+            }
+        } else {
+            console.warn('📂 No valid list_data found, setting empty sections');
+            setSections(emptySections);
+        }
+        
+        // Update selected list
+        setSelectedListId(loadedList.id);
+        
+        // Clear unsaved changes since we just loaded from server
+        setHasUnsavedChanges(false);
+        
+        console.log('📂 Load complete - sections state updated');
+        
+        // Debug: Log final sections state after a small delay to ensure state is updated
+        setTimeout(() => {
+            console.log('📂 Final sections state after load:', sections);
+        }, 100);
+    };
+
     return (
         <div className="grocery-manager-workspace">
             {/* Left Sidebar - List Navigation */}
@@ -1370,24 +1657,59 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
             {/* Main Canvas - Grocery List Workspace */}
             <div className="grocery-main-content">
                 <div className="grocery-workspace-header">
-                    <h2>{currentList ? currentList.name : 'Select or Create a Grocery List'}</h2>
+                    <div className="header-title-section">
+                        {isEditingName ? (
+                            <input
+                                type="text"
+                                className="list-name-input"
+                                value={editedListName}
+                                onChange={(e) => setEditedListName(e.target.value)}
+                                onBlur={() => {
+                                    if (editedListName.trim()) {
+                                        if (currentList) {
+                                            setCurrentList({ ...currentList, name: editedListName });
+                                        }
+                                        setIsEditingName(false);
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        if (editedListName.trim()) {
+                                            if (currentList) {
+                                                setCurrentList({ ...currentList, name: editedListName });
+                                            }
+                                            setIsEditingName(false);
+                                        }
+                                    }
+                                    if (e.key === 'Escape') {
+                                        setEditedListName(currentList?.name || 'New Grocery List');
+                                        setIsEditingName(false);
+                                    }
+                                }}
+                                autoFocus
+                            />
+                        ) : (
+                            <h2 
+                                className="list-name-title"
+                                onClick={() => {
+                                    setEditedListName(currentList?.name || 'My Grocery List');
+                                    setIsEditingName(true);
+                                }}
+                                title="Click to edit list name"
+                            >
+                                {hasUnsavedChanges && <span className="unsaved-dot" title="Unsaved changes">●</span>}
+                                {currentList ? currentList.name : 'My Grocery List'}
+                            </h2>
+                        )}
+                    </div>
                     <div className="workspace-controls">
                         <button 
-                            className="consolidate-btn"
-                            onClick={consolidateIngredients}
-                            title="Combine similar ingredients and quantities"
+                            className="combine-btn-disabled"
+                            disabled
+                            title="Combine similar items (coming soon)"
                         >
-                            🧠 Smart Combine
+                            🔗 Combine
                         </button>
-                        {lastCombination && (
-                            <button 
-                                className="undo-btn"
-                                onClick={undoLastCombination}
-                                title="Undo last combination"
-                            >
-                                ⟲ Undo
-                            </button>
-                        )}
                         {getHiddenCount() > 0 && (
                             <button 
                                 className={`show-hidden-btn ${showHidden ? 'active' : ''}`}
@@ -1399,11 +1721,29 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                         )}
                         <button className="export-btn">📱 Export</button>
                         <button 
-                            className="save-btn"
-                            onClick={() => setShowSaveDialog(true)}
-                            title="Save current grocery list"
+                            className="load-btn"
+                            onClick={() => setShowLoadPanel(true)}
+                            title="Load a saved grocery list"
                         >
-                            💾 Save List
+                            📂 Load
+                        </button>
+                        <button 
+                            className={`save-btn ${hasUnsavedChanges ? 'has-changes' : ''}`}
+                            onClick={() => {
+                                setSaveListName(currentList?.name || 'My Grocery List');
+                                saveCurrentList();
+                            }}
+                            title={hasUnsavedChanges ? "Save changes to PostgreSQL" : "No changes to save"}
+                        >
+                            💾 {hasUnsavedChanges ? 'Save' : 'Saved'}
+                        </button>
+                        <button 
+                            className="share-btn"
+                            onClick={() => setShowShareModal(true)}
+                            disabled={!currentList || !currentList.id}
+                            title={currentList?.id ? "Share this list with a household" : "Save list first to share"}
+                        >
+                            🔗 Share
                         </button>
                     </div>
                 </div>
@@ -1415,54 +1755,157 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                         onDragOver={handleDragOver}
                         onDragEnd={handleDragEnd}
                     >
-                        <SortableContext items={sectionOrder.map(id => `section-${id}`)} strategy={horizontalListSortingStrategy}>
-                            <div className="grocery-columns">
-                                {sectionOrder.map((sectionKey) => (
-                                    <DraggableSection 
-                                        key={sectionKey} 
-                                        sectionKey={sectionKey}
-                                        section={sections[sectionKey]}
-                                        addCustomItem={addCustomItem}
-                                        removeItem={removeItem}
-                                        updateItem={updateItem}
-                                        isItemInPantry={isItemInPantry}
-                                        hideItem={hideItem}
-                                        unhideItem={unhideItem}
-                                        isItemHidden={isItemHidden}
-                                        getVisibleItems={getVisibleItems}
-                                        showHidden={showHidden}
-                                        getPantryMatchInfo={getPantryMatchInfo}
-                                        draggedItem={draggedItem}
-                                        combinationPreview={combinationPreview}
-                                        canCombineItems={canCombineItems}
-                                    />
-                                ))}
-                            </div>
-                        </SortableContext>
+                        {/* Single unified list - no categories */}
+                        <div className="unified-grocery-list">
+                            {/* Collect all items from all sections into one list */}
+                            {(() => {
+                                const allItems = [];
+                                console.log('🔍 DEBUG: Building allItems list...');
+                                console.log('🔍 DEBUG: sectionOrder:', sectionOrder);
+                                console.log('🔍 DEBUG: sections:', sections);
+                                
+                                sectionOrder.forEach((sectionKey) => {
+                                    const visibleItems = getVisibleItems(sectionKey);
+                                    console.log(`🔍 DEBUG: Section ${sectionKey} has ${visibleItems.length} visible items:`, visibleItems);
+                                    visibleItems.forEach(item => {
+                                        allItems.push({ ...item, sectionKey });
+                                    });
+                                });
+                                
+                                console.log('🔍 DEBUG: Final allItems:', allItems);
+                                
+                                return (
+                                    <SortableContext items={allItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
+                                        <div className="unified-items-container">
+                                            {allItems.length === 0 && (
+                                                <div className="empty-list-hint">
+                                                    <p>✨ Click below to add your first item</p>
+                                                </div>
+                                            )}
+                                            
+                                            {allItems.map(item => (
+                                                <DraggableItem 
+                                                    key={item.id}
+                                                    item={item}
+                                                    sectionKey={item.sectionKey}
+                                                    removeItem={removeItem}
+                                                    updateItem={updateItem}
+                                                    isItemInPantry={isItemInPantry}
+                                                    hideItem={hideItem}
+                                                    unhideItem={unhideItem}
+                                                    isItemHidden={isItemHidden}
+                                                    getPantryMatchInfo={getPantryMatchInfo}
+                                                    draggedItem={draggedItem}
+                                                    combinationPreview={combinationPreview}
+                                                    canCombineItems={canCombineItems}
+                                                />
+                                            ))}
+                                            
+                                            {/* Notion-style inline adding - ALWAYS VISIBLE */}
+                                            <div className="inline-add-container">
+                                                {!isAddingInline ? (
+                                                    <button 
+                                                        className="inline-add-trigger"
+                                                        onClick={() => setIsAddingInline(true)}
+                                                    >
+                                                        <span className="plus-icon">+</span>
+                                                        <span className="add-text">Add item...</span>
+                                                    </button>
+                                                ) : (
+                                                    <div className="inline-add-input-container">
+                                                        <span className="input-prefix">•</span>
+                                                        <input
+                                                            type="text"
+                                                            className="inline-add-input"
+                                                            value={inlineItemName}
+                                                            onChange={(e) => setInlineItemName(e.target.value)}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    handleInlineAdd();
+                                                                } else if (e.key === 'Escape') {
+                                                                    setInlineItemName('');
+                                                                    setIsAddingInline(false);
+                                                                }
+                                                            }}
+                                                            onBlur={() => {
+                                                                if (!inlineItemName.trim()) {
+                                                                    setIsAddingInline(false);
+                                                                }
+                                                            }}
+                                                            placeholder="Type item name..."
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </SortableContext>
+                                );
+                            })()}
+                        </div>
                     </DndContext>
                 ) : (
-                    <div className="empty-workspace">
-                        <div className="empty-workspace-content">
-                            <h3>Welcome to Your Grocery Manager</h3>
-                            <p>Create a new list or select an existing one to get started</p>
+                    <DndContext 
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragOver={handleDragOver}
+                        onDragEnd={handleDragEnd}
+                    >
+                        {/* Empty list - show inline adding */}
+                        <div className="unified-grocery-list empty-list">
+                            <div className="empty-list-message">
+                                <p>✨ Start adding items to your grocery list</p>
+                            </div>
                             
-                            {mealPlanRecipes.length > 0 && (
-                                <button 
-                                    className="generate-from-meal-plan-btn"
-                                    onClick={generateListFromMealPlan}
+                            {/* Notion-style inline adding for empty list */}
+                            <div className="unified-items-container">
+                                <div 
+                                    className={`inline-add-container ${showInlineAdd ? 'show' : ''}`}
+                                    onMouseEnter={() => setShowInlineAdd(true)}
+                                    onMouseLeave={() => {
+                                        if (!isAddingInline) setShowInlineAdd(false);
+                                    }}
                                 >
-                                    📋 Generate from Meal Plan ({mealPlanRecipes.length} recipes)
-                                </button>
-                            )}
-                            
-                            <button 
-                                className="create-empty-list-btn"
-                                onClick={createNewList}
-                            >
-                                ➕ Create Empty List
-                            </button>
+                                    {!isAddingInline ? (
+                                        <button 
+                                            className="inline-add-trigger"
+                                            onClick={() => setIsAddingInline(true)}
+                                        >
+                                            <span className="plus-icon">+</span>
+                                            <span className="add-text">Add item...</span>
+                                        </button>
+                                    ) : (
+                                        <div className="inline-add-input-container">
+                                            <span className="input-prefix">•</span>
+                                            <input
+                                                type="text"
+                                                className="inline-add-input"
+                                                value={inlineItemName}
+                                                onChange={(e) => setInlineItemName(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        handleInlineAdd();
+                                                    } else if (e.key === 'Escape') {
+                                                        setInlineItemName('');
+                                                        setIsAddingInline(false);
+                                                        setShowInlineAdd(false);
+                                                    }
+                                                }}
+                                                onBlur={() => {
+                                                    if (!inlineItemName.trim()) {
+                                                        setIsAddingInline(false);
+                                                        setShowInlineAdd(false);
+                                                    }
+                                                }}
+                                                placeholder="Type item name..."
+                                                autoFocus
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    </DndContext>
                 )}
             </div>
             
@@ -1501,6 +1944,52 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                     </div>
                 </div>
             )}
+            
+            {/* Overwrite Confirmation Dialog */}
+            {showOverwriteDialog && duplicateListInfo && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3>⚠️ List Name Already Exists</h3>
+                        <p>A grocery list named <strong>"{duplicateListInfo.list_name}"</strong> already exists.</p>
+                        <p>Would you like to overwrite it with your current list?</p>
+                        <div className="modal-buttons">
+                            <button 
+                                className="cancel-btn" 
+                                onClick={() => {
+                                    setShowOverwriteDialog(false);
+                                    setDuplicateListInfo(null);
+                                    setShowSaveDialog(true);
+                                }}
+                            >
+                                Cancel & Change Name
+                            </button>
+                            <button 
+                                className="danger-btn" 
+                                onClick={() => saveCurrentList(true)}
+                            >
+                                🔄 Overwrite Existing
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Load Panel - slides in from right */}
+            <LoadGroceryListPanel 
+                isOpen={showLoadPanel}
+                onClose={() => setShowLoadPanel(false)}
+                onLoadList={handleLoadList}
+            />
+
+            {/* Share Resource Modal */}
+            <ShareResourceModal
+                isOpen={showShareModal}
+                onClose={() => setShowShareModal(false)}
+                resourceType="grocery_list"
+                resourceId={currentList?.id}
+                resourceName={currentList?.name}
+                onShare={handleShare}
+            />
         </div>
     );
 };
@@ -1712,6 +2201,16 @@ const DraggableItem = ({
             style={style} 
             className={`grocery-item-card ${isDragging ? 'dragging' : ''} ${isEditing ? 'editing' : ''} ${item.isConsolidated ? 'consolidated' : ''} ${inPantry ? 'in-pantry' : ''} ${isHidden ? 'hidden-item' : ''} ${isCombinable ? 'combinable' : ''} ${isCombinationTarget ? 'combination-target' : ''}`}
         >
+            {/* Drag handle on the left */}
+            <div 
+                className="drag-handle"
+                {...attributes} 
+                {...listeners}
+                title="Drag to reorder"
+            >
+                ⋮⋮
+            </div>
+            
             <div className="item-content">
                 {isEditing ? (
                     <input
@@ -1731,21 +2230,6 @@ const DraggableItem = ({
                         title="Click to edit"
                     >
                         {item.name}
-                    </span>
-                )}
-                {item.recipes && item.recipes.length > 0 && (
-                    <span className="item-recipes">
-                        from: {item.recipes.join(', ')}
-                        {item.isConsolidated && (
-                            <span className="consolidated-badge">
-                                🧠 Combined {item.originalItems} items
-                            </span>
-                        )}
-                    </span>
-                )}
-                {item.isConsolidated && !item.recipes?.length && (
-                    <span className="item-recipes consolidated-info">
-                        🧠 Combined from {item.originalItems} items
                     </span>
                 )}
                 
@@ -1787,24 +2271,15 @@ const DraggableItem = ({
                     </div>
                 )}
             </div>
-            <div className="item-actions">
-                {item.isCustom && (
-                    <button 
-                        className="remove-btn"
-                        onClick={() => removeItem(sectionKey, item.id)}
-                    >
-                        🗑️
-                    </button>
-                )}
-                <div 
-                    className="drag-handle"
-                    {...attributes} 
-                    {...listeners}
-                    title="Drag to move item"
-                >
-                    ⋮⋮
-                </div>
-            </div>
+            
+            {/* Trash button on the right */}
+            <button 
+                className="remove-btn"
+                onClick={() => removeItem(sectionKey, item.id)}
+                title="Remove from list"
+            >
+                🗑️
+            </button>
         </div>
     );
 };

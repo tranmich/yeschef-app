@@ -158,7 +158,13 @@ const RecipeListView = ({
       <div className="recipe-list-header hungie-bg-paper-dark hungie-border hungie-rounded-md hungie-p-4 hungie-mb-4">
         <div className="category-title">
           <h2 className="hungie-text-charcoal hungie-font-semibold">{getCategoryDisplayName(selectedCategory)}</h2>
-          <span className="recipe-count hungie-text-sage">({filteredAndSortedRecipes.length})</span>
+          <span className="recipe-count hungie-text-sage">
+            {searchTerm ? (
+              <>({filteredAndSortedRecipes.length} of {recipes?.length || 0})</>
+            ) : (
+              <>({filteredAndSortedRecipes.length} {filteredAndSortedRecipes.length === 1 ? 'recipe' : 'recipes'})</>
+            )}
+          </span>
         </div>
 
         <div className="view-controls">
@@ -482,119 +488,63 @@ const RecipeCard = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`recipe-card hungie-recipe-card ${recipeTheme}-theme ${isDragging ? 'dragging' : ''} ${isHovered ? 'hovered' : ''} ${isChild ? 'child-item' : ''}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        setShowMenu(false);
-      }}
+      className={`recipe-card hungie-recipe-card ${recipeTheme}-theme ${isDragging ? 'dragging' : ''} ${isChild ? 'child-item' : ''}`}
       onClick={(e) => onRecipeClick(recipe)}
       {...listeners}
       {...attributes}
     >
-      <div className="recipe-card-header">
-        <div className="recipe-title-container">
+      <div className="recipe-card-content">
+        {/* Left side - Title and tags */}
+        <div className="recipe-info-left">
           {isChild && <span className="tree-indent">    </span>}
-          <span className="recipe-title hungie-recipe-title">{recipe.title}</span>
-        </div>
-        <div className="recipe-actions">
-          <button 
-            className="action-btn edit-btn hungie-btn hungie-btn-secondary"
-            onClick={(e) => handleMenuAction('edit', e)}
-            title="Edit"
-          >
-            ✎
-          </button>
-          <div className="menu-container">
-            <button 
-              className="action-btn menu-btn hungie-btn hungie-btn-secondary"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMenu(!showMenu);
-              }}
-              title="More"
-            >
-              ⋯
-            </button>
-            {showMenu && (
-              <div className="dropdown-menu">
-                <button onClick={(e) => handleMenuAction('edit', e)}>
-                  Edit
-                </button>
-                <button onClick={(e) => handleMenuAction('move', e)}>
-                  Move
-                </button>
-                <button onClick={(e) => handleMenuAction('remove', e)}>
-                  Remove
-                </button>
-              </div>
-            )}
+          <div className="recipe-title-section">
+            <span className="recipe-title hungie-recipe-title">{recipe.title}</span>
+            <div className="recipe-tags">
+              {recipe.meal_role && (
+                <span className="recipe-tag meal-tag">{recipe.meal_role}</span>
+              )}
+              {recipe.is_one_pot && (
+                <span className="recipe-tag one-pot-tag">One-Pot</span>
+              )}
+              {complexity && (
+                <span className="recipe-tag complexity-tag" style={{ color: complexity.color }}>
+                  {complexity.text}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Recipe info expansion below the card */}
-      {isHovered && (
-        <div className="hungie-bg-paper-dark hungie-border hungie-rounded-md hungie-p-4 hungie-text-charcoal"
-          style={{
-            marginTop: '4px',
-            fontSize: '12px',
-            lineHeight: '1.4',
-            animation: 'fadeIn 200ms ease-out'
-          }}
-        >
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
-            <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>⏱️ Time:</span>
-            <span className="hungie-text-charcoal-light">{formatRecipeText.formatTime(recipe.cooking_time || recipe.time_min) || 'Not set'}</span>
-          </div>
-          
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
-            <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>👥 Serves:</span>
-            <span className="hungie-text-charcoal-light">{formatRecipeText.formatServings(recipe.servings) || 'Not set'}</span>
-          </div>
-          
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
-            <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>📊 Level:</span>
-            <span className="hungie-text-charcoal-light">{formatRecipeText.formatDifficulty(recipe.difficulty) || 'Not set'}</span>
-          </div>
-          
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
-            <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>⭐ Rating:</span>
-            <span className="hungie-text-charcoal-light">
-              {recipe.rating ? `★ ${recipe.rating}/5` : 'No rating'}
-            </span>
-          </div>
-          
-          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px'}}>
-            <span className="hungie-font-semibold hungie-text-sage" style={{minWidth: '50px'}}>📊 Level:</span>
-            <span style={{ color: complexity.color, fontWeight: '500' }}>
-              {complexity.text}
-            </span>
-          </div>
-
-          <div style={{display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap'}}>
-            {recipe.meal_role && (
-              <>
-                <span style={{fontWeight: '500', color: '#374151', minWidth: '35px'}}>Type:</span>
-                <span style={{color: '#6b7280'}}>{recipe.meal_role}</span>
-              </>
+        {/* Right side - Quick info and actions */}
+        <div className="recipe-info-right">
+          <div className="recipe-quick-info">
+            {(recipe.cooking_time || recipe.time_min) && (
+              <span className="info-item" title="Prep time">
+                ⏱️ {formatPrepTime(recipe.time_min || recipe.cooking_time)}
+              </span>
             )}
-            
-            {recipe.is_one_pot && (
-              <span style={{
-                background: '#22c55e', 
-                color: 'white', 
-                padding: '1px 4px', 
-                borderRadius: '2px', 
-                fontSize: '7px',
-                marginLeft: 'auto'
-              }}>
-                One-Pot
+            {recipe.servings && (
+              <span className="info-item" title="Servings">
+                👥 {recipe.servings}
+              </span>
+            )}
+            {recipe.rating && (
+              <span className="info-item" title="Rating">
+                ⭐ {recipe.rating}/5
               </span>
             )}
           </div>
+          <div className="recipe-actions">
+            <button 
+              className="action-btn edit-btn"
+              onClick={(e) => handleMenuAction('edit', e)}
+              title="Edit recipe"
+            >
+              ✎
+            </button>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

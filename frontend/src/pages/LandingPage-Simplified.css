@@ -1,0 +1,315 @@
+/* ============================================
+   SIMPLIFIED LANDING PAGE STYLES
+   Add these to your existing LandingPage.css
+   ============================================ */
+
+/* Hero Section - Centered Email Capture */
+.hero-content-centered {
+  max-width: 700px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 100px 20px 80px;
+}
+
+.hero-email-form {
+  margin: 40px 0 20px;
+}
+
+.email-input-group {
+  display: flex;
+  gap: 12px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.hero-email-input {
+  flex: 1;
+  padding: 16px 20px;
+  font-size: 16px;
+  border: 2px solid #AAC6AD;
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.hero-email-input:focus {
+  border-color: #EFFD5F;
+  box-shadow: 0 0 0 3px rgba(239, 253, 95, 0.1);
+}
+
+.hero-email-btn {
+  padding: 16px 32px;
+  background: #EFFD5F;
+  color: #1a1a1a;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.hero-email-btn:hover {
+  background: #dde84f;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 253, 95, 0.3);
+}
+
+.hero-email-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.hero-success-message {
+  margin-top: 20px;
+  padding: 16px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* Simple Value Proposition Section */
+.value-section {
+  padding: 80px 20px;
+  background: #f9f9f9;
+}
+
+.section-container-centered {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.value-headline {
+  font-size: 42px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #1a1a1a;
+}
+
+.value-description {
+  font-size: 20px;
+  line-height: 1.6;
+  color: #666;
+  margin-bottom: 60px;
+}
+
+.value-description strong {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.value-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 40px;
+  margin-top: 60px;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: #AAC6AD;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 16px;
+  color: #666;
+}
+
+/* Simplified Features Grid */
+.features-section-simple {
+  padding: 80px 20px;
+  background: white;
+}
+
+.features-simple-headline {
+  text-align: center;
+  font-size: 42px;
+  font-weight: 700;
+  margin-bottom: 60px;
+  color: #1a1a1a;
+}
+
+.features-simple-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.feature-simple-card {
+  text-align: center;
+  padding: 40px 20px;
+  border-radius: 12px;
+  transition: all 0.3s;
+}
+
+.feature-simple-card:hover {
+  transform: translateY(-5px);
+  background: #f9f9f9;
+}
+
+.feature-simple-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.feature-simple-card h3 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #1a1a1a;
+}
+
+.feature-simple-card p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #666;
+}
+
+/* Simple Testimonials */
+.testimonials-section-simple {
+  padding: 80px 20px;
+  background: #f9f9f9;
+}
+
+.testimonials-grid-simple {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  max-width: 1200px;
+  margin: 40px auto 0;
+}
+
+.testimonial-card-simple {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.testimonial-card-simple .testimonial-text {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 16px;
+  font-style: italic;
+}
+
+.testimonial-card-simple .testimonial-author {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Final CTA - Simplified */
+.final-cta-section-simple {
+  padding: 100px 20px;
+  background: linear-gradient(135deg, #AAC6AD 0%, #EFFD5F 100%);
+  text-align: center;
+}
+
+.cta-content-centered {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.final-cta-headline-simple {
+  font-size: 48px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 20px;
+}
+
+.final-cta-subheadline-simple {
+  font-size: 20px;
+  color: #333;
+  margin-bottom: 40px;
+}
+
+.final-email-form {
+  margin: 40px 0 20px;
+}
+
+.final-email-input {
+  flex: 1;
+  padding: 18px 24px;
+  font-size: 18px;
+  border: 2px solid white;
+  border-radius: 10px;
+  outline: none;
+  background: white;
+}
+
+.final-email-btn {
+  padding: 18px 40px;
+  background: #1a1a1a;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.final-email-btn:hover {
+  background: #333;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.final-success-message {
+  margin-top: 20px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #2e7d32;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.final-cta-subtext {
+  margin-top: 20px;
+  font-size: 14px;
+  color: #333;
+  opacity: 0.8;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .email-input-group {
+    flex-direction: column;
+  }
+  
+  .hero-email-btn,
+  .final-email-btn {
+    width: 100%;
+  }
+  
+  .value-headline,
+  .features-simple-headline,
+  .final-cta-headline-simple {
+    font-size: 32px;
+  }
+  
+  .value-description,
+  .final-cta-subheadline-simple {
+    font-size: 18px;
+  }
+  
+  .features-simple-grid,
+  .testimonials-grid-simple {
+    grid-template-columns: 1fr;
+  }
+}

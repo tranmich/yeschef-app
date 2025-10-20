@@ -49,21 +49,21 @@ export const useDragAndDrop = (onRecipeDropped, onRecipeAddedToContainer, onReci
                     console.log('✅ Recipe added to container');
                 }
             } else if (draggedItemData?.type === 'planned-recipe') {
-                // Moving an existing recipe from one meal slot to another
-                const [targetDay, targetMealType] = dropZoneId.split('-');
-                const { sourceDay, sourceMealType, sourceIndex } = draggedItemData;
+                // Moving an existing recipe from one day to another (simplified - no meal types)
+                const targetDay = dropZoneId;  // Just the day ID now
+                const { sourceDay, sourceIndex } = draggedItemData;
 
-                if (onRecipeMoved && (sourceDay !== targetDay || sourceMealType !== targetMealType)) {
-                    onRecipeMoved(sourceDay, sourceMealType, sourceIndex, targetDay, targetMealType, draggedRecipe);
-                    console.log('✅ Recipe moved between meal slots');
+                if (onRecipeMoved && sourceDay !== targetDay) {
+                    onRecipeMoved(sourceDay, sourceIndex, targetDay, draggedRecipe);
+                    console.log('✅ Recipe moved between days');
                 }
             } else {
-                // Adding a new recipe to meal plan from chat/container
-                const [day, mealType] = dropZoneId.split('-');
+                // Adding a new recipe to meal plan from chat/container (simplified - just day)
+                const day = dropZoneId;  // Just the day ID
 
                 // Call the meal plan callback function
                 if (onRecipeDropped) {
-                    const success = onRecipeDropped(day, mealType, draggedRecipe);
+                    const success = onRecipeDropped(day, draggedRecipe);
                     if (success) {
                         console.log('✅ Recipe successfully added to meal plan');
                     } else {
@@ -87,18 +87,16 @@ export const useDragAndDrop = (onRecipeDropped, onRecipeAddedToContainer, onReci
         setIsDragging(false);
     };
 
-    // Drag over handler for visual feedback
+    // Drag over handler for visual feedback (simplified)
     const handleDragOver = (event) => {
         const { over } = event;
 
         if (over && draggedRecipe) {
             // Add visual feedback for valid drop zones
-            // This can be used to highlight drop zones
-            const dropZoneId = over.id;
-            const [day, mealType] = dropZoneId.split('-');
+            const dropZoneId = over.id;  // Just the day ID
 
             // You can emit events or update state for visual feedback here
-            console.log('🎯 Dragging over:', { day, mealType });
+            console.log('🎯 Dragging over day:', dropZoneId);
         }
     };
 

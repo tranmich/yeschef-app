@@ -2,15 +2,25 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './ImportRecipeModal.css';
 
-const ImportRecipeModal = ({ isOpen, onClose, onImport }) => {
+const ImportRecipeModal = ({ isOpen, onClose, onImport, isInlineView = false }) => {
   const { user, token } = useAuth();
-  const [importType, setImportType] = useState('text');
+  const [importType, setImportType] = useState('url'); // Changed default to 'url' (Web first)
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [editableRecipe, setEditableRecipe] = useState(null);
+  
+  // Photo/OCR state
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
 
   // Sample recipe text for demonstration
   const sampleRecipe = `Spaghetti Carbonara
@@ -32,6 +42,16 @@ Instructions:
 6. Season with pepper and serve`;
 
   const handleImport = async () => {
+    if (importType === 'photo') {
+      await handlePhotoImport();
+      return;
+    }
+    
+    if (importType === 'voice') {
+      await handleVoiceImport();
+      return;
+    }
+    
     if (!inputValue.trim()) {
       setError('Please enter recipe text or URL');
       return;
@@ -153,13 +173,492 @@ Instructions:
     // No need to reload page - recipe already added to list
   };
 
+  // Photo/OCR handlers
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setSelectedImages(files);
+    
+    // Create preview URLs
+    const previews = files.map(file => URL.createObjectURL(file));
+    setImagePreviews(previews);
+    setError(null);
+  };
+
+  const handleRemoveImage = (index) => {
+    const newImages = selectedImages.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    
+    // Cleanup old preview URL
+    URL.revokeObjectURL(imagePreviews[index]);
+    
+    setSelectedImages(newImages);
+    setImagePreviews(newPreviews);
+  };
+
+  const handlePhotoImport = async () => {
+    if (selectedImages.length === 0) {
+      setError('Please select at least one image');
+      return;
+    }
+
+    if (!user || !token) {
+      setError('You must be logged in to import recipes');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      
+      // Add images to form data
+      selectedImages.forEach((image, index) => {
+        formData.append(`image_${index}`, image);
+      });
+
+      // Add metadata
+      formData.append('metadata', JSON.stringify({
+        user_id: user.id,
+        image_count: selectedImages.length
+      }));
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/recipes/import/ocr`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResult(data);
+        setEditableRecipe({
+          title: data.recipe_data.title || '',
+          description: data.recipe_data.description || '',
+          ingredients: data.recipe_data.ingredients || '',
+          instructions: data.recipe_data.instructions || '',
+          servings: data.recipe_data.servings || '',
+          cook_time: data.recipe_data.cook_time || '',
+          prep_time: data.recipe_data.prep_time || '',
+          category: data.recipe_data.category || ''
+        });
+        setShowPreview(true);
+      } else {
+        setError(data.error || 'OCR import failed');
+      }
+    } catch (err) {
+      setError(`Network error: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Voice recording handlers
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+      setRecordingTime(0);
+      setError(null);
+
+      // Start timer
+      const timer = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+
+      // Store timer ID on recorder for cleanup
+      recorder.timerId = timer;
+    } catch (err) {
+      setError('Microphone access denied. Please enable microphone permissions.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      clearInterval(mediaRecorder.timerId);
+      setIsRecording(false);
+    }
+  };
+
+  const handleVoiceImport = async () => {
+    if (!audioBlob) {
+      setError('Please record audio first');
+      return;
+    }
+
+    if (!user || !token) {
+      setError('You must be logged in to import recipes');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      
+      // Add audio as single segment
+      formData.append('segment_0', audioBlob, 'recording.webm');
+
+      // Add metadata
+      formData.append('metadata', JSON.stringify({
+        session_id: `web_${Date.now()}`,
+        total_duration_ms: recordingTime * 1000,
+        segments: [{
+          label: 'Full Recording',
+          duration_ms: recordingTime * 1000
+        }],
+        language_config: {
+          whisperCode: 'en',
+          culture: 'English',
+          displayName: 'English'
+        }
+      }));
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/recipes/voice/session/process`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setResult(data);
+        setEditableRecipe({
+          title: data.recipe_data?.title || '',
+          description: data.recipe_data?.description || '',
+          ingredients: data.recipe_data?.ingredients || '',
+          instructions: data.recipe_data?.instructions || '',
+          servings: data.recipe_data?.servings || '',
+          cook_time: data.recipe_data?.cook_time || '',
+          prep_time: data.recipe_data?.prep_time || '',
+          category: data.recipe_data?.category || ''
+        });
+        setShowPreview(true);
+      } else {
+        setError(data.error || 'Voice import failed');
+      }
+    } catch (err) {
+      setError(`Network error: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatRecordingTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Helper function to render the photo import section
+  const renderPhotoImport = () => {
+    return (
+      <div className="photo-import-section">
+        <div className="photo-upload-area">
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleImageSelect}
+            className="photo-input"
+            id="photo-input"
+          />
+          <label htmlFor="photo-input" className="photo-upload-label">
+            📷 Click to select photos or drag & drop
+          </label>
+        </div>
+
+        {imagePreviews.length > 0 && (
+          <div className="image-previews">
+            {imagePreviews.map((preview, index) => (
+              <div key={index} className="image-preview">
+                <img src={preview} alt={`Preview ${index + 1}`} />
+                <button
+                  onClick={() => handleRemoveImage(index)}
+                  className="remove-image-btn"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="photo-help">
+          <p>📸 Take photos of recipe pages, cookbooks, or handwritten recipes</p>
+          <p>🔍 YesChef will extract text and create a structured recipe</p>
+        </div>
+      </div>
+    );
+  };
+
+  // Helper function to render the voice import section
+  const renderVoiceImport = () => {
+    return (
+      <div className="voice-import-section">
+        <div className="voice-controls">
+          <button
+            onClick={isRecording ? stopRecording : startRecording}
+            className={`voice-button ${isRecording ? 'recording' : ''}`}
+          >
+            {isRecording ? '⏹️ Stop Recording' : '🎤 Start Recording'}
+          </button>
+
+          {isRecording && (
+            <div className="recording-indicator">
+              <span className="recording-time">
+                🔴 {formatRecordingTime(recordingTime)}
+              </span>
+            </div>
+          )}
+
+          {audioBlob && !isRecording && (
+            <div className="audio-preview">
+              <audio controls src={URL.createObjectURL(audioBlob)} />
+            </div>
+          )}
+        </div>
+
+        <div className="voice-help">
+          <p>🎤 Record yourself reading a recipe out loud</p>
+          <p>🔊 YesChef will transcribe and structure your recipe</p>
+        </div>
+      </div>
+    );
+  };
+
+  // Helper function to render import content
+  const renderImportContent = () => {
+    return (
+      <>
+        {/* Input Area */}
+        <div className="input-section">
+          {importType === 'url' ? (
+            <div>
+              <label htmlFor="recipe-url">Recipe Website URL:</label>
+              <input
+                id="recipe-url"
+                type="url"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="https://example.com/recipe"
+                className="recipe-url-input"
+              />
+              <div className="url-help">
+                <p>✨ Paste a recipe URL from your favorite cooking site</p>
+                <p>🍳 Works with BonAppetit, Food Network, AllRecipes, and many more!</p>
+              </div>
+            </div>
+          ) : importType === 'text' ? (
+            <div>
+              <label htmlFor="recipe-text">Paste Recipe Text:</label>
+              <textarea
+                id="recipe-text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={sampleRecipe}
+                className="recipe-text-input"
+                rows={15}
+              />
+              <div className="text-help">
+                <p>📋 Paste recipe text from any source</p>
+                <p>✨ YesChef will intelligently parse ingredients and instructions</p>
+              </div>
+            </div>
+          ) : importType === 'photo' ? (
+            renderPhotoImport()
+          ) : importType === 'voice' ? (
+            renderVoiceImport()
+          ) : null}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="action-buttons">
+          <button
+            onClick={handleImport}
+            disabled={isLoading || (!inputValue && importType !== 'photo' && importType !== 'voice')}
+            className="import-button"
+          >
+            {isLoading ? '🔄 Processing...' : '🍽️ Import Recipe'}
+          </button>
+        </div>
+
+        {error && (
+          <div className="error-message">
+            <p>❌ {error}</p>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  // Helper function to render results
+  const renderResult = () => {
+    return (
+      <div className="result-section">
+        {result && (
+          <>
+            <div className="success-message">
+              <p>✅ Recipe imported successfully!</p>
+            </div>
+            
+            {result.recipe_data && (
+              <div className="recipe-preview-section">
+                <h3>📖 Recipe Preview</h3>
+                <div className="recipe-summary">
+                  <h4>{result.recipe_data.title}</h4>
+                  {result.recipe_data.description && (
+                    <p className="recipe-description">{result.recipe_data.description}</p>
+                  )}
+                  
+                  <div className="recipe-meta-grid">
+                    {result.recipe_data.prep_time && (
+                      <div className="meta-item">
+                        <span className="meta-label">⏱️ Prep:</span>
+                        <span className="meta-value">{result.recipe_data.prep_time}</span>
+                      </div>
+                    )}
+                    {result.recipe_data.cook_time && (
+                      <div className="meta-item">
+                        <span className="meta-label">🔥 Cook:</span>
+                        <span className="meta-value">{result.recipe_data.cook_time}</span>
+                      </div>
+                    )}
+                    {result.recipe_data.servings && (
+                      <div className="meta-item">
+                        <span className="meta-label">🍽️ Serves:</span>
+                        <span className="meta-value">{result.recipe_data.servings}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="action-buttons">
+                  <button
+                    onClick={() => {
+                      onImport(result);
+                      resetForm();
+                    }}
+                    className="confirm-button"
+                  >
+                    ✅ Add to My Recipes
+                  </button>
+                  <button
+                    onClick={() => setShowPreview(true)}
+                    className="preview-button"
+                  >
+                    👁️ Full Preview
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const resetForm = () => {
+    setInputValue('');
+    setResult(null);
+    setError(null);
+    setSelectedImages([]);
+    setImagePreviews([]);
+    setAudioBlob(null);
+    setRecordingTime(0);
+    setIsRecording(false);
+  };
+
   if (!isOpen) return null;
 
+  // Render inline view for main app integration
+  if (isInlineView) {
+    return (
+      <div className="import-modal-inline">
+        <div className="modal-header-inline">
+          <h2>➕ Add Recipe</h2>
+          <button className="close-button-inline" onClick={onClose}>
+            ← Back to Recipes
+          </button>
+        </div>
+
+        <div className="modal-content-inline">
+          {!result ? (
+            <>
+              {/* Import Type Selector - 4 Tabs: Web, Manual, Photo, Voice */}
+              <div className="import-type-selector">
+                <button
+                  className={`type-button ${importType === 'url' ? 'active' : ''}`}
+                  onClick={() => setImportType('url')}
+                >
+                  🌐 From Web
+                </button>
+                <button
+                  className={`type-button ${importType === 'text' ? 'active' : ''}`}
+                  onClick={() => setImportType('text')}
+                >
+                  ✍️ Manual Entry
+                </button>
+                <button
+                  className={`type-button ${importType === 'photo' ? 'active' : ''}`}
+                  onClick={() => setImportType('photo')}
+                >
+                  📸 From Photo
+                </button>
+                <button
+                  className={`type-button ${importType === 'voice' ? 'active' : ''}`}
+                  onClick={() => setImportType('voice')}
+                >
+                  🎤 Voice Recipe
+                </button>
+              </div>
+
+              {/* Rest of the content will be rendered here */}
+              {renderImportContent()}
+            </>
+          ) : (
+            renderResult()
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Original modal rendering for other uses
   return (
     <div className="modal-overlay" onClick={handleClose}>
       <div className="import-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>📥 Import Recipe</h2>
+          <h2>➕ Add Recipe</h2>
           <button className="close-button" onClick={handleClose}>
             ×
           </button>
@@ -168,27 +667,55 @@ Instructions:
         <div className="modal-content">
           {!result ? (
             <>
-              {/* Import Type Selector */}
+              {/* Import Type Selector - 4 Tabs: Web, Manual, Photo, Voice */}
               <div className="import-type-selector">
-                <button
-                  className={`type-button ${importType === 'text' ? 'active' : ''}`}
-                  onClick={() => setImportType('text')}
-                >
-                  📝 Text/Paste
-                </button>
                 <button
                   className={`type-button ${importType === 'url' ? 'active' : ''}`}
                   onClick={() => setImportType('url')}
                 >
-                  🌐 Website URL
+                  🌐 From Web
+                </button>
+                <button
+                  className={`type-button ${importType === 'text' ? 'active' : ''}`}
+                  onClick={() => setImportType('text')}
+                >
+                  ✍️ Manual Entry
+                </button>
+                <button
+                  className={`type-button ${importType === 'photo' ? 'active' : ''}`}
+                  onClick={() => setImportType('photo')}
+                >
+                  📸 Photo/Scan
+                </button>
+                <button
+                  className={`type-button ${importType === 'voice' ? 'active' : ''}`}
+                  onClick={() => setImportType('voice')}
+                >
+                  🎤 Voice
                 </button>
               </div>
 
               {/* Input Area */}
               <div className="input-section">
-                {importType === 'text' ? (
+                {importType === 'url' ? (
                   <div>
-                    <label htmlFor="recipe-text">Recipe Text:</label>
+                    <label htmlFor="recipe-url">Recipe Website URL:</label>
+                    <input
+                      id="recipe-url"
+                      type="url"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      placeholder="https://example.com/recipe"
+                      className="recipe-url-input"
+                    />
+                    <div className="url-help">
+                      <p>✨ Paste a recipe URL from your favorite cooking site</p>
+                      <p>🍳 Works with BonAppetit, Food Network, AllRecipes, and many more!</p>
+                    </div>
+                  </div>
+                ) : importType === 'text' ? (
+                  <div>
+                    <label htmlFor="recipe-text">Paste Recipe Text:</label>
                     <textarea
                       id="recipe-text"
                       value={inputValue}
@@ -205,23 +732,106 @@ Instructions:
                       📋 Use Sample Recipe
                     </button>
                   </div>
-                ) : (
+                ) : importType === 'photo' ? (
                   <div>
-                    <label htmlFor="recipe-url">Recipe URL:</label>
-                    <input
-                      id="recipe-url"
-                      type="url"
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      placeholder="https://example.com/recipe"
-                      className="recipe-url-input"
-                    />
-                    <div className="url-help">
-                      <p>📍 Supported sites: BonAppetit, Food Network, AllRecipes, and many more!</p>
-                      <p>🚧 <em>URL import coming in Day 2 - testing with placeholder for now</em></p>
+                    <label>Upload Recipe Photos:</label>
+                    <div className="photo-upload-area">
+                      <input
+                        type="file"
+                        id="photo-input"
+                        accept="image/*"
+                        multiple
+                        onChange={handleImageSelect}
+                        style={{ display: 'none' }}
+                      />
+                      <label htmlFor="photo-input" className="photo-upload-button">
+                        <span className="upload-icon">📸</span>
+                        <span className="upload-text">Click to Upload Photos</span>
+                        <span className="upload-hint">or drag and drop</span>
+                      </label>
+                    </div>
+                    
+                    {imagePreviews.length > 0 && (
+                      <div className="image-previews">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="image-preview">
+                            <img src={preview} alt={`Preview ${index + 1}`} />
+                            <button
+                              className="remove-image-btn"
+                              onClick={() => handleRemoveImage(index)}
+                              type="button"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="photo-help">
+                      <p>📷 Take clear photos of recipe cards, cookbook pages, or handwritten recipes</p>
+                      <p>✨ Our AI will extract the text and format it for you!</p>
                     </div>
                   </div>
-                )}
+                ) : importType === 'voice' ? (
+                  <div>
+                    <label>Record Recipe:</label>
+                    <div className="voice-recorder">
+                      {!audioBlob ? (
+                        <>
+                          <div className="recording-controls">
+                            {!isRecording ? (
+                              <button
+                                className="record-button"
+                                onClick={startRecording}
+                                type="button"
+                              >
+                                <span className="record-icon">🎤</span>
+                                <span>Start Recording</span>
+                              </button>
+                            ) : (
+                              <>
+                                <div className="recording-indicator">
+                                  <span className="recording-dot">●</span>
+                                  <span className="recording-time">{formatRecordingTime(recordingTime)}</span>
+                                </div>
+                                <button
+                                  className="stop-button"
+                                  onClick={stopRecording}
+                                  type="button"
+                                >
+                                  <span>⏹ Stop</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="audio-preview">
+                          <div className="audio-info">
+                            <span className="audio-icon">🎵</span>
+                            <span className="audio-duration">{formatRecordingTime(recordingTime)}</span>
+                          </div>
+                          <button
+                            className="re-record-button"
+                            onClick={() => {
+                              setAudioBlob(null);
+                              setRecordingTime(0);
+                            }}
+                            type="button"
+                          >
+                            🔄 Re-record
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="voice-help">
+                      <p>🎤 Speak your recipe out loud - include ingredients and instructions</p>
+                      <p>✨ Our AI will transcribe and format it for you!</p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {/* Error Display */}
