@@ -74,7 +74,7 @@ class MealPlanRepository(BaseRepository):
             query += " AND user_id = %s"
             params.append(user_id)
         
-        result = self.execute_query(query, tuple(params))
+        result = self._execute_query(query, tuple(params))
         
         if result:
             meal_plan = dict(result[0])
@@ -101,7 +101,7 @@ class MealPlanRepository(BaseRepository):
             LIMIT %s OFFSET %s
         """
         
-        result = self.execute_query(query, (user_id, limit, offset))
+        result = self._execute_query(query, (user_id, limit, offset))
         
         if result:
             meal_plans = []
@@ -132,7 +132,7 @@ class MealPlanRepository(BaseRepository):
             ORDER BY week_start_date ASC
         """
         
-        result = self.execute_query(query, (user_id, start_date, end_date))
+        result = self._execute_query(query, (user_id, start_date, end_date))
         
         if result:
             meal_plans = []
@@ -148,7 +148,7 @@ class MealPlanRepository(BaseRepository):
     def count_user_meal_plans(self, user_id: int) -> int:
         """Count total meal plans for user"""
         query = "SELECT COUNT(*) as count FROM meal_plans WHERE user_id = %s"
-        result = self.execute_query(query, (user_id,))
+        result = self._execute_query(query, (user_id,))
         return result[0]['count'] if result else 0
     
     # UPDATE
@@ -190,10 +190,9 @@ class MealPlanRepository(BaseRepository):
         """
         
         params.extend([plan_id, user_id])
-        result = self.execute_query(query, tuple(params))
+        meal_plan = self._execute_update(query, tuple(params))
         
-        if result:
-            meal_plan = dict(result[0])
+        if meal_plan:
             if meal_plan.get('plan_data_json'):
                 meal_plan['plan_data'] = json.loads(meal_plan['plan_data_json'])
                 del meal_plan['plan_data_json']
@@ -204,8 +203,8 @@ class MealPlanRepository(BaseRepository):
     def delete_meal_plan(self, plan_id: int, user_id: int) -> bool:
         """Delete meal plan"""
         query = "DELETE FROM meal_plans WHERE id = %s AND user_id = %s"
-        result = self.execute_query(query, (plan_id, user_id))
-        return result is not None
+        rows_deleted = self._execute_delete(query, (plan_id, user_id))
+        return rows_deleted > 0
     
     # HELPER METHODS
     def get_recipes_in_meal_plan(self, plan_id: int, user_id: int) -> List[int]:
