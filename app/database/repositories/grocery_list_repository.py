@@ -22,21 +22,31 @@ class GroceryListRepository(BaseRepository):
     
     def ensure_table_exists(self):
         """Create grocery_lists table if it doesn't exist"""
-        query = """
+        # Create table if not exists
+        create_query = """
             CREATE TABLE IF NOT EXISTS grocery_lists (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL,
-                name TEXT NOT NULL,
                 items_json TEXT NOT NULL,
                 meal_plan_id INTEGER,
                 created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """
-        if self._execute_ddl(query, ()):
+        if self._execute_ddl(create_query, ()):
             logger.info("Grocery lists table ensured")
         else:
             logger.error("Error ensuring grocery_lists table")
+        
+        # Add name column if it doesn't exist (for existing tables)
+        alter_query = """
+            ALTER TABLE grocery_lists 
+            ADD COLUMN IF NOT EXISTS name TEXT DEFAULT 'My Grocery List'
+        """
+        if self._execute_ddl(alter_query, ()):
+            logger.info("Grocery lists 'name' column ensured")
+        else:
+            logger.warning("Could not add 'name' column (may already exist)")
     
     # CREATE
     def create_grocery_list(

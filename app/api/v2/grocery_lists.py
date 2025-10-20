@@ -103,7 +103,12 @@ def create_from_meal_plan(meal_plan_id):
                 'error': 'user_id is required'
             }), 400
         
-        data = request.get_json() or {}
+        # Get optional request body (don't fail if empty)
+        try:
+            data = request.get_json(silent=True) or {}
+        except:
+            data = {}
+        
         list_name = data.get('name')
         
         grocery_list = grocery_list_service.create_from_meal_plan(
