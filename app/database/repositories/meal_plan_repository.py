@@ -18,6 +18,26 @@ class MealPlanRepository(BaseRepository):
     
     def __init__(self):
         super().__init__('meal_plans')
+        self.ensure_table_exists()
+    
+    def ensure_table_exists(self):
+        """Create meal_plans table if it doesn't exist"""
+        query = """
+            CREATE TABLE IF NOT EXISTS meal_plans (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                plan_name TEXT NOT NULL,
+                week_start_date DATE,
+                plan_data_json TEXT NOT NULL,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """
+        if self._execute_ddl(query, ()):
+            logger.info("Meal plans table ensured")
+        else:
+            logger.error("Error ensuring meal_plans table")
     
     # CREATE
     def create_meal_plan(
