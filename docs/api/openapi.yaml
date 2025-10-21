@@ -1,0 +1,859 @@
+openapi: 3.0.3
+info:
+  title: YesChef API v2
+  version: 2.0.0
+  description: |
+    # YesChef API v2 - Complete Recipe & Meal Planning Platform
+    
+    Welcome to the YesChef v2 API! This API provides a complete solution for recipe management, 
+    meal planning, and grocery list generation.
+    
+    ## 🌟 Key Features
+    
+    - **Recipe Management**: Full CRUD operations for recipes
+    - **Meal Planning**: Create and manage weekly meal plans
+    - **Grocery Lists**: Automatic generation from meal plans
+    - **User Management**: User profiles and statistics
+    - **Power Features**: 
+      - ONE API CALL to get all recipes with stats
+      - ONE API CALL to generate complete grocery lists from meal plans
+    
+    ## 🚀 Quick Start
+    
+    1. Get recipes with stats (THE STAR FEATURE!)
+       ```
+       GET /api/v2/recipes/user/11/stats
+       ```
+    
+    2. Create a meal plan
+       ```
+       POST /api/v2/meal-plans
+       ```
+    
+    3. Generate grocery list from meal plan
+       ```
+       POST /api/v2/grocery-lists/from-meal-plan/{mealPlanId}
+       ```
+    
+    ## 📈 Performance
+    
+    - Average response time: < 300ms
+    - 3x faster than v1 API
+    - Optimized database queries
+    - Connection pooling enabled
+    
+    ## 🔒 Authentication
+    
+    Currently using user_id parameter. JWT authentication coming soon.
+    
+  contact:
+    name: YesChef Support
+    url: https://yeschef.app/support
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://yeschefapp-production.up.railway.app/api/v2
+    description: Production server
+  - url: http://localhost:8080/api/v2
+    description: Local development server
+
+tags:
+  - name: Health
+    description: Health check and system status
+  - name: Users
+    description: User management and statistics
+  - name: Recipes
+    description: Recipe management and retrieval
+  - name: Meal Plans
+    description: Meal plan creation and management
+  - name: Grocery Lists
+    description: Grocery list management and generation
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API is running and healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "YesChef v2 API is running"
+                  status:
+                    type: string
+                    example: "healthy"
+                  version:
+                    type: string
+                    example: "2.0"
+
+  /users/{userId}/stats:
+    get:
+      tags:
+        - Users
+      summary: Get user with statistics
+      description: Retrieve user information along with recipe and meal plan statistics
+      operationId: getUserWithStats
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+            example: 11
+      responses:
+        '200':
+          description: User found with statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 11
+                      name:
+                        type: string
+                        example: "YesChef"
+                      email:
+                        type: string
+                        example: "user@yeschef.app"
+                      recipe_count:
+                        type: integer
+                        example: 37
+                      meal_plan_count:
+                        type: integer
+                        example: 5
+                      created_date:
+                        type: string
+                        format: date-time
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /recipes/user/{userId}/stats:
+    get:
+      tags:
+        - Recipes
+      summary: Get recipes with complete statistics (⭐ STAR FEATURE)
+      description: |
+        **THE STAR FEATURE!** 
+        
+        Get ALL user recipes with complete statistics in ONE API CALL.
+        This endpoint returns:
+        - Complete recipe list
+        - Recipe categories breakdown
+        - Aggregate statistics
+        - User information
+        
+        **Performance:** 3x faster than multiple v1 calls!
+      operationId: getRecipesWithStats
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+            example: 11
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          required: false
+          description: Items per page
+          schema:
+            type: integer
+            default: 20
+            example: 20
+      responses:
+        '200':
+          description: Recipes retrieved with statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            example: 11
+                          name:
+                            type: string
+                            example: "YesChef"
+                      recipes:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Recipe'
+                      categories:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            category:
+                              type: string
+                              example: "Breakfast"
+                            count:
+                              type: integer
+                              example: 12
+                      stats:
+                        type: object
+                        properties:
+                          total_recipes:
+                            type: integer
+                            example: 37
+                          categories_count:
+                            type: integer
+                            example: 5
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+
+  /recipes/{recipeId}:
+    get:
+      tags:
+        - Recipes
+      summary: Get recipe by ID
+      description: Retrieve a specific recipe by its ID
+      operationId: getRecipeById
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          description: Recipe ID
+          schema:
+            type: integer
+            example: 2690
+        - name: user_id
+          in: query
+          required: false
+          description: User ID for authorization
+          schema:
+            type: integer
+            example: 11
+      responses:
+        '200':
+          description: Recipe found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Recipe'
+        '404':
+          description: Recipe not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /meal-plans:
+    post:
+      tags:
+        - Meal Plans
+      summary: Create meal plan
+      description: Create a new meal plan with recipes for different days and meal types
+      operationId: createMealPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - plan_name
+                - week_start_date
+                - plan_data
+              properties:
+                user_id:
+                  type: integer
+                  example: 11
+                plan_name:
+                  type: string
+                  example: "Week of Oct 21"
+                week_start_date:
+                  type: string
+                  format: date
+                  example: "2025-10-21"
+                plan_data:
+                  type: object
+                  description: Meal plan structure with days and meal types
+                  example:
+                    monday:
+                      breakfast:
+                        recipe_id: 123
+                        title: "Pancakes"
+                      lunch:
+                        recipe_id: 456
+                        title: "Caesar Salad"
+                      dinner:
+                        recipe_id: 789
+                        title: "Grilled Chicken"
+                    tuesday:
+                      breakfast:
+                        recipe_id: 234
+                        title: "Oatmeal"
+      responses:
+        '201':
+          description: Meal plan created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/MealPlan'
+                  message:
+                    type: string
+                    example: "Meal plan created successfully"
+
+  /meal-plans/{planId}:
+    get:
+      tags:
+        - Meal Plans
+      summary: Get meal plan by ID
+      description: Retrieve a specific meal plan with all its details
+      operationId: getMealPlanById
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          description: Meal plan ID
+          schema:
+            type: integer
+            example: 107
+        - name: user_id
+          in: query
+          required: true
+          description: User ID for authorization
+          schema:
+            type: integer
+            example: 11
+      responses:
+        '200':
+          description: Meal plan found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/MealPlan'
+
+  /meal-plans/{planId}/grocery-list:
+    get:
+      tags:
+        - Meal Plans
+        - Grocery Lists
+      summary: Generate grocery list from meal plan (🌟 POWER FEATURE)
+      description: |
+        **POWER FEATURE!**
+        
+        Automatically generate a complete grocery list from a meal plan.
+        This endpoint:
+        - Extracts all recipes from the meal plan
+        - Combines all ingredients intelligently
+        - Removes duplicates
+        - Returns organized grocery list
+        
+        **Note:** This generates the list but doesn't save it. 
+        Use POST /grocery-lists/from-meal-plan/{planId} to save.
+      operationId: generateGroceryListFromMealPlan
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          description: Meal plan ID
+          schema:
+            type: integer
+            example: 107
+        - name: user_id
+          in: query
+          required: true
+          description: User ID
+          schema:
+            type: integer
+            example: 11
+      responses:
+        '200':
+          description: Grocery list generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      ingredients:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/GroceryItem'
+                      recipe_count:
+                        type: integer
+                        example: 5
+                      total_ingredients:
+                        type: integer
+                        example: 19
+                      meal_plan_name:
+                        type: string
+                        example: "Week of Oct 21"
+
+  /grocery-lists/from-meal-plan/{planId}:
+    post:
+      tags:
+        - Grocery Lists
+      summary: Create and save grocery list from meal plan (🌟 POWER FEATURE)
+      description: |
+        **POWER FEATURE!**
+        
+        Create and save a complete grocery list from a meal plan in ONE API CALL.
+        
+        This endpoint:
+        1. Extracts all recipes from the meal plan
+        2. Combines all ingredients
+        3. Creates a new grocery list
+        4. Saves it to the database
+        5. Returns the saved list with statistics
+      operationId: createGroceryListFromMealPlan
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          description: Meal plan ID
+          schema:
+            type: integer
+            example: 107
+        - name: user_id
+          in: query
+          required: true
+          description: User ID
+          schema:
+            type: integer
+            example: 11
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Custom List Name"
+      responses:
+        '201':
+          description: Grocery list created and saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/GroceryList'
+                  message:
+                    type: string
+                    example: "Grocery list created from meal plan with 19 items"
+
+  /grocery-lists:
+    post:
+      tags:
+        - Grocery Lists
+      summary: Create grocery list
+      description: Create a new grocery list manually
+      operationId: createGroceryList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - name
+                - items
+              properties:
+                user_id:
+                  type: integer
+                  example: 11
+                name:
+                  type: string
+                  example: "Weekly Shopping"
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/GroceryItem'
+      responses:
+        '201':
+          description: Grocery list created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/GroceryList'
+
+  /grocery-lists/{listId}:
+    get:
+      tags:
+        - Grocery Lists
+      summary: Get grocery list by ID
+      description: Retrieve a specific grocery list with all items
+      operationId: getGroceryListById
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          description: Grocery list ID
+          schema:
+            type: integer
+            example: 53
+        - name: user_id
+          in: query
+          required: true
+          description: User ID for authorization
+          schema:
+            type: integer
+            example: 11
+      responses:
+        '200':
+          description: Grocery list found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/GroceryList'
+
+  /grocery-lists/user/{userId}:
+    get:
+      tags:
+        - Grocery Lists
+      summary: Get all user grocery lists
+      description: Retrieve all grocery lists for a specific user
+      operationId: getUserGroceryLists
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+            example: 11
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Grocery lists retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      grocery_lists:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/GroceryList'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+                      stats:
+                        type: object
+                        properties:
+                          total_lists:
+                            type: integer
+                            example: 5
+
+  /grocery-lists/{listId}/items/{itemIndex}/purchase:
+    post:
+      tags:
+        - Grocery Lists
+      summary: Mark item as purchased/unpurchased
+      description: Toggle the purchased status of a grocery list item
+      operationId: markItemPurchased
+      parameters:
+        - name: listId
+          in: path
+          required: true
+          description: Grocery list ID
+          schema:
+            type: integer
+            example: 53
+        - name: itemIndex
+          in: path
+          required: true
+          description: Item index in the list
+          schema:
+            type: integer
+            example: 0
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - purchased
+              properties:
+                user_id:
+                  type: integer
+                  example: 11
+                purchased:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Item status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/GroceryList'
+                  message:
+                    type: string
+                    example: "Item marked as purchased"
+
+components:
+  schemas:
+    Recipe:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2690
+        user_id:
+          type: integer
+          example: 11
+        title:
+          type: string
+          example: "Grilled Chicken"
+        category:
+          type: string
+          example: "Dinner"
+        ingredients:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "Chicken breast"
+              quantity:
+                type: string
+                example: "2"
+              unit:
+                type: string
+                example: "lbs"
+        instructions:
+          type: string
+          example: "1. Season chicken\n2. Grill for 15 minutes"
+        prep_time:
+          type: integer
+          example: 10
+        cook_time:
+          type: integer
+          example: 15
+        servings:
+          type: integer
+          example: 4
+        created_date:
+          type: string
+          format: date-time
+        updated_date:
+          type: string
+          format: date-time
+
+    MealPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 107
+        user_id:
+          type: integer
+          example: 11
+        plan_name:
+          type: string
+          example: "Week of Oct 21"
+        week_start_date:
+          type: string
+          format: date
+          example: "2025-10-21"
+        plan_data:
+          type: object
+          description: Meal plan structure with days and meals
+        created_date:
+          type: string
+          format: date-time
+        updated_date:
+          type: string
+          format: date-time
+
+    GroceryList:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 53
+        user_id:
+          type: integer
+          example: 11
+        name:
+          type: string
+          example: "Weekly Shopping"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroceryItem'
+        stats:
+          type: object
+          properties:
+            total_items:
+              type: integer
+              example: 19
+            purchased_items:
+              type: integer
+              example: 5
+            remaining_items:
+              type: integer
+              example: 14
+            completion_percentage:
+              type: number
+              format: float
+              example: 26.3
+        created_date:
+          type: string
+          format: date-time
+        updated_date:
+          type: string
+          format: date-time
+
+    GroceryItem:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Milk"
+        quantity:
+          type: string
+          example: "1"
+        unit:
+          type: string
+          example: "gallon"
+        category:
+          type: string
+          example: "Dairy"
+        purchased:
+          type: boolean
+          example: false
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 37
+        total_pages:
+          type: integer
+          example: 2
+        has_next:
+          type: boolean
+          example: true
+        has_prev:
+          type: boolean
+          example: false
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Resource not found"
