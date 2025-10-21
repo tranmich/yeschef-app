@@ -116,7 +116,7 @@ class CommunityRepository(BaseRepository):
                     RETURNING *
                 """
             
-            share = self._execute_query_one(query, (recipe_id, user_id))
+            share = self._execute_insert(query, (recipe_id, user_id))
             
             logger.info(f"✅ Recipe {recipe_id} shared to community by user {user_id}")
             
@@ -149,7 +149,7 @@ class CommunityRepository(BaseRepository):
                 RETURNING id
             """
             
-            result = self._execute_query_one(query, (recipe_id, user_id))
+            result = self._execute_insert(query, (recipe_id, user_id))
             
             if result:
                 logger.info(f"✅ Recipe {recipe_id} unshared from community")
@@ -286,7 +286,7 @@ class CommunityRepository(BaseRepository):
                 RETURNING *
             """
             
-            like = self._execute_query_one(query, (recipe_id, user_id))
+            like = self._execute_insert(query, (recipe_id, user_id))
             
             if like:
                 logger.info(f"✅ User {user_id} liked recipe {recipe_id}")
@@ -319,7 +319,7 @@ class CommunityRepository(BaseRepository):
                 RETURNING id
             """
             
-            result = self._execute_query_one(query, (recipe_id, user_id))
+            result = self._execute_insert(query, (recipe_id, user_id))
             
             if result:
                 logger.info(f"✅ User {user_id} unliked recipe {recipe_id}")
