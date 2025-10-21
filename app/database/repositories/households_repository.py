@@ -37,7 +37,7 @@ class HouseholdsRepository(BaseRepository):
                     h.id,
                     h.name,
                     h.description,
-                    h.created_by,
+                    h.owner_user_id,
                     h.is_active,
                     h.created_at,
                     h.updated_at,
@@ -45,11 +45,11 @@ class HouseholdsRepository(BaseRepository):
                     hm.role as user_role,
                     COUNT(hm2.id) as member_count
                 FROM households h
-                JOIN users u ON h.created_by = u.id
+                JOIN users u ON h.owner_user_id = u.id
                 JOIN household_members hm ON h.id = hm.household_id
                 LEFT JOIN household_members hm2 ON h.id = hm2.household_id
                 WHERE hm.user_id = %s AND h.is_active = TRUE
-                GROUP BY h.id, h.name, h.description, h.created_by, h.is_active, 
+                GROUP BY h.id, h.name, h.description, h.owner_user_id, h.is_active, 
                          h.created_at, h.updated_at, u.name, hm.role
                 ORDER BY h.created_at DESC
             """
@@ -82,10 +82,10 @@ class HouseholdsRepository(BaseRepository):
                     u.email as creator_email,
                     COUNT(hm.id) as member_count
                 FROM households h
-                JOIN users u ON h.created_by = u.id
+                JOIN users u ON h.owner_user_id = u.id
                 LEFT JOIN household_members hm ON h.id = hm.household_id
                 WHERE h.id = %s
-                GROUP BY h.id, h.name, h.description, h.created_by, h.is_active,
+                GROUP BY h.id, h.name, h.description, h.owner_user_id, h.is_active,
                          h.created_at, h.updated_at, u.name, u.email
             """
             
@@ -115,7 +115,7 @@ class HouseholdsRepository(BaseRepository):
         try:
             query = """
                 INSERT INTO households 
-                (name, description, created_by, is_active, created_at, updated_at)
+                (name, description, owner_user_id, is_active, created_at, updated_at)
                 VALUES (%s, %s, %s, TRUE, NOW(), NOW())
                 RETURNING *
             """

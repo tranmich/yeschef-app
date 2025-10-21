@@ -39,8 +39,8 @@ def print_section(title):
 
 # Test state
 test_data = {
-    'user1_id': 1,  # Update with actual user ID
-    'user2_id': 2,  # Update with actual user ID
+    'user1_id': 10,  # Real user from database
+    'user2_id': 12,  # Real user from database
     'household_id': None
 }
 
