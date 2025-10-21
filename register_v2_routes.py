@@ -39,6 +39,7 @@ def register_v2_routes(app: Flask):
         from app.api.v2.favorites import favorites_bp
         from app.api.v2.profile import profile_bp
         from app.api.v2.pantry import pantry_bp
+        from app.api.v2.recipe_search import recipe_search_bp
         
         app.register_blueprint(user_bp)
         app.register_blueprint(recipe_bp)
@@ -50,6 +51,7 @@ def register_v2_routes(app: Flask):
         app.register_blueprint(favorites_bp)
         app.register_blueprint(profile_bp)
         app.register_blueprint(pantry_bp)
+        app.register_blueprint(recipe_search_bp)
         
         logger.info("  ✅ User API v2 registered: /api/v2/users")
         logger.info("  ✅ Recipe API v2 registered: /api/v2/recipes")
@@ -61,6 +63,7 @@ def register_v2_routes(app: Flask):
         logger.info("  ✅ Favorites API v2 registered: /api/v2/favorites ⭐")
         logger.info("  ✅ Profile API v2 registered: /api/v2/profile 👤")
         logger.info("  ✅ Pantry API v2 registered: /api/v2/pantry 🥫")
+        logger.info("  ✅ Recipe Search API v2 registered: /api/v2/recipes/search 🔍")
         
         # Add health check endpoint
         from flask import jsonify
