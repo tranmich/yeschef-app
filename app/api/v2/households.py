@@ -11,7 +11,7 @@ from app.services.households_service import get_households_service
 logger = logging.getLogger(__name__)
 
 # Create blueprint
-households_bp = Blueprint('households', __name__)
+households_bp = Blueprint('households', __name__, url_prefix='/api/v2')
 
 # Get service instance
 households_service = get_households_service()

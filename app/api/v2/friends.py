@@ -11,7 +11,7 @@ from app.services.friends_service import get_friends_service
 logger = logging.getLogger(__name__)
 
 # Create blueprint
-friends_bp = Blueprint('friends', __name__)
+friends_bp = Blueprint('friends', __name__, url_prefix='/api/v2')
 
 # Get service instance
 friends_service = get_friends_service()
