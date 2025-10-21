@@ -81,11 +81,11 @@ class GroceryListRepository(BaseRepository):
             items_json = json.dumps(items)
             logger.info(f"🔵 Creating grocery list: user={user_id}, name={name}, items_count={len(items)}")
             
-            # Use legacy schema column names: list_name, list_data, created_at, updated_at
+            # Use legacy schema column names: list_name, list_data, recipe_ids, created_at, updated_at
             query = """
                 INSERT INTO grocery_lists 
-                (user_id, list_name, list_data, created_at, updated_at)
-                VALUES (%s, %s, %s::jsonb, NOW(), NOW())
+                (user_id, list_name, list_data, recipe_ids, created_at, updated_at)
+                VALUES (%s, %s, %s::jsonb, '{}', NOW(), NOW())
                 RETURNING id, user_id, list_name, list_data, created_at, updated_at
             """
             params = (user_id, name, items_json)
