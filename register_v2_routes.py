@@ -35,6 +35,7 @@ def register_v2_routes(app: Flask):
         from app.api.v2.grocery_lists import grocery_list_bp
         from app.api.v2.friends import friends_bp
         from app.api.v2.households import households_bp
+        from app.api.v2.community import community_bp
         
         app.register_blueprint(user_bp)
         app.register_blueprint(recipe_bp)
@@ -42,6 +43,7 @@ def register_v2_routes(app: Flask):
         app.register_blueprint(grocery_list_bp)
         app.register_blueprint(friends_bp)
         app.register_blueprint(households_bp)
+        app.register_blueprint(community_bp)
         
         logger.info("  ✅ User API v2 registered: /api/v2/users")
         logger.info("  ✅ Recipe API v2 registered: /api/v2/recipes")
@@ -49,6 +51,7 @@ def register_v2_routes(app: Flask):
         logger.info("  ✅ GroceryList API v2 registered: /api/v2/grocery-lists")
         logger.info("  ✅ Friends API v2 registered: /api/v2/friends 👥")
         logger.info("  ✅ Households API v2 registered: /api/v2/households 🏠")
+        logger.info("  ✅ Community API v2 registered: /api/v2/community 🌟")
         
         # Add health check endpoint
         from flask import jsonify
@@ -111,6 +114,14 @@ def register_v2_routes(app: Flask):
         logger.info("  POST /api/v2/households/<id>/members  🏠 NEW!")
         logger.info("  DELETE /api/v2/households/<id>/members/<id>  🏠 NEW!")
         logger.info("  PUT  /api/v2/households/<id>/members/<id>/role  🏠 NEW!")
+        logger.info("  GET  /api/v2/community/recipes  🌟 NEW!")
+        logger.info("  GET  /api/v2/community/recipes/<id>  🌟 NEW!")
+        logger.info("  POST /api/v2/community/recipes  🌟 NEW!")
+        logger.info("  DELETE /api/v2/community/recipes/<id>  🌟 NEW!")
+        logger.info("  GET  /api/v2/community/my-shares  🌟 NEW!")
+        logger.info("  GET  /api/v2/community/check/<id>  🌟 NEW!")
+        logger.info("  POST /api/v2/community/recipes/<id>/claim  🌟 NEW!")
+        logger.info("  POST /api/v2/community/recipes/<id>/like  🌟 NEW!")
         logger.info("=" * 70)
         
         return True
