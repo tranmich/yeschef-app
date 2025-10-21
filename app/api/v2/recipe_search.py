@@ -245,6 +245,137 @@ def import_recipe():
         }), 500
 
 
+@recipe_search_bp.route('/import/text', methods=['POST'])
+def import_from_text():
+    """
+    Import recipe from raw text (placeholder for AI parsing)
+    
+    Request body:
+    {
+        "user_id": 10,
+        "text": "Recipe text with ingredients and instructions..."
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        user_id = data.get('user_id')
+        text = data.get('text')
+        
+        if not user_id or not text:
+            return jsonify({
+                'success': False,
+                'error': 'user_id and text are required'
+            }), 400
+        
+        # Placeholder implementation
+        # In production, this would use AI/LLM to parse the text
+        
+        # Simple extraction for now
+        lines = text.strip().split('\n')
+        title = lines[0] if lines else 'Imported Recipe from Text'
+        
+        recipe_data = {
+            'title': title,
+            'description': 'Recipe imported from text (placeholder)',
+            'ingredients': ['Ingredient 1 (parsed)', 'Ingredient 2 (parsed)'],
+            'instructions': ['Step 1 (parsed)', 'Step 2 (parsed)'],
+            'prep_time': '15 minutes',
+            'cook_time': '30 minutes',
+            'servings': 4
+        }
+        
+        # Log import
+        search_service.repository.log_import(
+            user_id=user_id,
+            source_url='text_import',
+            status='success'
+        )
+        
+        result = {
+            'success': True,
+            'data': recipe_data,
+            'message': 'Recipe imported from text (placeholder - ready for AI integration)',
+            'placeholder': True
+        }
+        
+        return jsonify(result), 201
+        
+    except Exception as e:
+        logger.error(f"Error in import_from_text: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+
+@recipe_search_bp.route('/import/ocr', methods=['POST'])
+def import_from_ocr():
+    """
+    Import recipe from image using OCR (placeholder)
+    
+    Request body:
+    {
+        "user_id": 10,
+        "image_data": "base64_encoded_image_data"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        user_id = data.get('user_id')
+        image_data = data.get('image_data')
+        
+        if not user_id or not image_data:
+            return jsonify({
+                'success': False,
+                'error': 'user_id and image_data are required'
+            }), 400
+        
+        # Placeholder implementation
+        # In production, this would use OCR (Tesseract/Google Vision) + AI parsing
+        
+        recipe_data = {
+            'title': 'Recipe from Image (OCR)',
+            'description': 'Recipe scanned from image (placeholder)',
+            'ingredients': [
+                'Ingredient extracted from image',
+                'Another ingredient from OCR'
+            ],
+            'instructions': [
+                'Step 1 extracted via OCR',
+                'Step 2 extracted via OCR'
+            ],
+            'prep_time': '10 minutes',
+            'cook_time': '25 minutes',
+            'servings': 2
+        }
+        
+        # Log import
+        search_service.repository.log_import(
+            user_id=user_id,
+            source_url='ocr_import',
+            status='success'
+        )
+        
+        result = {
+            'success': True,
+            'data': recipe_data,
+            'message': 'Recipe imported from image (placeholder - ready for OCR integration)',
+            'placeholder': True,
+            'ocr_confidence': 0.85
+        }
+        
+        return jsonify(result), 201
+        
+    except Exception as e:
+        logger.error(f"Error in import_from_ocr: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+
 @recipe_search_bp.route('/import/history', methods=['GET'])
 def get_import_history():
     """

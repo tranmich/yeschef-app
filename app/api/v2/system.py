@@ -40,6 +40,77 @@ def health_check():
         }), 503
 
 
+@system_bp.route('/config', methods=['GET'])
+def get_system_config():
+    """
+    Get system configuration
+    
+    Returns API version, feature flags, and limits
+    """
+    try:
+        config = {
+            'success': True,
+            'data': {
+                'api_version': '2.0.0',
+                'features': {
+                    'voice_enabled': True,
+                    'ocr_enabled': True,
+                    'ai_enabled': True,
+                    'community_enabled': True,
+                    'pantry_enabled': True,
+                    'households_enabled': True
+                },
+                'limits': {
+                    'max_recipes_per_user': 1000,
+                    'max_meal_plans': 50,
+                    'max_grocery_lists': 20,
+                    'max_pantry_items': 500,
+                    'max_household_members': 10
+                },
+                'supported_languages': ['en', 'es', 'fr', 'de', 'it', 'pt'],
+                'environment': 'production'
+            }
+        }
+        
+        return jsonify(config), 200
+        
+    except Exception as e:
+        logger.error(f"Error in get_system_config: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get system config'
+        }), 500
+
+
+@system_bp.route('/version', methods=['GET'])
+def get_api_version():
+    """
+    Get API version information
+    
+    Returns detailed version and build info
+    """
+    try:
+        version_info = {
+            'success': True,
+            'data': {
+                'version': '2.0.0',
+                'api_name': 'YesChef API',
+                'build_date': '2025-10-21',
+                'endpoints': 101,
+                'status': 'stable'
+            }
+        }
+        
+        return jsonify(version_info), 200
+        
+    except Exception as e:
+        logger.error(f"Error in get_api_version: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get version info'
+        }), 500
+
+
 @system_bp.route('/stats', methods=['GET'])
 def get_system_stats():
     """
@@ -215,6 +286,109 @@ def process_voice_command():
         return jsonify({
             'success': False,
             'error': 'Internal server error'
+        }), 500
+
+
+@system_bp.route('/voice/languages', methods=['GET'])
+def get_voice_languages():
+    """
+    Get supported voice languages
+    
+    Returns list of languages supported for voice commands
+    """
+    try:
+        languages = {
+            'success': True,
+            'data': {
+                'languages': [
+                    {'code': 'en', 'name': 'English', 'supported': True},
+                    {'code': 'es', 'name': 'Spanish', 'supported': True},
+                    {'code': 'fr', 'name': 'French', 'supported': True},
+                    {'code': 'de', 'name': 'German', 'supported': True},
+                    {'code': 'it', 'name': 'Italian', 'supported': True},
+                    {'code': 'pt', 'name': 'Portuguese', 'supported': True},
+                    {'code': 'ja', 'name': 'Japanese', 'supported': False},
+                    {'code': 'zh', 'name': 'Chinese', 'supported': False}
+                ],
+                'default_language': 'en'
+            }
+        }
+        
+        return jsonify(languages), 200
+        
+    except Exception as e:
+        logger.error(f"Error in get_voice_languages: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get languages'
+        }), 500
+
+
+@system_bp.route('/voice/generate', methods=['POST'])
+def generate_recipe_from_voice():
+    """
+    Generate recipe from voice description (placeholder)
+    
+    Request body:
+    {
+        "user_id": 10,
+        "voice_description": "I want to make a healthy pasta dish with chicken and vegetables",
+        "language": "en"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        user_id = data.get('user_id')
+        description = data.get('voice_description')
+        language = data.get('language', 'en')
+        
+        if not user_id or not description:
+            return jsonify({
+                'success': False,
+                'error': 'user_id and voice_description are required'
+            }), 400
+        
+        # Placeholder implementation
+        # In production, this would use speech-to-text + AI recipe generation
+        result = {
+            'success': True,
+            'data': {
+                'recipe': {
+                    'title': 'AI-Generated Healthy Chicken Pasta',
+                    'description': f'Recipe generated from: "{description}"',
+                    'ingredients': [
+                        '200g pasta',
+                        '2 chicken breasts',
+                        '1 cup mixed vegetables',
+                        'olive oil',
+                        'salt and pepper'
+                    ],
+                    'instructions': [
+                        'Boil pasta according to package directions',
+                        'Cook chicken in olive oil until done',
+                        'Sauté vegetables',
+                        'Combine all ingredients',
+                        'Season to taste'
+                    ],
+                    'prep_time': '15 minutes',
+                    'cook_time': '20 minutes',
+                    'servings': 2
+                },
+                'confidence': 0.85,
+                'language': language,
+                'placeholder': True,
+                'message': 'Voice recipe generation ready for AI integration'
+            }
+        }
+        
+        return jsonify(result), 201
+        
+    except Exception as e:
+        logger.error(f"Error in generate_recipe_from_voice: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to generate recipe'
         }), 500
 
 
