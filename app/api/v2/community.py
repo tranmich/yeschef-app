@@ -19,10 +19,11 @@ community_service = CommunityService()
 
 @community_bp.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint for Community API"""
     return jsonify({
         'success': True,
-        'message': 'Community API v2 is healthy'
+        'message': 'Community API v2 is healthy',
+        'version': '1.0.0'
     })
 
 
