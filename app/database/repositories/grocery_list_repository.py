@@ -81,28 +81,37 @@ class GroceryListRepository(BaseRepository):
             items_json = json.dumps(items)
             logger.info(f"🔵 Creating grocery list: user={user_id}, name={name}, items_count={len(items)}")
             
-            # Use legacy schema column name: list_name (not name)
+            # Use legacy schema column names: list_name, list_data, created_at, updated_at
             query = """
                 INSERT INTO grocery_lists 
-                (user_id, list_name, items_json, meal_plan_id, created_date, updated_date)
-                VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                RETURNING id, user_id, list_name, items_json, meal_plan_id,
-                          created_date, updated_date
+                (user_id, list_name, list_data, created_at, updated_at)
+                VALUES (%s, %s, %s::jsonb, NOW(), NOW())
+                RETURNING id, user_id, list_name, list_data, created_at, updated_at
             """
-            params = (user_id, name, items_json, meal_plan_id)
+            params = (user_id, name, items_json)
             
             grocery_list = self._execute_insert(query, params)
             
             if grocery_list:
                 logger.info(f"✅ Grocery list created successfully: id={grocery_list['id']}")
-                # Map list_name to name for API consistency
+                # Map list_name to name and list_data to items for API consistency
                 if 'list_name' in grocery_list:
                     grocery_list['name'] = grocery_list['list_name']
                     del grocery_list['list_name']
-                # Parse JSON back to list
-                if grocery_list.get('items_json'):
-                    grocery_list['items'] = json.loads(grocery_list['items_json'])
-                    del grocery_list['items_json']
+                # Parse list_data JSON back to items list
+                if grocery_list.get('list_data'):
+                    if isinstance(grocery_list['list_data'], str):
+                        grocery_list['items'] = json.loads(grocery_list['list_data'])
+                    else:
+                        grocery_list['items'] = grocery_list['list_data']
+                    del grocery_list['list_data']
+                # Map timestamps
+                if 'created_at' in grocery_list:
+                    grocery_list['created_date'] = grocery_list['created_at']
+                    del grocery_list['created_at']
+                if 'updated_at' in grocery_list:
+                    grocery_list['updated_date'] = grocery_list['updated_at']
+                    del grocery_list['updated_at']
                 return grocery_list
             else:
                 logger.error("❌ Grocery list creation returned None")
@@ -116,8 +125,7 @@ class GroceryListRepository(BaseRepository):
     def get_grocery_list_by_id(self, list_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """Get grocery list by ID"""
         query = """
-            SELECT id, user_id, list_name, items_json, meal_plan_id,
-                   created_date, updated_date
+            SELECT id, user_id, list_name, list_data, created_at, updated_at
             FROM grocery_lists
             WHERE id = %s
         """
@@ -132,15 +140,24 @@ class GroceryListRepository(BaseRepository):
         
         if result:
             grocery_list = dict(result[0])
-            # Map list_name to name for API consistency
+            # Map legacy column names to API names
             if 'list_name' in grocery_list:
                 grocery_list['name'] = grocery_list['list_name']
                 del grocery_list['list_name']
-            grocery_list['name'] = 'My Grocery List'
-            # Parse JSON
-            if grocery_list.get('items_json'):
-                grocery_list['items'] = json.loads(grocery_list['items_json'])
-                del grocery_list['items_json']
+            # Parse list_data
+            if grocery_list.get('list_data'):
+                if isinstance(grocery_list['list_data'], str):
+                    grocery_list['items'] = json.loads(grocery_list['list_data'])
+                else:
+                    grocery_list['items'] = grocery_list['list_data']
+                del grocery_list['list_data']
+            # Map timestamps
+            if 'created_at' in grocery_list:
+                grocery_list['created_date'] = grocery_list['created_at']
+                del grocery_list['created_at']
+            if 'updated_at' in grocery_list:
+                grocery_list['updated_date'] = grocery_list['updated_at']
+                del grocery_list['updated_at']
             return grocery_list
         return None
     
@@ -152,11 +169,10 @@ class GroceryListRepository(BaseRepository):
     ) -> List[Dict[str, Any]]:
         """Get all grocery lists for a user"""
         query = """
-            SELECT id, user_id, list_name, items_json, meal_plan_id,
-                   created_date, updated_date
+            SELECT id, user_id, list_name, list_data, created_at, updated_at
             FROM grocery_lists
             WHERE user_id = %s
-            ORDER BY created_date DESC
+            ORDER BY created_at DESC
             LIMIT %s OFFSET %s
         """
         
@@ -166,14 +182,24 @@ class GroceryListRepository(BaseRepository):
             grocery_lists = []
             for row in result:
                 grocery_list = dict(row)
-                # Map list_name to name for API consistency
+                # Map legacy column names to API names
                 if 'list_name' in grocery_list:
                     grocery_list['name'] = grocery_list['list_name']
                     del grocery_list['list_name']
-                # Parse JSON
-                if grocery_list.get('items_json'):
-                    grocery_list['items'] = json.loads(grocery_list['items_json'])
-                    del grocery_list['items_json']
+                # Parse list_data
+                if grocery_list.get('list_data'):
+                    if isinstance(grocery_list['list_data'], str):
+                        grocery_list['items'] = json.loads(grocery_list['list_data'])
+                    else:
+                        grocery_list['items'] = grocery_list['list_data']
+                    del grocery_list['list_data']
+                # Map timestamps
+                if 'created_at' in grocery_list:
+                    grocery_list['created_date'] = grocery_list['created_at']
+                    del grocery_list['created_at']
+                if 'updated_at' in grocery_list:
+                    grocery_list['updated_date'] = grocery_list['updated_at']
+                    del grocery_list['updated_at']
                 grocery_lists.append(grocery_list)
             return grocery_lists
         return []
