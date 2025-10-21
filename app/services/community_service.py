@@ -100,7 +100,7 @@ class CommunityService:
         """
         try:
             # Get recipe details
-            recipe = self.recipes_repository.get_recipe_by_id(recipe_id)
+            recipe = self.recipes_repository.find_by_id(recipe_id)
             
             if not recipe:
                 return {
@@ -155,7 +155,7 @@ class CommunityService:
         """
         try:
             # Verify user owns the recipe
-            recipe = self.recipes_repository.get_recipe_by_id(recipe_id)
+            recipe = self.recipes_repository.find_by_id(recipe_id)
             
             if not recipe:
                 return {
@@ -208,7 +208,7 @@ class CommunityService:
         """
         try:
             # Verify ownership
-            recipe = self.recipes_repository.get_recipe_by_id(recipe_id)
+            recipe = self.recipes_repository.find_by_id(recipe_id)
             
             if not recipe:
                 return {
@@ -326,7 +326,7 @@ class CommunityService:
         """
         try:
             # Get community recipe
-            recipe = self.recipes_repository.get_recipe_by_id(recipe_id)
+            recipe = self.recipes_repository.find_by_id(recipe_id)
             
             if not recipe:
                 return {
