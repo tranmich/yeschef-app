@@ -182,8 +182,8 @@ def test_recipes():
 def test_meal_plans():
     print_section("🍽️ MEAL PLANS API TESTS (6 endpoints)")
     
-    # 1. Create meal plan
-    print_test("1. Create Meal Plan")
+    # 1. Create meal plan WITH a recipe
+    print_test("1. Create Meal Plan (with recipe)")
     from datetime import date
     success, data = test_endpoint(
         'POST', '/meal-plans',
@@ -192,7 +192,12 @@ def test_meal_plans():
             'plan_name': f'Test Meal Plan {int(time.time())}',
             'week_start_date': date.today().isoformat(),
             'plan_data': {
-                'monday': {'breakfast': state['recipe_id']} if state['recipe_id'] else {}
+                'monday': {
+                    'breakfast': {
+                        'recipe_id': state['recipe_id'],
+                        'title': 'Test Recipe'
+                    }
+                } if state['recipe_id'] else {}
             }
         },
         headers={'Content-Type': 'application/json'}
@@ -267,7 +272,8 @@ def test_grocery_lists():
         print_test("3. Create Grocery List from Meal Plan ⭐")
         test_endpoint(
             'POST', f"/grocery-lists/from-meal-plan/{state['meal_plan_id']}",
-            json={'user_id': TEST_USER_ID},
+            params={'user_id': TEST_USER_ID},
+            json={'name': f'Auto List {int(time.time())}'},
             headers={'Content-Type': 'application/json'}
         )
         time.sleep(0.5)
@@ -321,8 +327,7 @@ def test_grocery_lists():
         print_test("9. Clear Purchased Items")
         test_endpoint(
             'POST', f"/grocery-lists/{state['grocery_list_id']}/clear-purchased",
-            json={'user_id': TEST_USER_ID},
-            headers={'Content-Type': 'application/json'}
+            params={'user_id': TEST_USER_ID}
         )
         time.sleep(0.5)
     
