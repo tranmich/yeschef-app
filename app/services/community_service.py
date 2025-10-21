@@ -355,7 +355,7 @@ class CommunityService:
                 'original_recipe_id': recipe_id
             }
             
-            new_recipe = self.recipes_repository.create_recipe(new_recipe_data)
+            new_recipe = self.recipes_repository.create(new_recipe_data)
             
             if new_recipe:
                 return {
