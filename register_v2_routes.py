@@ -37,6 +37,7 @@ def register_v2_routes(app: Flask):
         from app.api.v2.households import households_bp
         from app.api.v2.community import community_bp
         from app.api.v2.favorites import favorites_bp
+        from app.api.v2.profile import profile_bp
         
         app.register_blueprint(user_bp)
         app.register_blueprint(recipe_bp)
@@ -46,6 +47,7 @@ def register_v2_routes(app: Flask):
         app.register_blueprint(households_bp)
         app.register_blueprint(community_bp)
         app.register_blueprint(favorites_bp)
+        app.register_blueprint(profile_bp)
         
         logger.info("  ✅ User API v2 registered: /api/v2/users")
         logger.info("  ✅ Recipe API v2 registered: /api/v2/recipes")
@@ -55,6 +57,7 @@ def register_v2_routes(app: Flask):
         logger.info("  ✅ Households API v2 registered: /api/v2/households 🏠")
         logger.info("  ✅ Community API v2 registered: /api/v2/community 🌟")
         logger.info("  ✅ Favorites API v2 registered: /api/v2/favorites ⭐")
+        logger.info("  ✅ Profile API v2 registered: /api/v2/profile 👤")
         
         # Add health check endpoint
         from flask import jsonify
