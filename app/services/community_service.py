@@ -351,8 +351,7 @@ class CommunityService:
                 'prep_time': recipe.get('prep_time'),
                 'cook_time': recipe.get('cook_time'),
                 'servings': recipe.get('servings'),
-                'image_url': recipe.get('image_url'),
-                'original_recipe_id': recipe_id
+                'image_url': recipe.get('image_url')
             }
             
             new_recipe = self.recipes_repository.create(new_recipe_data)
