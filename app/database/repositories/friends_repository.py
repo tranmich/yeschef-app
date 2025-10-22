@@ -100,8 +100,8 @@ class FriendsRepository(BaseRepository):
         try:
             query = """
                 INSERT INTO friend_requests 
-                (requester_id, recipient_id, message, status, created_at, updated_at)
-                VALUES (%s, %s, %s, 'pending', NOW(), NOW())
+                (requester_id, recipient_id, message, status, created_at)
+                VALUES (%s, %s, %s, 'pending', NOW())
                 RETURNING *
             """
             params = (requester_id, recipient_id, message)
