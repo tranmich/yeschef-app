@@ -166,12 +166,18 @@ def register_blueprints(app: Flask):
     # Register v2 API blueprints
     from app.api.v2.users import user_bp
     from app.api.v2.recipes import recipe_bp
+    from app.api.v2.meal_plans import meal_plan_bp
+    from app.api.v2.grocery_lists import grocery_list_bp
     
     app.register_blueprint(user_bp)
     app.register_blueprint(recipe_bp)
+    app.register_blueprint(meal_plan_bp)
+    app.register_blueprint(grocery_list_bp)
     
     app.logger.info("  ✅ User API v2 registered: /api/v2/users")
     app.logger.info("  ✅ Recipe API v2 registered: /api/v2/recipes")
+    app.logger.info("  ✅ Meal Plan API v2 registered: /api/v2/meal-plans")
+    app.logger.info("  ✅ Grocery List API v2 registered: /api/v2/grocery-lists")
 
 
 def register_error_handlers(app: Flask):
