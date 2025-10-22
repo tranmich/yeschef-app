@@ -219,71 +219,122 @@ class MealPlanService(BaseService):
         """
         Generate a grocery list from a meal plan
         Combines all ingredients from all recipes in the plan
+        Supports new v2 format: plan_data = [{id, name, recipes: [...]}]
         
         Returns:
             Dict with combined ingredients
         """
         try:
-            # Get meal plan with recipes
-            meal_plan = self.get_meal_plan(plan_id, user_id, include_recipes=True)
-            if not meal_plan or 'recipes' not in meal_plan:
+            logger.info(f"🔵 Generating grocery list from meal plan {plan_id}")
+            
+            # Get meal plan (v2 format)
+            meal_plan = self.meal_plan_repo.get_meal_plan_by_id(plan_id, user_id)
+            if not meal_plan:
+                logger.error(f"❌ Meal plan {plan_id} not found")
                 return {'ingredients': [], 'recipe_count': 0}
             
-            # Combine all ingredients
-            combined_ingredients = {}
+            logger.info(f"✅ Found meal plan: {meal_plan.get('plan_name')}")
             
-            for recipe in meal_plan['recipes']:
-                if 'ingredients' not in recipe:
-                    continue
+            # Extract plan_data (new v2 format is array of days)
+            plan_data = meal_plan.get('plan_data')
+            if not plan_data:
+                logger.error(f"❌ No plan_data in meal plan {plan_id}")
+                return {'ingredients': [], 'recipe_count': 0}
+            
+            logger.info(f"📊 plan_data type: {type(plan_data)}")
+            
+            # Handle v2 format: plan_data is array of days
+            if isinstance(plan_data, list):
+                logger.info(f"✅ v2 format detected: {len(plan_data)} days")
                 
-                # Parse ingredients if it's a JSON string
-                ingredients = recipe['ingredients']
-                if isinstance(ingredients, str):
-                    import json
-                    try:
-                        ingredients = json.loads(ingredients)
-                    except:
+                # Collect all recipes from all days
+                all_recipes = []
+                for day in plan_data:
+                    if isinstance(day, dict) and 'recipes' in day:
+                        day_recipes = day.get('recipes', [])
+                        logger.info(f"  Day '{day.get('name')}': {len(day_recipes)} recipes")
+                        all_recipes.extend(day_recipes)
+                
+                logger.info(f"✅ Total recipes found: {len(all_recipes)}")
+                
+                # Combine ingredients from all recipes
+                combined_ingredients = {}
+                
+                for recipe in all_recipes:
+                    if not isinstance(recipe, dict):
                         continue
-                
-                # Add ingredients to combined list
-                if isinstance(ingredients, list):
-                    for ingredient in ingredients:
-                        if isinstance(ingredient, dict):
-                            name = ingredient.get('name', '').lower()
-                            if name:
-                                if name in combined_ingredients:
-                                    # TODO: Smart quantity combination
-                                    combined_ingredients[name]['count'] += 1
-                                else:
-                                    combined_ingredients[name] = {
-                                        'name': ingredient.get('name'),
-                                        'quantity': ingredient.get('quantity', ''),
-                                        'unit': ingredient.get('unit', ''),
-                                        'count': 1  # How many recipes use this
-                                    }
-                        elif isinstance(ingredient, str):
-                            name = ingredient.lower()
+                    
+                    # Get ingredients from recipe
+                    ingredients = recipe.get('ingredients', [])
+                    
+                    # Parse if it's a JSON string
+                    if isinstance(ingredients, str):
+                        import json
+                        try:
+                            ingredients = json.loads(ingredients)
+                        except:
+                            logger.warning(f"Failed to parse ingredients for recipe {recipe.get('title')}")
+                            continue
+                    
+                    # Add each ingredient to combined list
+                    if isinstance(ingredients, list):
+                        for ingredient in ingredients:
+                            if isinstance(ingredient, dict):
+                                name = ingredient.get('name', '').lower().strip()
+                            elif isinstance(ingredient, str):
+                                name = ingredient.lower().strip()
+                            else:
+                                continue
+                            
+                            if not name:
+                                continue
+                            
+                            # Add or update ingredient
                             if name in combined_ingredients:
                                 combined_ingredients[name]['count'] += 1
                             else:
-                                combined_ingredients[name] = {
-                                    'name': ingredient,
-                                    'quantity': '',
-                                    'unit': '',
-                                    'count': 1
-                                }
+                                if isinstance(ingredient, dict):
+                                    combined_ingredients[name] = {
+                                        'name': ingredient.get('name', name),
+                                        'quantity': ingredient.get('quantity', ''),
+                                        'unit': ingredient.get('unit', ''),
+                                        'category': ingredient.get('category', 'Other'),
+                                        'purchased': False,
+                                        'count': 1
+                                    }
+                                else:
+                                    combined_ingredients[name] = {
+                                        'name': ingredient,
+                                        'quantity': '',
+                                        'unit': '',
+                                        'category': 'Other',
+                                        'purchased': False,
+                                        'count': 1
+                                    }
+                
+                # Convert to list
+                ingredient_list = list(combined_ingredients.values())
+                logger.info(f"✅ Generated {len(ingredient_list)} unique ingredients")
+                
+                return {
+                    'ingredients': ingredient_list,
+                    'recipe_count': len(all_recipes),
+                    'total_ingredients': len(ingredient_list),
+                    'meal_plan_name': meal_plan.get('plan_name'),
+                    'week_start_date': meal_plan.get('week_start_date')
+                }
             
-            # Convert to list
-            ingredient_list = list(combined_ingredients.values())
+            # Handle old v1 format (object with day names)
+            elif isinstance(plan_data, dict):
+                logger.info(f"⚠️ Old v1 format detected - not supported")
+                return {'ingredients': [], 'recipe_count': 0}
             
-            return {
-                'ingredients': ingredient_list,
-                'recipe_count': len(meal_plan['recipes']),
-                'total_ingredients': len(ingredient_list),
-                'meal_plan_name': meal_plan.get('plan_name'),
-                'week_start_date': meal_plan.get('week_start_date')
-            }
+            else:
+                logger.error(f"❌ Unknown plan_data format: {type(plan_data)}")
+                return {'ingredients': [], 'recipe_count': 0}
             
         except Exception as e:
             logger.error(f"Error generating grocery list from meal plan {plan_id}: {e}")
+            import traceback
+            traceback.print_exc()
             return {'ingredients': [], 'recipe_count': 0}
