@@ -159,7 +159,7 @@ class FriendsRepository(BaseRepository):
         try:
             query = """
                 UPDATE friend_requests
-                SET status = %s, updated_at = NOW()
+                SET status = %s, responded_at = NOW()
                 WHERE id = %s
                 RETURNING *
             """
