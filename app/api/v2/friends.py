@@ -118,17 +118,24 @@ def send_friend_request():
     try:
         data = request.get_json()
         
+        # Debug logging
+        logger.info(f"Friend request received. Payload: {data}")
+        
         # Validate required fields
         requester_id = data.get('requester_id')
         recipient_email = data.get('recipient_email')
         
+        logger.info(f"Parsed: requester_id={requester_id}, recipient_email={recipient_email}")
+        
         if not requester_id:
+            logger.warning(f"Missing requester_id in payload: {data}")
             return jsonify({
                 'success': False,
                 'error': 'requester_id is required'
             }), 400
         
         if not recipient_email:
+            logger.warning(f"Missing recipient_email in payload: {data}")
             return jsonify({
                 'success': False,
                 'error': 'recipient_email is required'
@@ -145,6 +152,12 @@ def send_friend_request():
         )
         
         status_code = 201 if result.get('success') else 400
+        
+        if not result.get('success'):
+            logger.warning(f"Friend request failed: {result.get('error')}")
+        else:
+            logger.info(f"Friend request sent successfully to {recipient_email}")
+        
         return jsonify(result), status_code
         
     except Exception as e:
