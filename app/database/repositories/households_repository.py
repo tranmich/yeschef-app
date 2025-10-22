@@ -419,7 +419,7 @@ class HouseholdsRepository(BaseRepository):
         query = """
             SELECT EXISTS(
                 SELECT 1 FROM households
-                WHERE id = %s AND created_by = %s
+                WHERE id = %s AND owner_user_id = %s
             ) as exists
         """
         result = self._execute_query_one(query, (household_id, user_id))
