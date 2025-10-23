@@ -348,6 +348,8 @@ class HouseholdsService(BaseService):
             requesting_role = self.households_repo.get_member_role(household_id, requesting_user_id)
             target_role = self.households_repo.get_member_role(household_id, user_id_to_remove)
             
+            self.log_info(f"Remove member request: household={household_id}, requester={requesting_user_id} (role={requesting_role}), target={user_id_to_remove} (role={target_role})")
+            
             if not requesting_role:
                 return self.error_response("You are not a member of this household", code="UNAUTHORIZED")
             
