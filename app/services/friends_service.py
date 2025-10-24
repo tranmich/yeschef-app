@@ -112,6 +112,12 @@ class FriendsService(BaseService):
                 
         except Exception as e:
             self.log_error(f"Error sending friend request", exception=e)
+            
+            # Handle duplicate request constraint
+            error_msg = str(e)
+            if 'unique_request' in error_msg or 'duplicate key' in error_msg.lower():
+                return self.error_response("You have already sent a friend request to this user or are already friends")
+            
             return self.error_response(f"Failed to send friend request: {str(e)}")
     
     def accept_friend_request(
