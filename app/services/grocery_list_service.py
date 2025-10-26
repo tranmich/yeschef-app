@@ -231,6 +231,9 @@ class GroceryListService(BaseService):
     ) -> Optional[Dict[str, Any]]:
         """Update grocery list"""
         try:
+            logger.info(f"🔄 Service: Updating list {list_id} for user {user_id}")
+            logger.info(f"📝 Service: name={name}, items_count={len(items) if items else 'None'}")
+            
             grocery_list = self.grocery_list_repo.update_grocery_list(
                 list_id=list_id,
                 user_id=user_id,
@@ -239,14 +242,17 @@ class GroceryListService(BaseService):
             )
             
             if grocery_list:
+                logger.info(f"✅ Service: List updated successfully")
                 # Add stats
                 stats = self.grocery_list_repo.get_list_stats(list_id, user_id)
                 grocery_list['stats'] = stats
+            else:
+                logger.error(f"❌ Service: Repository returned None for list {list_id}")
             
             return grocery_list
             
         except Exception as e:
-            logger.error(f"Error updating grocery list {list_id}: {e}")
+            logger.error(f"Error updating grocery list {list_id}: {e}", exc_info=True)
             return None
     
     def add_item(

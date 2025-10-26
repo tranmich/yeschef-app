@@ -232,8 +232,12 @@ def update_grocery_list(list_id):
     try:
         data = request.get_json()
         
+        logger.info(f"🔄 Updating grocery list {list_id}")
+        logger.info(f"📥 Request data: user_id={data.get('user_id')}, name={data.get('name')}, items_count={len(data.get('items', []))}")
+        
         user_id = data.get('user_id')
         if not user_id:
+            logger.warning("Missing user_id in update request")
             return jsonify({
                 'success': False,
                 'error': 'user_id is required'
@@ -247,12 +251,14 @@ def update_grocery_list(list_id):
         )
         
         if grocery_list:
+            logger.info(f"✅ Updated grocery list {list_id}: {grocery_list.get('name')}")
             return jsonify({
                 'success': True,
                 'data': grocery_list,
                 'message': 'Grocery list updated successfully'
             })
         else:
+            logger.error(f"Failed to update grocery list {list_id}")
             return jsonify({
                 'success': False,
                 'error': 'Failed to update grocery list or not found'
