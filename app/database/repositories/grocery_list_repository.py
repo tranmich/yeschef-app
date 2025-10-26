@@ -254,35 +254,44 @@ class GroceryListRepository(BaseRepository):
             params.append(name)
         
         if items is not None:
-            updates.append("items_json = %s")
+            updates.append("list_data = %s::jsonb")  # Use list_data not items_json!
             params.append(json.dumps(items))
         
         if not updates:
             return self.get_grocery_list_by_id(list_id, user_id)
         
-        updates.append("updated_date = CURRENT_TIMESTAMP")
+        updates.append("updated_at = CURRENT_TIMESTAMP")  # Use updated_at not updated_date
         
         query = f"""
             UPDATE grocery_lists
             SET {', '.join(updates)}
             WHERE id = %s AND user_id = %s
-            RETURNING id, user_id, list_name, items_json, meal_plan_id,
-                      created_date, updated_date
+            RETURNING id, user_id, list_name, list_data, created_at, updated_at
         """
         
         params.extend([list_id, user_id])
         grocery_list = self._execute_update(query, tuple(params))
         
         if grocery_list:
+            logger.info(f"✅ Updated grocery list {list_id}: {name if name else 'name unchanged'}")
             # Map list_name to name for API consistency
             if 'list_name' in grocery_list:
                 grocery_list['name'] = grocery_list['list_name']
                 del grocery_list['list_name']
-            # Add name manually (legacy schema)
-            grocery_list['name'] = name if name else 'My Grocery List'
-            if grocery_list.get('items_json'):
-                grocery_list['items'] = json.loads(grocery_list['items_json'])
-                del grocery_list['items_json']
+            # Parse list_data JSON back to items list
+            if grocery_list.get('list_data'):
+                if isinstance(grocery_list['list_data'], str):
+                    grocery_list['items'] = json.loads(grocery_list['list_data'])
+                else:
+                    grocery_list['items'] = grocery_list['list_data']
+                del grocery_list['list_data']
+            # Map timestamps
+            if 'created_at' in grocery_list:
+                grocery_list['created_date'] = grocery_list['created_at']
+                del grocery_list['created_at']
+            if 'updated_at' in grocery_list:
+                grocery_list['updated_date'] = grocery_list['updated_at']
+                del grocery_list['updated_at']
             return grocery_list
         return None
     
