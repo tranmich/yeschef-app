@@ -44,10 +44,13 @@ def create_grocery_list():
     try:
         data = request.get_json()
         
+        logger.info(f"📝 Creating grocery list: {data.get('name')} for user {data.get('user_id')}")
+        
         # Validate required fields
         required_fields = ['user_id', 'name', 'items']
         for field in required_fields:
             if field not in data:
+                logger.warning(f"Missing required field: {field}")
                 return jsonify({
                     'success': False,
                     'error': f'Missing required field: {field}'
@@ -62,12 +65,14 @@ def create_grocery_list():
         )
         
         if grocery_list:
+            logger.info(f"✅ Created grocery list {grocery_list['id']}: {grocery_list['name']}")
             return jsonify({
                 'success': True,
                 'data': grocery_list,
                 'message': 'Grocery list created successfully'
             }), 201
         else:
+            logger.error("Failed to create grocery list")
             return jsonify({
                 'success': False,
                 'error': 'Failed to create grocery list'
