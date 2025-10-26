@@ -249,15 +249,22 @@ class GroceryListRepository(BaseRepository):
         updates = []
         params = []
         
+        logger.info(f"🔵 Repository: Updating list {list_id} for user {user_id}")
+        
         if name is not None:
             updates.append("list_name = %s")  # Use list_name (legacy column)
             params.append(name)
+            logger.info(f"  📝 Updating name to: {name}")
         
         if items is not None:
             updates.append("list_data = %s::jsonb")  # Use list_data not items_json!
-            params.append(json.dumps(items))
+            items_json = json.dumps(items)
+            params.append(items_json)
+            logger.info(f"  📦 Updating items: {len(items)} items")
+            logger.info(f"  📊 Items JSON (first 200 chars): {items_json[:200]}")
         
         if not updates:
+            logger.info("  ⚠️ No updates provided, returning existing list")
             return self.get_grocery_list_by_id(list_id, user_id)
         
         updates.append("updated_at = CURRENT_TIMESTAMP")  # Use updated_at not updated_date
@@ -270,6 +277,10 @@ class GroceryListRepository(BaseRepository):
         """
         
         params.extend([list_id, user_id])
+        
+        logger.info(f"  🔍 Executing UPDATE query with {len(params)} params")
+        logger.info(f"  📋 Query: {query[:150]}...")
+        
         grocery_list = self._execute_update(query, tuple(params))
         
         if grocery_list:
