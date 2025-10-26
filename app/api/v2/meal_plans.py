@@ -48,10 +48,13 @@ def create_meal_plan():
     try:
         data = request.get_json()
         
+        logger.info(f"📝 Creating meal plan: {data.get('plan_name')} for user {data.get('user_id')}")
+        
         # Validate required fields
         required_fields = ['user_id', 'plan_name', 'week_start_date', 'plan_data']
         for field in required_fields:
             if field not in data:
+                logger.warning(f"Missing required field: {field}")
                 return jsonify({
                     'success': False,
                     'error': f'Missing required field: {field}'
@@ -66,12 +69,14 @@ def create_meal_plan():
         )
         
         if meal_plan:
+            logger.info(f"✅ Created meal plan {meal_plan['id']}: {meal_plan['plan_name']}")
             return jsonify({
                 'success': True,
                 'data': meal_plan,
                 'message': 'Meal plan created successfully'
             }), 201
         else:
+            logger.error("Failed to create meal plan")
             return jsonify({
                 'success': False,
                 'error': 'Failed to create meal plan'
@@ -275,14 +280,18 @@ def delete_meal_plan(plan_id):
                 'error': 'user_id is required'
             }), 400
         
+        logger.info(f"🗑️ Deleting meal plan {plan_id} for user {user_id}")
+        
         success = meal_plan_service.delete_meal_plan(plan_id, user_id)
         
         if success:
+            logger.info(f"✅ Deleted meal plan {plan_id}")
             return jsonify({
                 'success': True,
                 'message': 'Meal plan deleted successfully'
             })
         else:
+            logger.warning(f"Failed to delete meal plan {plan_id} - not found or unauthorized")
             return jsonify({
                 'success': False,
                 'error': 'Failed to delete meal plan or not found'
