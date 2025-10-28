@@ -7216,7 +7216,7 @@ if __name__ == "__main__":
 
     # Register v2 API routes (new architecture)
     try:
-        from register_v2_routes import register_v2_routes
+        from scripts.setup.register_v2_routes import register_v2_routes
         register_v2_routes(app)
         logger.info("✅ V2 API routes registered successfully!")
     except Exception as e:
