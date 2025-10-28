@@ -28,7 +28,7 @@ from auth_routes import create_auth_routes
 
 # Import template recipe system
 try:
-    from template_recipe_system import TemplateRecipeSystem
+    from scripts.template_recipe_system import TemplateRecipeSystem
     TEMPLATE_SYSTEM_AVAILABLE = True
     logger.info("✅ Template recipe system loaded")
 except ImportError as e:
