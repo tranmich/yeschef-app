@@ -127,6 +127,33 @@ class GroceryListService(BaseService):
                 meal_plan_name = grocery_data.get('meal_plan_name', 'Meal Plan')
                 list_name = f"Grocery List - {meal_plan_name}"
             
+            # 🔧 AUTO-RENAME: Check for duplicate names and add (1), (2), etc.
+            existing_lists = self.grocery_list_repo.get_user_grocery_lists(user_id=user_id, limit=1000, offset=0)
+            if existing_lists:
+                # Find duplicates with same base name
+                base_name = list_name
+                duplicates = []
+                for existing_list in existing_lists:
+                    existing_name = existing_list.get('name', '')
+                    # Remove trailing (N) pattern to get base name
+                    import re
+                    existing_base = re.sub(r'\s*\(\d+\)$', '', existing_name)
+                    if existing_base == base_name or existing_name == base_name:
+                        duplicates.append(existing_name)
+                
+                if duplicates:
+                    # Find highest number used
+                    highest_number = 0
+                    for dup_name in duplicates:
+                        match = re.search(r'\((\d+)\)$', dup_name)
+                        if match:
+                            highest_number = max(highest_number, int(match.group(1)))
+                    
+                    # Add (1), (2), (3), etc.
+                    new_number = highest_number + 1
+                    list_name = f"{base_name} ({new_number})"
+                    logger.info(f"📝 Auto-renamed to avoid duplicate: '{list_name}'")
+            
             logger.info(f"🔵 Creating grocery list: '{list_name}'")
             
             # Create grocery list
