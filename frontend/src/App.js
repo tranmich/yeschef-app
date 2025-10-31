@@ -4,7 +4,9 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Public Pages
-import LandingPage from './pages/LandingPage';
+import LandingPage from './pages/LandingPageSimple';
+import Story from './pages/Story';
+import Privacy from './pages/Privacy';
 
 // Admin Pages
 import WaitlistAdmin from './pages/WaitlistAdmin';
@@ -28,6 +30,8 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             
             {/* Public Routes */}
+            <Route path="/story" element={<Story />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
