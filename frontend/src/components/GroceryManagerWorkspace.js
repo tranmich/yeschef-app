@@ -1708,7 +1708,7 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                             disabled
                             title="Combine similar items (coming soon)"
                         >
-                            🔗 Combine
+                            Combine
                         </button>
                         {getHiddenCount() > 0 && (
                             <button 
@@ -1716,16 +1716,16 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                                 onClick={() => setShowHidden(!showHidden)}
                                 title={showHidden ? 'Hide items already in pantry' : `Show ${getHiddenCount()} hidden items`}
                             >
-                                {showHidden ? '👁️ Hide Pantry Items' : `👁️‍🗨️ Show Hidden (${getHiddenCount()})`}
+                                {showHidden ? 'Hide Pantry Items' : `Show Hidden (${getHiddenCount()})`}
                             </button>
                         )}
-                        <button className="export-btn">📱 Export</button>
+                        <button className="export-btn">Export</button>
                         <button 
                             className="load-btn"
                             onClick={() => setShowLoadPanel(true)}
                             title="Load a saved grocery list"
                         >
-                            📂 Load
+                            Load
                         </button>
                         <button 
                             className={`save-btn ${hasUnsavedChanges ? 'has-changes' : ''}`}
@@ -1735,7 +1735,7 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                             }}
                             title={hasUnsavedChanges ? "Save changes to PostgreSQL" : "No changes to save"}
                         >
-                            💾 {hasUnsavedChanges ? 'Save' : 'Saved'}
+                            {hasUnsavedChanges ? 'Save' : 'Saved'}
                         </button>
                         <button 
                             className="share-btn"
@@ -1743,7 +1743,7 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                             disabled={!currentList || !currentList.id}
                             title={currentList?.id ? "Share this list with a household" : "Save list first to share"}
                         >
-                            🔗 Share
+                            Share
                         </button>
                     </div>
                 </div>
@@ -2278,7 +2278,7 @@ const DraggableItem = ({
                 onClick={() => removeItem(sectionKey, item.id)}
                 title="Remove from list"
             >
-                🗑️
+                ×
             </button>
         </div>
     );

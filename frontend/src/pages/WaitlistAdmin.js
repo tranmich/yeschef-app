@@ -14,9 +14,10 @@ const WaitlistAdmin = () => {
   const fetchWaitlist = async () => {
     setLoading(true);
     try {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
       const url = filter === 'all' 
-        ? 'http://localhost:5000/api/admin/waitlist'
-        : `http://localhost:5000/api/admin/waitlist?status=${filter}`;
+        ? `${apiUrl}/api/admin/waitlist`
+        : `${apiUrl}/api/admin/waitlist?status=${filter}`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -33,7 +34,8 @@ const WaitlistAdmin = () => {
   };
 
   const exportCSV = () => {
-    window.open('http://localhost:5000/api/admin/waitlist/export', '_blank');
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    window.open(`${apiUrl}/api/admin/waitlist/export`, '_blank');
   };
 
   const formatDate = (dateString) => {

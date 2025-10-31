@@ -252,9 +252,14 @@
   width: 18px;
   height: 18px;
   margin-right: 0.75rem;
-  font-size: 14px;
   flex-shrink: 0;
-  text-align: center;
+}
+
+.sidebar-navigation .feature-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  transition: all 0.2s ease;
 }
 
 /* === FEATURE LABELS === */
@@ -382,15 +387,9 @@
   border-left-color: #059669;
 }
 
-.sidebar-navigation .category-item-inline .category-icon {
-  font-size: 14px; /* Increased from 12px */
-  width: 16px; /* Increased from 14px */
-  text-align: center;
-}
-
 .sidebar-navigation .category-item-inline .category-name {
   flex: 1;
-  font-size: 13px; /* Increased from 11px */
+  font-size: 13px;
   font-family: var(--font-body);
   color: inherit;
 }

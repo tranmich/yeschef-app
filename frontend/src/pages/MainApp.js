@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { DndContext, closestCenter } from '@dnd-kit/core';
+import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core';
 import { useAuth } from '../contexts/AuthContext';
 import SidebarContainer from '../components/SidebarContainer';
 import ChatInterface from '../components/ChatInterface';
 import RecipeListView from '../components/RecipeListView';
+import ViewSwitcher from '../components/ViewSwitcher';
+import RecipeGalleryView from '../components/RecipeGalleryView';
+import RecipeTableView from '../components/RecipeTableView';
+import SearchFilterBar from '../components/SearchFilterBar';
 import FriendsView from '../components/FriendsView';
 import CommunityBrowser from '../components/CommunityBrowserNew';
 import RecipeEditModal from '../components/RecipeEditModal';
 import ImportRecipeModal from '../components/ImportRecipeModal';
+import PhotoImportModal from '../components/PhotoImportModal';
 import RecipePanel from '../components/RecipePanel';
 import AdminDashboard from '../components/AdminDashboard';
 import AdminRecipeOverlay from '../components/AdminRecipeOverlay';
@@ -22,7 +27,7 @@ const MainApp = () => {
   console.log('🚀 MainApp component loaded - COOKBOOK-FIRST VERSION 2025-08-22');
 
   // --- Authentication ---
-  const { currentUser, loading: authLoading, logout } = useAuth();
+  const { user: currentUser, loading: authLoading, logout } = useAuth();
 
   // --- Enhanced Session Memory with Backend Coordination ---
   const [sessionMemory] = useState(() => new SessionMemoryManager());
@@ -49,6 +54,37 @@ const MainApp = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminMode, setAdminMode] = useState(false);
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+
+  // --- View State (Multi-view system) ---
+  const [currentView, setCurrentView] = useState(() => {
+    return localStorage.getItem('preferredRecipeView') || 'gallery';
+  });
+  const [showPhotoImport, setShowPhotoImport] = useState(false);
+
+  // --- Drag and Drop State ---
+  const [activeRecipe, setActiveRecipe] = useState(null);
+
+  // --- Search and Filter State ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilters, setActiveFilters] = useState({
+    difficulty: [],
+    time: [],
+    mealType: []
+  });
+
+  // --- Pagination State ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const recipesPerPage = 50;
+
+  // Save preferred view to localStorage
+  useEffect(() => {
+    localStorage.setItem('preferredRecipeView', currentView);
+  }, [currentView]);
+
+  // Reset to page 1 when filters or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeFilters, selectedCategory]);
 
     // --- Meal Planner Mode ---
   const [mealPlannerMode, setMealPlannerMode] = useState('traditional'); // 'traditional' or 'notion'
@@ -207,29 +243,102 @@ const MainApp = () => {
   };
 
   const getFilteredRecipes = () => {
-    if (selectedCategory === 'all') return recipes;
-    
-    return recipes.filter(recipe => {
-      switch (selectedCategory) {
-        case 'recent-imports':
-          // Show recipes that were imported (category 'imported' or has import markers)
-          return recipe.category === 'imported' || recipe.is_imported || recipe.imported_at;
-        case 'breakfast':
-        case 'lunch':
-        case 'dinner':
-          return recipe.meal_role === selectedCategory;
-        case 'desserts':
-          return recipe.meal_role === 'dessert';
-        case 'one-pot':
-          return recipe.is_one_pot === true;
-        case 'quick':
-          return recipe.time_min && recipe.time_min <= 30;
-        case 'favorites':
-          return recipe.is_favorite === true;
-        default:
-          return true;
-      }
-    });
+    let filtered = recipes;
+
+    // First filter by category (from sidebar)
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(recipe => {
+        switch (selectedCategory) {
+          case 'recent-imports':
+            return recipe.category === 'imported' || recipe.is_imported || recipe.imported_at;
+          case 'breakfast':
+          case 'lunch':
+          case 'dinner':
+            return recipe.meal_role === selectedCategory;
+          case 'desserts':
+            return recipe.meal_role === 'dessert';
+          case 'one-pot':
+            return recipe.is_one_pot === true;
+          case 'quick':
+            return recipe.time_min && recipe.time_min <= 30;
+          case 'favorites':
+            return recipe.is_favorite === true;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Then apply search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(recipe => {
+        const title = (recipe.title || '').toLowerCase();
+        const ingredients = (recipe.ingredients || '').toLowerCase();
+        const tags = (recipe.tags || []).join(' ').toLowerCase();
+        const description = (recipe.description || '').toLowerCase();
+        
+        return title.includes(query) || 
+               ingredients.includes(query) || 
+               tags.includes(query) ||
+               description.includes(query);
+      });
+    }
+
+    // Then apply active filters
+    if (activeFilters.difficulty.length > 0) {
+      filtered = filtered.filter(recipe => {
+        const difficulty = (recipe.difficulty || '').toLowerCase();
+        return activeFilters.difficulty.includes(difficulty);
+      });
+    }
+
+    if (activeFilters.time.length > 0) {
+      filtered = filtered.filter(recipe => {
+        const time = parseInt(recipe.time_min || recipe.cooking_time || recipe.prep_time || 0);
+        
+        return activeFilters.time.some(timeFilter => {
+          if (timeFilter === 'quick') return time > 0 && time < 30;
+          if (timeFilter === 'medium') return time >= 30 && time <= 60;
+          if (timeFilter === 'long') return time > 60;
+          return false;
+        });
+      });
+    }
+
+    if (activeFilters.mealType.length > 0) {
+      filtered = filtered.filter(recipe => {
+        const mealRole = (recipe.meal_role || recipe.category || '').toLowerCase();
+        return activeFilters.mealType.includes(mealRole);
+      });
+    }
+
+    return filtered;
+  };
+
+  const getPaginatedRecipes = () => {
+    const filtered = getFilteredRecipes();
+    const startIndex = (currentPage - 1) * recipesPerPage;
+    const endIndex = startIndex + recipesPerPage;
+    return filtered.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = () => {
+    const filtered = getFilteredRecipes();
+    return Math.ceil(filtered.length / recipesPerPage);
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+  };
+
+  const handleFilterChange = (filters) => {
+    setActiveFilters(filters);
   };
 
   const handleCategorySelect = (categoryId) => {
@@ -434,6 +543,77 @@ const MainApp = () => {
     // This function is no longer needed but keeping for any legacy references
   };
 
+  // Handle photo import
+  const handlePhotoImport = async (formData) => {
+    try {
+      console.log('📸 Starting photo import...');
+      const response = await api.importRecipeFromPhoto(formData);
+      
+      if (response.success && response.data) {
+        console.log('✅ Photo import successful:', response.data);
+        
+        // Add the imported recipe to the list
+        const newRecipe = response.data.recipe || response.data;
+        setRecipes(prevRecipes => [newRecipe, ...prevRecipes]);
+        
+        // Show success message
+        alert(`Recipe "${newRecipe.title}" imported successfully!`);
+        
+        // Refresh recipes to get latest from backend
+        setTimeout(() => {
+          loadRecipes(selectedCategory);
+        }, 500);
+        
+        return response;
+      } else {
+        throw new Error(response.error || 'Photo import failed');
+      }
+    } catch (error) {
+      console.error('❌ Photo import error:', error);
+      throw error;
+    }
+  };
+
+  // Handle recipe deletion
+  const handleDeleteRecipe = async (recipeId) => {
+    try {
+      // Try to get user ID from currentUser first, then from auth API
+      let userId = currentUser?.id;
+      
+      if (!userId) {
+        // Fetch current user from auth API
+        try {
+          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+          });
+          if (response.ok) {
+            const userData = await response.json();
+            userId = userData.id;
+          }
+        } catch (error) {
+          console.error('Failed to get user ID:', error);
+        }
+      }
+      
+      if (!userId) {
+        alert('Unable to delete recipe: Not authenticated');
+        return;
+      }
+      
+      await api.deleteRecipeV2(recipeId, userId);
+      
+      // Remove from local state
+      setRecipes(prev => prev.filter(r => r.id !== recipeId));
+      
+      console.log(`✅ Recipe ${recipeId} deleted successfully`);
+    } catch (error) {
+      console.error('❌ Error deleting recipe:', error);
+      alert('Failed to delete recipe. Please try again.');
+    }
+  };
+
   // Drag and drop with meal planner and container integration (simplified - no meal types)
   const dragAndDropHook = useDragAndDrop(
     (day, recipe) => {
@@ -459,15 +639,34 @@ const MainApp = () => {
 
   console.log('👤 Current user:', currentUser);
 
+  // Drag handlers
+  const handleDragStart = (event) => {
+    const recipe = event.active.data.current?.recipe;
+    if (recipe) {
+      setActiveRecipe(recipe);
+    }
+    dragAndDropHook.handleDragStart(event);
+  };
+
+  const handleDragEnd = (event) => {
+    setActiveRecipe(null);
+    dragAndDropHook.handleDragEnd(event);
+  };
+
+  const handleDragCancel = () => {
+    setActiveRecipe(null);
+    dragAndDropHook.handleDragCancel();
+  };
+
   return (
     <DndContext
       sensors={dragAndDropHook.sensors}
       collisionDetection={closestCenter}
-      onDragStart={dragAndDropHook.handleDragStart}
-      onDragEnd={dragAndDropHook.handleDragEnd}
-      onDragCancel={dragAndDropHook.handleDragCancel}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
-      <div className="app-container cookbook-first">
+      <div className={`app-container cookbook-first ${showRecipeDetail ? 'recipe-panel-open' : ''}`}>
         {/* Navigation Sidebar - Left Side */}
         <SidebarContainer
           showMealPlanner={sidebarHook.isMealPlannerVisible}
@@ -521,6 +720,8 @@ const MainApp = () => {
               setActiveView('import');
               setShowChat(false);
               sidebarHook.closeAllSidebars();
+            } else if (feature === 'photo-import') {
+              setShowPhotoImport(true);
             }
           }}
         />
@@ -539,16 +740,40 @@ const MainApp = () => {
           )}
 
           {activeView === 'cookbook' && (
-            <RecipeListView
-              recipes={getFilteredRecipes()}
-              selectedCategory={selectedCategory}
-              onRecipeClick={handleRecipeClick}
-              onRecipeEdit={handleRecipeEdit}
-              onRefreshRecipes={loadRecipes}
-              loading={loading}
-              adminMode={adminMode && isAdmin}
-              isAdmin={isAdmin}
-            />
+            <>
+              {/* View Switcher */}
+              <ViewSwitcher 
+                currentView={currentView} 
+                onViewChange={setCurrentView} 
+              />
+
+              {/* Search and Filter Bar */}
+              <SearchFilterBar
+                onSearch={handleSearch}
+                onFilterChange={handleFilterChange}
+                totalRecipes={getFilteredRecipes().length}
+                currentPage={currentPage}
+                totalPages={getTotalPages()}
+                onPageChange={handlePageChange}
+              />
+
+              {/* Render view based on selection */}
+              {currentView === 'gallery' && (
+                <RecipeGalleryView
+                  recipes={getPaginatedRecipes()}
+                  onRecipeClick={handleRecipeClick}
+                />
+              )}
+
+              {currentView === 'table' && (
+                <RecipeTableView
+                  recipes={getPaginatedRecipes()}
+                  onRecipeClick={handleRecipeClick}
+                  onRecipeEdit={handleRecipeEdit}
+                  onRecipeDelete={handleDeleteRecipe}
+                />
+              )}
+            </>
           )}
 
           {activeView === 'import' && (
@@ -617,6 +842,13 @@ const MainApp = () => {
           onSave={handleSaveRecipe}
         />
 
+        {/* Photo Import Modal */}
+        <PhotoImportModal
+          isOpen={showPhotoImport}
+          onClose={() => setShowPhotoImport(false)}
+          onImport={handlePhotoImport}
+        />
+
         {/* Recipe Panel - Notion-style slide-in */}
         <RecipePanel
           recipe={viewingRecipe}
@@ -671,6 +903,26 @@ const MainApp = () => {
           </div>
         )}
       </div>
+
+      {/* Drag Overlay - Small floating preview */}
+      <DragOverlay>
+        {activeRecipe ? (
+          <div style={{
+            padding: '8px 16px',
+            background: '#AAC6AD',
+            color: 'white',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+            fontSize: '14px',
+            fontWeight: '600',
+            maxWidth: '200px',
+            textAlign: 'center',
+            cursor: 'grabbing'
+          }}>
+            📋 {activeRecipe.title}
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 };

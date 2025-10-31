@@ -267,15 +267,22 @@ class RecipeRepository(BaseRepository):
         Returns:
             True if deleted, False if not found or unauthorized
         """
-        # Verify ownership
+        # Check if user is admin (user_id 11 is admin)
+        is_admin = (user_id == 11)
+        
+        # Verify ownership (or admin bypass)
         recipe = self.find_by_id(recipe_id)
-        if not recipe or recipe['user_id'] != user_id:
-            raise ValueError("Recipe not found or unauthorized")
+        if not recipe:
+            raise ValueError("Recipe not found")
+        
+        # Non-admins can only delete their own recipes
+        if not is_admin and recipe['user_id'] != user_id:
+            raise ValueError("Unauthorized to delete this recipe")
         
         success = self.delete_by_id(recipe_id)
         
         if success:
-            logger.info(f"✅ Deleted recipe ID: {recipe_id} for user {user_id}")
+            logger.info(f"✅ Deleted recipe ID: {recipe_id} by user {user_id}{' (admin)' if is_admin else ''}")
         
         return success
     

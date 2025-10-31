@@ -14,6 +14,7 @@ from .profile import profile_bp
 from .system import system_bp
 from .favorites import favorites_bp  # ✅ Added: was missing
 from .pantry import pantry_bp  # ✅ Added: was missing
+from .images import image_bp  # ✅ NEW: Image serving endpoint
 
 def register_v2_routes(app):
     """
@@ -38,6 +39,9 @@ def register_v2_routes(app):
     app.register_blueprint(favorites_bp)
     app.register_blueprint(pantry_bp)
     
+    # Media features
+    app.register_blueprint(image_bp)  # ✅ NEW: Image serving
+    
     # System
     app.register_blueprint(system_bp)
     
@@ -45,5 +49,6 @@ def register_v2_routes(app):
     print("   - Friends, Households, Community")
     print("   - Meal Plans, Grocery Lists, Recipes")
     print("   - Users, Profile, Favorites, Pantry, System")
+    print("   - Images (optimized recipe photos)")
     
     return friends_bp  # Return one for reference

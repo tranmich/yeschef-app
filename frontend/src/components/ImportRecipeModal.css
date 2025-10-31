@@ -382,19 +382,28 @@
 }
 
 .import-button {
-  background: #AAC6AD;
-  color: white;
-  border: none;
-  box-shadow: 0 2px 4px rgba(170, 198, 173, 0.2);
+  background: #AAC6AD;  /* Mint green */
+  color: #1a1a1a;  /* Darker text for better contrast */
+  font-weight: 700;
+  border: 2px solid #AAC6AD;  /* Matching border */
+  box-shadow: 0 2px 4px rgba(170, 198, 173, 0.3);
 }
 
 .import-button:hover:not(:disabled) {
-  background: #98b89b;
+  background: #8fb592;  /* Darker mint on hover */
+  border-color: #7fa882;  /* Darker mint border on hover */
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(170, 198, 173, 0.3);
+  box-shadow: 0 4px 12px rgba(170, 198, 173, 0.5);
 }
 
-.import-button:disabled,
+.import-button:disabled {
+  background: #d4e3d6;  /* Lighter mint when disabled */
+  border-color: #d4e3d6;
+  color: #6b7280;
+  cursor: not-allowed;
+  opacity: 1;  /* Don't reduce opacity - use color instead */
+}
+
 .cancel-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -627,6 +636,28 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.recipe-image-preview {
+  max-width: 400px;
+  max-height: 300px;
+  overflow: hidden;
+  border-radius: 8px;
+  margin-top: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.recipe-image-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.image-url-display {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #6c757d;
+  font-family: monospace;
 }
 
 .edit-field label {

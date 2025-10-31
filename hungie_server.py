@@ -3327,7 +3327,34 @@ def create_meal_plan():
 
         plan_name = data.get('plan_name', f'Meal Plan {datetime.now().strftime("%Y-%m-%d")}')
         week_start_date = data.get('week_start_date', datetime.now().strftime("%Y-%m-%d"))
-        meal_data = data.get('meal_data', {})
+        
+        # Handle both mobile and web formats
+        meal_data = data.get('meal_data') or data.get('plan_data', {})
+        
+        # Normalize format: Convert mobile array format to web object format
+        if isinstance(meal_data, list):
+            # Mobile format: array of days
+            logger.info(f"📱 Converting mobile format (array of {len(meal_data)} days) to web format")
+            normalized_data = {
+                'days': {},
+                'dayOrder': []
+            }
+            for idx, day in enumerate(meal_data):
+                day_key = f"day_{idx + 1}"
+                normalized_data['days'][day_key] = {
+                    'name': day.get('name', f'Day {idx + 1}'),
+                    'recipes': day.get('meals', [])  # Mobile uses 'meals', web uses 'recipes'
+                }
+                normalized_data['dayOrder'].append(day_key)
+            meal_data = normalized_data
+            logger.info(f"✅ Converted to web format: {len(normalized_data['days'])} days")
+        elif isinstance(meal_data, dict) and 'days' in meal_data:
+            # Web format: already correct
+            logger.info(f"🌐 Using web format (object with {len(meal_data.get('days', {}))} days)")
+        else:
+            # Empty or invalid format
+            logger.warning(f"⚠️ Unknown meal data format, using empty structure")
+            meal_data = {'days': {}, 'dayOrder': []}
 
         logger.info(f"💾 User {user_id} creating meal plan: {plan_name}")
 
@@ -3488,6 +3515,58 @@ def get_meal_plan(plan_id):
                 'success': False,
                 'error': 'Meal plan not found or access denied'
             }), 404
+
+        # Normalize format for web: Convert mobile array format to web object format
+        meal_data = plan.get('meal_data', {})
+        if isinstance(meal_data, list):
+            # Mobile format: array of days
+            logger.info(f"📱 Converting loaded mobile format (array of {len(meal_data)} days) to web format")
+            logger.info(f"📊 Sample mobile day structure: {meal_data[0] if meal_data else 'empty'}")
+            
+            normalized_data = {
+                'days': {},
+                'dayOrder': []
+            }
+            for idx, day in enumerate(meal_data):
+                day_key = f"day_{idx + 1}"
+                
+                # Mobile format uses BOTH 'recipes' and 'meals' properties!
+                # Check both for compatibility
+                meals = day.get('meals', []) or day.get('recipes', [])
+                
+                # Log the meals structure to debug
+                logger.info(f"   Day {idx + 1}: '{day.get('name')}' has {len(meals)} meals/recipes")
+                if meals:
+                    logger.info(f"   First meal structure keys: {list(meals[0].keys())[:10]}")
+                
+                # Convert meals to recipes format
+                recipes = []
+                for meal in meals:
+                    # Mobile meal format may have different property names
+                    recipe = {
+                        'id': meal.get('recipe_id') or meal.get('id'),
+                        'title': meal.get('title') or meal.get('name'),
+                        'image_url': meal.get('image_url') or meal.get('imageUrl'),
+                        'meal_type': meal.get('meal_type') or meal.get('mealType'),
+                    }
+                    # Only add if we have at least an id
+                    if recipe['id']:
+                        recipes.append(recipe)
+                    else:
+                        logger.warning(f"   ⚠️ Skipping meal without ID: {meal}")
+                
+                normalized_data['days'][day_key] = {
+                    'name': day.get('name', f'Day {idx + 1}'),
+                    'recipes': recipes
+                }
+                normalized_data['dayOrder'].append(day_key)
+            
+            plan['meal_data'] = normalized_data
+            logger.info(f"✅ Converted loaded plan to web format: {len(normalized_data['days'])} days")
+        elif isinstance(meal_data, dict) and 'days' not in meal_data:
+            # Old or malformed format
+            logger.warning(f"⚠️ Meal plan has no 'days' structure, initializing empty")
+            plan['meal_data'] = {'days': {}, 'dayOrder': []}
 
         return jsonify({
             'success': True,

@@ -63,9 +63,9 @@
 }
 
 .tab-button.active {
-  color: #AAC6AD;
+  color: white;
   border-bottom-color: #AAC6AD;
-  background: rgba(170, 198, 173, 0.1);
+  background: #AAC6AD;
   font-weight: 600;
 }
 
@@ -78,20 +78,22 @@
 }
 
 .primary-button {
-  background: #AAC6AD;
-  color: white;
-  border: none;
+  background: #AAC6AD !important;
+  color: white !important;
+  border: 2px solid #AAC6AD !important;
   padding: 10px 16px;
   border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
   font-family: 'Nunito', sans-serif;
   font-weight: 600;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .primary-button:hover {
-  background: #91b496;
+  background: white !important;
+  color: #AAC6AD !important;
+  border-color: #AAC6AD !important;
 }
 
 .primary-button:disabled {
@@ -100,9 +102,9 @@
 }
 
 .secondary-button {
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  background: #AAC6AD !important;
+  color: white !important;
+  border: 2px solid #AAC6AD !important;
   padding: 10px 16px;
   border-radius: 8px;
   cursor: pointer;
@@ -113,8 +115,9 @@
 }
 
 .secondary-button:hover {
-  background: #e5e7eb;
-  border-color: #9ca3af;
+  background: white !important;
+  color: #AAC6AD !important;
+  border-color: #AAC6AD !important;
 }
 
 /* Messages */

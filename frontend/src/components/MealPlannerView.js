@@ -201,9 +201,17 @@ const MealPlannerView = ({
             const data = await response.json();
 
             if (data.success) {
-                updateMealPlan(data.meal_plan.meal_data);
+                // Ensure meal_data has proper structure before loading
+                const mealData = data.meal_plan.meal_data || {};
+                const initializedData = {
+                    days: mealData.days || {},
+                    dayOrder: mealData.dayOrder || Object.keys(mealData.days || {})
+                };
+                
+                updateMealPlan(initializedData);
                 setCurrentPlanName(data.meal_plan.plan_name);
                 setCurrentPlanId(planId); // Store the plan ID for sharing
+                console.log('✅ Loaded meal plan:', data.meal_plan.plan_name, initializedData);
             } else {
                 alert('Error loading meal plan: ' + data.error);
             }
@@ -234,6 +242,40 @@ const MealPlannerView = ({
         }
     };
 
+    const deleteMealPlan = async (planId, planName) => {
+        if (!window.confirm(`Are you sure you want to permanently delete "${planName}"? This cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('authToken');
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${getApiUrl()}/api/meal-plans/${planId}`, {
+                method: 'DELETE',
+                headers: headers
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('Meal plan deleted successfully!');
+                loadSavedMealPlans(); // Refresh the list
+            } else {
+                alert('Error deleting meal plan: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error deleting meal plan:', error);
+            alert('Error deleting meal plan');
+        }
+    };
+
     const getCurrentWeekStart = () => {
         const today = new Date();
         const firstDayOfWeek = today.getDate() - today.getDay() + 1; // Monday
@@ -258,13 +300,27 @@ const MealPlannerView = ({
             {/* Enhanced Header with Controls */}
             <div className="meal-planner-header">
                 <div className="header-left">
-                    <h2>Meal Planner</h2>
+                    <input
+                        type="text"
+                        placeholder="Meal Plan Name..."
+                        value={currentPlanName}
+                        onChange={(e) => setCurrentPlanName(e.target.value)}
+                        className="meal-plan-name-input-large"
+                        style={{
+                            fontSize: '20px',
+                            fontWeight: '600',
+                            padding: '8px 12px',
+                            border: '2px solid #e5e7eb',
+                            borderRadius: '8px',
+                            minWidth: '300px'
+                        }}
+                    />
                     <button
                         onClick={addNewDay}
                         className="add-day-btn"
                         title="Add New Day"
                     >
-                        ➕ Day
+                        + Day
                     </button>
                     <button
                         onClick={clearMealPlan}
@@ -275,14 +331,6 @@ const MealPlannerView = ({
                 </div>
 
                 <div className="header-right">
-                    <input
-                        type="text"
-                        placeholder="Meal plan name..."
-                        value={currentPlanName}
-                        onChange={(e) => setCurrentPlanName(e.target.value)}
-                        className="meal-plan-name-input"
-                    />
-
                     <button
                         onClick={saveMealPlan}
                         disabled={loading || !currentPlanName.trim()}
@@ -293,14 +341,14 @@ const MealPlannerView = ({
                             cursor: (loading || !currentPlanName.trim()) ? 'not-allowed' : 'pointer'
                         }}
                     >
-                        💾 {loading ? 'Saving...' : 'Save'}
+                        {loading ? 'Saving...' : 'Save'}
                     </button>
 
                     <button
                         onClick={() => setShowSavedPlansModal(true)}
                         className="load-saved-plans-btn"
                     >
-                        📋 Load
+                        Load
                     </button>
 
                     <button
@@ -309,7 +357,7 @@ const MealPlannerView = ({
                         className="share-plan-btn"
                         title={currentPlanId ? "Share this meal plan with a household" : "Save plan first to share"}
                     >
-                        🔗 Share
+                        Share
                     </button>
 
                     <button
@@ -321,7 +369,7 @@ const MealPlannerView = ({
                         }}
                         className="grocery-list-btn"
                     >
-                        🛒 Grocery List
+                        Grocery List
                     </button>
                 </div>
             </div>
@@ -344,7 +392,7 @@ const MealPlannerView = ({
                 <div className="saved-plans-modal-overlay" onClick={() => setShowSavedPlansModal(false)}>
                     <div className="saved-plans-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3>📋 Saved Meal Plans</h3>
+                            <h3>Saved Meal Plans</h3>
                             <button
                                 className="modal-close-btn"
                                 onClick={() => setShowSavedPlansModal(false)}
@@ -360,15 +408,32 @@ const MealPlannerView = ({
                                             <strong>{plan.plan_name}</strong>
                                             <small>{plan.week_start_date}</small>
                                         </div>
-                                        <button
-                                            onClick={() => {
-                                                loadMealPlan(plan.id);
-                                                setShowSavedPlansModal(false);
-                                            }}
-                                            className="load-plan-btn"
-                                        >
-                                            📂 Load
-                                        </button>
+                                        <div className="plan-actions">
+                                            <button
+                                                onClick={() => {
+                                                    loadMealPlan(plan.id);
+                                                    setShowSavedPlansModal(false);
+                                                }}
+                                                className="load-plan-btn"
+                                            >
+                                                Load
+                                            </button>
+                                            <button
+                                                onClick={() => deleteMealPlan(plan.id, plan.plan_name)}
+                                                className="delete-plan-btn"
+                                                style={{
+                                                    marginLeft: '8px',
+                                                    background: '#ef4444',
+                                                    color: 'white',
+                                                    padding: '6px 12px',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                                 {savedMealPlans.length === 0 && (

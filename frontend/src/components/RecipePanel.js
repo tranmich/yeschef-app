@@ -123,6 +123,30 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
   const formattedDifficulty = recipe.difficulty ? 
     recipe.difficulty.charAt(0).toUpperCase() + recipe.difficulty.slice(1) : null;
 
+  // Get image URL
+  const getImageUrl = () => {
+    let imageUrl = recipe.image_url || recipe.image;
+    
+    if (!imageUrl) return null;
+    
+    // If it's already a full URL (starts with http), use it as-is
+    if (imageUrl.startsWith('http')) {
+      return imageUrl;
+    }
+    
+    // If it's a relative path, construct full URL
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    return `${apiUrl}${imageUrl}`;
+  };
+
+  const recipeImageUrl = getImageUrl();
+
+  // Remove emojis from text
+  const removeEmojis = (text) => {
+    if (!text) return text;
+    return text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+  };
+
   // ==================== EDIT MODE HANDLERS ====================
   
   const handleStartEdit = () => {
@@ -190,13 +214,14 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
   if (mode === 'view') {
     return (
       <>
-        {/* Background overlay */}
-        {!isFullScreen && (
-          <div className="recipe-panel-backdrop" onClick={onClose} />
-        )}
+        {/* Background backdrop */}
+        <div 
+          className={`recipe-panel-backdrop ${isOpen ? 'active' : ''}`}
+          onClick={onClose}
+        />
         
         {/* Recipe Panel - View Mode */}
-        <div className={`recipe-panel recipe-panel-view ${isFullScreen ? 'recipe-panel-fullscreen' : ''}`}>
+        <div className={`recipe-panel recipe-panel-view ${isOpen ? 'open' : ''} ${isFullScreen ? 'recipe-panel-fullscreen' : ''}`}>
           
           {/* Header */}
           <div className="recipe-panel-header">
@@ -260,11 +285,31 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
           {/* Recipe Content */}
           <div className={`recipe-content-flow ${isFullScreen ? 'recipe-content-fullscreen' : ''}`}>
             
-            {/* Description */}
-            {recipe.description && (
+            {/* Recipe Image */}
+            {recipeImageUrl && (
+              <div className="recipe-image-block">
+                <img 
+                  src={recipeImageUrl}
+                  alt={recipe.title || 'Recipe'}
+                  className="recipe-detail-image"
+                  onError={(e) => {
+                    console.error('Failed to load recipe image:', recipeImageUrl);
+                    e.target.parentElement.style.display = 'none'; // Hide entire block if image fails
+                  }}
+                />
+              </div>
+            )}
+            
+            {/* Description or Why This Works */}
+            {(recipe.description || recipe.why_this_works) && (
               <div className="recipe-block description-block">
+                <h2 className="block-title">
+                  {recipe.description ? 'Description' : 'Why This Works'}
+                </h2>
                 <div className="block-content">
-                  <p className="recipe-description">{recipe.description}</p>
+                  <p className="recipe-description">
+                    {removeEmojis(recipe.description || recipe.why_this_works)}
+                  </p>
                 </div>
               </div>
             )}
@@ -272,14 +317,14 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
             {/* Ingredients */}
             <div className="recipe-block ingredients-block">
               <h2 className="block-title">
-                🛒 Ingredients {ingredients.length > 0 && `(${ingredients.length})`}
+                Ingredients {ingredients.length > 0 && `(${ingredients.length})`}
               </h2>
               <div className="block-content">
                 {ingredients.length > 0 ? (
                   <ul className="ingredients-list">
                     {ingredients.map((ing, idx) => (
                       <li key={idx} className="ingredient-item">
-                        {ing}
+                        {removeEmojis(ing)}
                       </li>
                     ))}
                   </ul>
@@ -292,14 +337,14 @@ const RecipePanel = ({ recipe, isOpen, onClose, onEdit }) => {
             {/* Instructions */}
             <div className="recipe-block instructions-block">
               <h2 className="block-title">
-                👨‍🍳 Instructions {instructions.length > 0 && `(${instructions.length} steps)`}
+                Instructions {instructions.length > 0 && `(${instructions.length} steps)`}
               </h2>
               <div className="block-content">
                 {instructions.length > 0 ? (
                   <ol className="instructions-list">
                     {instructions.map((inst, idx) => (
                       <li key={idx} className="instruction-step">
-                        {inst}
+                        {removeEmojis(inst)}
                       </li>
                     ))}
                   </ol>

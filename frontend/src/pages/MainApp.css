@@ -47,6 +47,18 @@
   overflow-y: auto;
 }
 
+/* Recipe panel appears as overlay - no content pushing */
+.app-container.cookbook-first.recipe-panel-open .main-content {
+  margin-right: 0; /* No margin - panel appears on top */
+}
+
+/* Mobile: Recipe panel behavior unchanged */
+@media (max-width: 768px) {
+  .app-container.cookbook-first.recipe-panel-open .main-content {
+    margin-right: 0;
+  }
+}
+
 /* Mint-colored scrollbar for main content */
 .app-container.cookbook-first .main-content::-webkit-scrollbar {
   width: 8px;

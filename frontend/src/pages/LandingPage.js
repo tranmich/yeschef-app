@@ -62,7 +62,8 @@ const LandingPage = () => {
 
     try {
       // Call the actual backend API
-      const response = await fetch('http://localhost:5000/api/waitlist', {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/waitlist`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -179,25 +180,25 @@ const LandingPage = () => {
           
           <div className="feature-grid">
             <div className="feature-item fade-in">
-              <div className="feature-icon-large">📸</div>
+              <div className="feature-icon-large"></div>
               <h3>Capture</h3>
               <p>Photo, voice, or link—add recipes from anywhere in seconds</p>
             </div>
 
             <div className="feature-item fade-in">
-              <div className="feature-icon-large">📁</div>
+              <div className="feature-icon-large"></div>
               <h3>Organize</h3>
               <p>All recipes in one searchable, beautifully organized collection</p>
             </div>
 
             <div className="feature-item fade-in">
-              <div className="feature-icon-large">📅</div>
+              <div className="feature-icon-large"></div>
               <h3>Plan</h3>
               <p>Weekly meal planning with automatic grocery lists</p>
             </div>
 
             <div className="feature-item fade-in">
-              <div className="feature-icon-large">🍳</div>
+              <div className="feature-icon-large"></div>
               <h3>Cook</h3>
               <p>Easy step-by-step cooking mode, ready when you are</p>
             </div>
@@ -226,13 +227,13 @@ const LandingPage = () => {
             </div>
             
             <div className="highlight-item fade-in">
-              <div className="highlight-icon">🏷️</div>
+              <div className="highlight-icon"></div>
               <h4>Custom Categories</h4>
               <p>Organize your way with tags and collections</p>
             </div>
             
             <div className="highlight-item fade-in">
-              <div className="highlight-icon">⭐</div>
+              <div className="highlight-icon"></div>
               <h4>Quick Favorites</h4>
               <p>Mark and find your go-to recipes instantly</p>
             </div>
@@ -255,19 +256,19 @@ const LandingPage = () => {
 
           <div className="feature-highlights">
             <div className="highlight-item fade-in">
-              <div className="highlight-icon">📅</div>
+              <div className="highlight-icon"></div>
               <h4>Weekly Calendar</h4>
               <p>See breakfast, lunch, dinner, and snacks for the entire week</p>
             </div>
             
             <div className="highlight-item fade-in">
-              <div className="highlight-icon">👥</div>
+              <div className="highlight-icon"></div>
               <h4>Share with Household</h4>
               <p>Everyone knows what's for dinner—no more asking</p>
             </div>
             
             <div className="highlight-item fade-in">
-              <div className="highlight-icon">🔄</div>
+              <div className="highlight-icon"></div>
               <h4>Flexible Planning</h4>
               <p>Life happens. Rearrange meals in seconds</p>
             </div>
@@ -290,19 +291,19 @@ const LandingPage = () => {
 
           <div className="feature-highlights">
             <div className="highlight-item fade-in">
-              <div className="highlight-icon">🛒</div>
+              <div className="highlight-icon"></div>
               <h4>Auto-Generated</h4>
               <p>Your meal plan becomes a shopping list automatically</p>
             </div>
             
             <div className="highlight-item fade-in">
-              <div className="highlight-icon">📋</div>
+              <div className="highlight-icon"></div>
               <h4>Smart Categories</h4>
               <p>Organized by store section for efficient shopping</p>
             </div>
             
             <div className="highlight-item fade-in">
-              <div className="highlight-icon">✓</div>
+              <div className="highlight-icon"></div>
               <h4>Check Off Items</h4>
               <p>Track what you've grabbed as you shop</p>
             </div>

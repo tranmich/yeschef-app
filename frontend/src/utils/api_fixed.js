@@ -1,13 +1,13 @@
 ﻿// API Configuration and Utilities
 
-// Environment-based API URL with production fallback
+// Environment-based API URL with env var support
 const getApiUrl = () => {
-  // Production Railway backend URL
-  if (process.env.NODE_ENV === 'production') {
-    return 'https://yeschefapp-production.up.railway.app';
+  // First check for environment variable (works in both dev and production)
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
   }
   
-  // Development fallback
+  // Fallback to localhost for local development
   return 'http://localhost:5000';
 };
 

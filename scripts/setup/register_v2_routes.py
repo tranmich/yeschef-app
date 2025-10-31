@@ -41,6 +41,7 @@ def register_v2_routes(app: Flask):
         from app.api.v2.pantry import pantry_bp
         from app.api.v2.recipe_search import recipe_search_bp
         from app.api.v2.system import system_bp
+        from app.api.v2.images import image_bp  # Image serving
         
         app.register_blueprint(user_bp)
         app.register_blueprint(recipe_bp)
@@ -54,6 +55,7 @@ def register_v2_routes(app: Flask):
         app.register_blueprint(pantry_bp)
         app.register_blueprint(recipe_search_bp)
         app.register_blueprint(system_bp)
+        app.register_blueprint(image_bp)  # Image serving
         
         logger.info("  ✅ User API v2 registered: /api/v2/users")
         logger.info("  ✅ Recipe API v2 registered: /api/v2/recipes")
@@ -66,6 +68,7 @@ def register_v2_routes(app: Flask):
         logger.info("  ✅ Profile API v2 registered: /api/v2/profile 👤")
         logger.info("  ✅ Pantry API v2 registered: /api/v2/pantry 🥫")
         logger.info("  ✅ Recipe Search API v2 registered: /api/v2/recipes/search 🔍")
+        logger.info("  ✅ Images API v2 registered: /api/v2/images 📸")
         logger.info("  ✅ System API v2 registered: /api/v2/system ⚙️")
         
         # Add health check endpoint

@@ -1,0 +1,87 @@
+.recipe-gallery-view {
+  padding: 1rem;
+}
+
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 350px); /* Fixed 350px width cards */
+  gap: 1.5rem;
+  padding: 0.5rem;
+  width: 100%;
+  max-width: 1400px;
+  transition: grid-template-columns 0.3s ease;
+  justify-content: center; /* Center the grid */
+  grid-auto-rows: 480px; /* Updated to match new card height */
+}
+
+/* When recipe panel is open, adjust to fewer columns */
+.recipe-panel-open .recipe-grid {
+  grid-template-columns: repeat(auto-fill, 350px); /* Still fixed width */
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1400px) {
+  .recipe-grid {
+    grid-template-columns: repeat(3, 1fr); /* Still 3 on medium screens */
+  }
+}
+
+.empty-gallery {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.empty-gallery h3 {
+  font-size: 1.5rem;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.empty-gallery p {
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+/* Mobile responsive */
+@media (max-width: 1024px) {
+  .recipe-grid {
+    grid-template-columns: repeat(auto-fill, 320px); /* Smaller cards on tablets */
+    gap: 1rem;
+  }
+  
+  .recipe-card {
+    width: 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  .recipe-gallery-view {
+    padding: 0.5rem;
+  }
+
+  .recipe-grid {
+    grid-template-columns: repeat(auto-fill, 300px); /* Even smaller on mobile */
+    gap: 0.75rem;
+  }
+  
+  .recipe-card {
+    width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .recipe-grid {
+    grid-template-columns: 1fr; /* Full width on tiny screens */
+    justify-items: center;
+  }
+  
+  .recipe-card {
+    width: 100%;
+    max-width: 350px;
+  }
+}

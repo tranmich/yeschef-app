@@ -289,13 +289,13 @@ const PantryManager = () => {
     <div className="pantry-manager">
       <div className="pantry-header">
         <div className="pantry-title-section">
-          <h2>🥕 Pantry Management</h2>
+          <h2>Pantry Management</h2>
           <button
             onClick={togglePantrySystem}
             className={`pantry-toggle-btn ${pantryEnabled ? 'enabled' : 'disabled'}`}
             title={`${pantryEnabled ? 'Disable' : 'Enable'} Pantry System`}
           >
-            {pantryEnabled ? '🟢 ON' : '🔴 OFF'}
+            {pantryEnabled ? 'ON' : 'OFF'}
           </button>
         </div>
         {pantryStatus && (
@@ -323,7 +323,6 @@ const PantryManager = () => {
                   onClick={() => toggleSection('spices')}
                 >
                   <div className="header-content">
-                    <span className="section-icon">🧂</span>
                     <h3>Spice Rack ({categorizedItems.spices.length})</h3>
                     <span className="value-badge high-value">High Value</span>
                   </div>
@@ -435,7 +434,6 @@ const PantryManager = () => {
                   onClick={() => toggleSection('dryGoods')}
                 >
                   <div className="header-content">
-                    <span className="section-icon">🌾</span>
                     <h3>Pantry Staples ({categorizedItems.dryGoods.length})</h3>
                     <span className="value-badge medium-value">Optional</span>
                   </div>
@@ -556,7 +554,6 @@ const PantryManager = () => {
                   onClick={() => toggleSection('freshWeek')}
                 >
                   <div className="header-content">
-                    <span className="section-icon">🥬</span>
                     <h3>Fresh This Week ({categorizedItems.fresh.length})</h3>
                     <span className="value-badge low-pressure">No Pressure</span>
                   </div>
@@ -669,24 +666,24 @@ const PantryManager = () => {
         <div className="pantry-stats smart-stats">
           <div className="stat">
             <span className="stat-number">{categorizeItems.spices.length}</span>
-            <span className="stat-label">🧂 Spices</span>
+            <span className="stat-label">Spices</span>
           </div>
           <div className="stat">
             <span className="stat-number">{categorizeItems.dryGoods.length}</span>
-            <span className="stat-label">🌾 Staples</span>
+            <span className="stat-label">Staples</span>
           </div>
           <div className="stat">
             <span className="stat-number">{categorizeItems.fresh.length}</span>
-            <span className="stat-label">🥬 Fresh</span>
+            <span className="stat-label">Fresh</span>
           </div>
           <div className="stat">
             <span className="stat-number">{pantryItems.filter(item => item.amount === 'low').length}</span>
-            <span className="stat-label">🔴 Running Low</span>
+            <span className="stat-label">Running Low</span>
           </div>
         </div>
 
         <div className="feature-note smart-note">
-          <p>💡 <strong>Smart Strategy:</strong> Start with spices (high value, low effort), add staples when you shop, track fresh when convenient!</p>
+          <p><strong>Smart Strategy:</strong> Start with spices (high value, low effort), add staples when you shop, track fresh when convenient!</p>
         </div>
       </div>
     </div>

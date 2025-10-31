@@ -511,17 +511,54 @@ class WebRecipeExtractor:
             elements = soup.select(selector)
             if elements:
                 potential_instructions = []
+                seen_texts = set()  # Track duplicates by normalized text
+                
                 for elem in elements:
                     text = elem.get_text().strip()
                     # Clean up text
                     text = ' '.join(text.split())
                     
-                    if self._is_likely_instruction(text, patterns):
+                    # Skip if empty
+                    if not text:
+                        continue
+                    
+                    # Skip section headers (short text without action verbs)
+                    if len(text) < 20 and not any(word in text.lower() for word in ['heat', 'add', 'cook', 'mix', 'stir', 'place', 'cut', 'chop', 'combine', 'serve']):
+                        continue
+                    
+                    # AGGRESSIVE CLEANING - Remove ALL step markers and section headers
+                    # 1. Remove section headers at the start
+                    text = re.sub(r'^(Make the|Prepare the|Meanwhile,?\s*make the|For the)\s+\w+\s*', '', text, flags=re.IGNORECASE)
+                    
+                    # 2. Remove "Step N" anywhere in text
+                    text = re.sub(r'Step\s*\d+\s*', '', text, flags=re.IGNORECASE)
+                    
+                    # 3. Remove leading numbers/bullets - ALL formats
+                    text = re.sub(r'^\s*[\d]+[\.\)]\s+', '', text)   # "1. " or "1) " (with space)
+                    text = re.sub(r'^\s*[\d]+[\.\)]', '', text)      # "1." or "1)" (no space)
+                    text = re.sub(r'^\s*\([\d]+\)\s*', '', text)     # "(1) "
+                    text = re.sub(r'^\s*[\d]+\s+', '', text)         # "1 " (number with space, no punctuation)
+                    text = re.sub(r'^\s*[\d]+(?=[A-Z])', '', text)   # "1" directly before capital letter (e.g., "1Place")
+                    text = re.sub(r'^\s*[•·●○]\s*', '', text)        # bullets
+                    
+                    text = text.strip()
+                    
+                    # Create normalized version for duplicate detection
+                    # Remove ALL numbers first, then take first 60 chars for comparison
+                    normalized_for_dedup = re.sub(r'\d+', '', text)[:60].lower().strip()
+                    
+                    # Skip if we've seen this exact text before
+                    if normalized_for_dedup in seen_texts:
+                        continue
+                    
+                    # Must be substantial and look like an instruction
+                    if self._is_likely_instruction(text, patterns) and len(text) > 20:
+                        seen_texts.add(normalized_for_dedup)
                         potential_instructions.append(text)
                 
                 # If we found good instructions, use them
                 if len(potential_instructions) >= 2:
-                    logger.info(f"✅ Found {len(potential_instructions)} instructions with selector: {selector}")
+                    logger.info(f"✅ Found {len(potential_instructions)} unique instructions with selector: {selector}")
                     instructions = potential_instructions
                     break
         
@@ -868,7 +905,7 @@ class WebRecipeExtractor:
             instructions = []
             
             if isinstance(instructions_data, list):
-                for i, instruction in enumerate(instructions_data, 1):
+                for instruction in instructions_data:
                     if isinstance(instruction, dict):
                         text = instruction.get('text', '')
                     elif isinstance(instruction, str):
@@ -877,10 +914,50 @@ class WebRecipeExtractor:
                         continue
                     
                     if text:
-                        # Add step number if not present
-                        if not re.match(r'^\d+\.?\s', text.strip()):
-                            text = f"{i}. {text.strip()}"
-                        instructions.append(text)
+                        # Clean text - remove any existing numbering
+                        text = text.strip()
+                        # Remove leading numbers: "1.", "1)", etc.
+                        text = re.sub(r'^\s*[\d]+[\.\)]\s*', '', text)
+                        text = re.sub(r'^\s*\([\d]+\)\s*', '', text)
+                        text = text.strip()
+                        
+                        if text:  # Only add if there's still content after cleaning
+                            instructions.append(text)
+            elif isinstance(instructions_data, str):
+                # Sometimes instructions are a single string
+                instructions = [line.strip() for line in instructions_data.split('\n') if line.strip()]
+            
+            # Fallback: If no instructions found in JSON-LD, try scraping from HTML
+            if not instructions:
+                logger.info("No instructions in JSON-LD, falling back to HTML scraping")
+                try:
+                    # Try common instruction selectors
+                    instruction_selectors = [
+                        '.recipe-steps li', '.recipe-instructions li', '.instructions li',
+                        '[itemprop="recipeInstructions"] li', '.recipe__steps li',
+                        '.recipe-procedure-text', '.recipe-steps p', '.instructions p',
+                        '[class*="instruction"] p', '[class*="step"]'
+                    ]
+                    
+                    for selector in instruction_selectors:
+                        instruction_elements = soup.select(selector)
+                        if instruction_elements:
+                            raw_instructions = [el.get_text(strip=True) for el in instruction_elements if el.get_text(strip=True)]
+                            if raw_instructions:
+                                logger.info(f"Found {len(raw_instructions)} instructions using selector: {selector}")
+                                # Clean instructions - remove any numbering
+                                clean_instructions = []
+                                for text in raw_instructions:
+                                    # Remove leading numbers
+                                    text = re.sub(r'^\s*[\d]+[\.\)]\s*', '', text.strip())
+                                    text = re.sub(r'^\s*\([\d]+\)\s*', '', text)
+                                    text = text.strip()
+                                    if text:
+                                        clean_instructions.append(text)
+                                instructions = clean_instructions
+                                break
+                except Exception as e:
+                    logger.warning(f"HTML instruction scraping failed: {e}")
             
             recipe.instructions = instructions
             
@@ -919,11 +996,18 @@ class WebRecipeExtractor:
             image_data = data.get('image')
             if image_data:
                 if isinstance(image_data, list) and image_data:
-                    recipe.image_url = str(image_data[0])
+                    # Extract URL from first image (handle dict or string)
+                    first_image = image_data[0]
+                    if isinstance(first_image, dict):
+                        recipe.image_url = first_image.get('contentUrl') or first_image.get('url') or ''
+                    elif isinstance(first_image, str):
+                        recipe.image_url = first_image
+                    else:
+                        recipe.image_url = str(first_image)
                 elif isinstance(image_data, str):
                     recipe.image_url = image_data
                 elif isinstance(image_data, dict):
-                    recipe.image_url = image_data.get('url', '')
+                    recipe.image_url = image_data.get('contentUrl') or image_data.get('url') or ''
             
             # Author
             author_data = data.get('author')
@@ -1267,11 +1351,19 @@ class WebRecipeExtractor:
             image = data.get('image')
             if image:
                 if isinstance(image, list):
-                    recipe.image_url = image[0] if image else ''
+                    first_image = image[0] if image else None
+                    if isinstance(first_image, dict):
+                        recipe.image_url = first_image.get('contentUrl') or first_image.get('url') or ''
+                    elif isinstance(first_image, str):
+                        recipe.image_url = first_image
+                    else:
+                        recipe.image_url = ''
                 elif isinstance(image, dict):
-                    recipe.image_url = image.get('url', '')
+                    recipe.image_url = image.get('contentUrl') or image.get('url') or ''
+                elif isinstance(image, str):
+                    recipe.image_url = image
                 else:
-                    recipe.image_url = str(image)
+                    recipe.image_url = ''
             
             # Ingredients
             ingredients = data.get('recipeIngredient', [])
@@ -2160,6 +2252,58 @@ class WebRecipeExtractor:
         
         logger.info(f"🏆 Winner: {best_result['method']} with score {best_score:.3f}")
         
+        # 🆕 SMART MERGE: Fill in missing fields from other extraction results
+        # If the winner is missing critical fields (instructions, ingredients), try to merge from other methods
+        best_data = best_result['data']
+        merge_improvements = []
+        
+        if not best_data.instructions or len(best_data.instructions) == 0:
+            # Winner has no instructions - try to get from another method
+            for scored in scored_results:
+                other_data = scored['result']['data']
+                other_method = scored['result']['method']
+                if other_data.instructions and len(other_data.instructions) > 0 and other_method != best_result['method']:
+                    logger.info(f"🔀 Merging instructions from {other_method} into {best_result['method']}")
+                    best_data.instructions = other_data.instructions
+                    merge_improvements.append(f"instructions from {other_method}")
+                    break
+        
+        if not best_data.ingredients or len(best_data.ingredients) == 0:
+            # Winner has no ingredients - try to get from another method
+            for scored in scored_results:
+                other_data = scored['result']['data']
+                other_method = scored['result']['method']
+                if other_data.ingredients and len(other_data.ingredients) > 0 and other_method != best_result['method']:
+                    logger.info(f"🔀 Merging ingredients from {other_method} into {best_result['method']}")
+                    best_data.ingredients = other_data.ingredients
+                    merge_improvements.append(f"ingredients from {other_method}")
+                    break
+        
+        if not best_data.image_url:
+            # Winner has no image - try to get from another method
+            for scored in scored_results:
+                other_data = scored['result']['data']
+                other_method = scored['result']['method']
+                if other_data.image_url and other_method != best_result['method']:
+                    logger.info(f"🔀 Merging image from {other_method} into {best_result['method']}")
+                    best_data.image_url = other_data.image_url
+                    merge_improvements.append(f"image from {other_method}")
+                    break
+        
+        if not best_data.description or len(best_data.description) < 20:
+            # Winner has no/poor description - try to get from another method
+            for scored in scored_results:
+                other_data = scored['result']['data']
+                other_method = scored['result']['method']
+                if other_data.description and len(other_data.description) > 20 and other_method != best_result['method']:
+                    logger.info(f"🔀 Merging description from {other_method} into {best_result['method']}")
+                    best_data.description = other_data.description
+                    merge_improvements.append(f"description from {other_method}")
+                    break
+        
+        if merge_improvements:
+            logger.info(f"✨ Enhanced result with: {', '.join(merge_improvements)}")
+        
         # Apply auto-formatting to the winner if needed
         formatting_assessment = best['formatting_assessment']
         if formatting_assessment['needs_cleanup']:
@@ -2177,18 +2321,23 @@ class WebRecipeExtractor:
             
             logger.info("✨ Auto-clean formatting applied to final result")
         
-        # If multiple methods got similar scores, prefer structured data
+        # If multiple methods got similar scores, prefer structured data ONLY if it's complete
         similar_threshold = 0.05
         similar_results = [r for r in scored_results if abs(r['score'] - best_score) <= similar_threshold]
         
         if len(similar_results) > 1:
-            # Prefer structured data methods
+            # Prefer structured data methods, but ONLY if they have instructions
             structured_methods = ['json_ld', 'microdata']
             for structured in structured_methods:
                 for similar in similar_results:
                     if similar['result']['method'] == structured:
-                        logger.info(f"🎯 Preferring structured data method: {structured}")
-                        return similar['result']
+                        # Check if this structured method actually has instructions
+                        structured_data = similar['result']['data']
+                        if structured_data.instructions and len(structured_data.instructions) > 0:
+                            logger.info(f"🎯 Preferring complete structured data method: {structured}")
+                            return similar['result']
+                        else:
+                            logger.info(f"⚠️ Skipping {structured} - missing instructions despite similar score")
         
         return best_result
     

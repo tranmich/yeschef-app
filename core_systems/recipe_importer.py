@@ -323,6 +323,17 @@ class UniversalRecipeImporter:
                             logger.info(f"🔄 Attempting to save recipe to database (confidence: {confidence})")
                             recipe_id = self._save_recipe_to_database(processed_recipe, user_id)
                             logger.info(f"✅ Successfully saved recipe with ID: {recipe_id}")
+                            
+                            # 🆕 USE ORIGINAL URL - No download/storage needed
+                            # Original URLs are faster (CDN), free (no storage), and save server resources
+                            if web_recipe_data.image_url:
+                                # Just use the original URL directly
+                                processed_recipe['image_url'] = web_recipe_data.image_url
+                                logger.info(f"✅ Using original image URL: {web_recipe_data.image_url[:100]}...")
+                            else:
+                                processed_recipe['image_url'] = None
+                                logger.info("ℹ️ No image URL available for this recipe")
+                                    
                         except Exception as save_error:
                             logger.error(f"❌ Database save failed: {save_error}")
                             # Return fake ID so frontend doesn't break, but log the error
@@ -367,6 +378,26 @@ class UniversalRecipeImporter:
         Convert WebRecipeData to our standard recipe dictionary format
         """
         try:
+            def format_time_string(minutes):
+                """Convert minutes to readable format (e.g., 65 -> '1 hour 5 minutes')"""
+                if not minutes:
+                    return None
+                
+                try:
+                    minutes = int(minutes)
+                    if minutes < 60:
+                        return f"{minutes} minutes"
+                    
+                    hours = minutes // 60
+                    remaining_mins = minutes % 60
+                    
+                    if remaining_mins == 0:
+                        return f"{hours} hour{'s' if hours > 1 else ''}"
+                    else:
+                        return f"{hours} hour{'s' if hours > 1 else ''} {remaining_mins} minutes"
+                except (ValueError, TypeError):
+                    return None
+            
             # Convert ingredients list to string
             ingredients_str = '\n'.join(web_data.ingredients) if web_data.ingredients else ''
             
@@ -411,14 +442,45 @@ class UniversalRecipeImporter:
             elif web_data.keywords:
                 original_category = web_data.keywords[0].lower() if web_data.keywords else None
             
-            # Enhanced description with import tracking
+            # Use clean description without import tracking text
             description = web_data.description or ""
-            if secondary_category:
-                description += f" [Imported recipe - also appears in {secondary_category} folder]"
-            if original_category:
-                description += f" [Original category: {original_category}]"
-            else:
-                original_category = None
+            
+            # Calculate total time and separate prep/cook times
+            total_time = web_data.total_time or web_data.cook_time or web_data.prep_time
+            prep_time_formatted = format_time_string(web_data.prep_time)
+            cook_time_formatted = format_time_string(web_data.cook_time or web_data.total_time)
+            
+            # Extract clean image URL from dict if needed
+            def extract_image_url(image_data):
+                """Extract clean URL from image data (handles dict, str, or None)"""
+                if not image_data:
+                    return None
+                    
+                # If it's already a clean URL string, return it
+                if isinstance(image_data, str) and image_data.startswith('http'):
+                    return image_data
+                
+                # If it's a dict (from JSON-LD), extract contentUrl or url
+                if isinstance(image_data, dict):
+                    return image_data.get('contentUrl') or image_data.get('url')
+                
+                # If it's a string representation of a dict, try to parse it
+                if isinstance(image_data, str) and 'contentUrl' in image_data:
+                    try:
+                        # Try to extract URL using regex
+                        import re
+                        match = re.search(r"'contentUrl':\s*'([^']+)'", image_data)
+                        if match:
+                            return match.group(1)
+                        match = re.search(r"'url':\s*'([^']+)'", image_data)
+                        if match:
+                            return match.group(1)
+                    except:
+                        pass
+                
+                return None
+            
+            clean_image_url = extract_image_url(web_data.image_url)
             
             result = {
                 'title': web_data.title or 'Imported Recipe',
@@ -426,12 +488,14 @@ class UniversalRecipeImporter:
                 'instructions': instructions_str,
                 'description': description,
                 'category': category,  # Primary category (breakfast/lunch/dinner/etc)
-                'time_min': web_data.total_time or web_data.cook_time or web_data.prep_time,
+                'time_min': total_time,
+                'prep_time': prep_time_formatted,
+                'cook_time': cook_time_formatted,
                 'servings': web_data.servings or 4,
                 'source_url': web_data.source_url,
                 'author': web_data.author,
                 'rating': web_data.rating,
-                'image_url': web_data.image_url,
+                'image_url': clean_image_url,  # Use extracted clean URL
                 'confidence': web_data.confidence,
                 'extraction_method': web_data.extraction_method,
                 # Add import tracking metadata
@@ -703,11 +767,11 @@ class UniversalRecipeImporter:
             
             # Insert recipe using enhanced schema for imported recipes
             insert_query = """
-                INSERT INTO recipes (title, ingredients, instructions, category, 
+                INSERT INTO recipes (title, ingredients, instructions, description, category, 
                                    hands_on_time, total_time, servings, created_at,
                                    book_id, page_number, meal_role, user_id, 
-                                   imported_at, source_url, confidence)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, NOW(), %s, %s)
+                                   imported_at, source_url, image_url, confidence)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, NOW(), %s, %s, %s)
                 RETURNING id
             """
             
@@ -738,6 +802,7 @@ class UniversalRecipeImporter:
                 recipe_data.get('title', 'Imported Recipe'),
                 ingredients,  # Now properly formatted as JSON string
                 instructions,  # Now properly formatted as JSON string
+                recipe_data.get('description', ''),  # Recipe description
                 'imported',  # Always mark as 'imported' category for easy filtering
                 time_min,  # hands_on_time
                 time_min,  # total_time (same as hands_on for imported)
@@ -747,6 +812,7 @@ class UniversalRecipeImporter:
                 meal_role,  # proper meal_role mapping
                 user_id,  # link to importing user
                 recipe_data.get('source_url', ''),  # source URL if available
+                recipe_data.get('image_url', ''),  # image URL (now cleaned)
                 recipe_data.get('confidence', 0.8)  # import confidence score
             ))
             
@@ -765,6 +831,39 @@ class UniversalRecipeImporter:
             if conn:
                 cursor.close()
                 conn.close()
+    
+    def _update_recipe_image(self, recipe_id: int, image_url: str) -> bool:
+        """
+        Update recipe with optimized image path
+        
+        Args:
+            recipe_id: Recipe ID to update
+            image_url: Local image path (e.g., "/api/v2/images/recipe_123.webp")
+            
+        Returns:
+            True if updated successfully, False otherwise
+        """
+        try:
+            conn = self.get_database_connection()
+            cursor = conn.cursor()
+            
+            # Update image_url column (will be created if doesn't exist)
+            update_query = """
+                UPDATE recipes 
+                SET image_url = %s
+                WHERE id = %s
+            """
+            
+            cursor.execute(update_query, (image_url, recipe_id))
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"✅ Updated recipe {recipe_id} with image: {image_url}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to update recipe image: {e}")
+            return False
     
     def check_for_duplicates(self, recipe_data: Dict, user_id: int) -> List[Dict]:
         """

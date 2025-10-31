@@ -331,7 +331,6 @@ const FriendsView = () => {
           <div className="friends-list">
             {friends.length === 0 ? (
               <div className="empty-state">
-                <span className="empty-icon">👥</span>
                 <h3>No Friends Yet</h3>
                 <p>Start building your cooking community by adding friends!</p>
                 <button
@@ -367,7 +366,7 @@ const FriendsView = () => {
                       onClick={() => handleRemoveFriend(friend)}
                       title="Remove Friend"
                     >
-                      🗑️
+                      ×
                     </button>
                   </div>
                 </div>
@@ -381,7 +380,6 @@ const FriendsView = () => {
           <div className="requests-list">
             {requests.length === 0 ? (
               <div className="empty-state">
-                <span className="empty-icon">📮</span>
                 <h3>No Friend Requests</h3>
                 <p>You're all caught up! No pending friend requests.</p>
               </div>
@@ -432,7 +430,6 @@ const FriendsView = () => {
           <div className="households-list">
             {households.length === 0 ? (
               <div className="empty-state">
-                <span className="empty-icon">🏠</span>
                 <h3>No Households Yet</h3>
                 <p>Create a household to share recipes and meal plans with family or roommates!</p>
                 <button
@@ -474,7 +471,7 @@ const FriendsView = () => {
                       onClick={() => handleViewHouseholdDetails(household)}
                       title="Manage Household"
                     >
-                      ⚙️
+                      Manage
                     </button>
                   </div>
                 </div>
@@ -505,25 +502,25 @@ const FriendsView = () => {
           className={`tab-button ${activeTab === 'friends' ? 'active' : ''}`}
           onClick={() => setActiveTab('friends')}
         >
-          👥 Friends ({friends.length})
+          Friends ({friends.length})
         </button>
         <button
           className={`tab-button ${activeTab === 'requests' ? 'active' : ''}`}
           onClick={() => setActiveTab('requests')}
         >
-          📮 Requests ({requests.length})
+          Requests ({requests.length})
         </button>
         <button
           className={`tab-button ${activeTab === 'households' ? 'active' : ''}`}
           onClick={() => setActiveTab('households')}
         >
-          🏠 Households ({households.length})
+          Households ({households.length})
         </button>
         <button
           className={`tab-button ${activeTab === 'sharing' ? 'active' : ''}`}
           onClick={() => setActiveTab('sharing')}
         >
-          📤 Recipe Sharing
+          Recipe Sharing
         </button>
       </div>
 
@@ -533,26 +530,26 @@ const FriendsView = () => {
           className="primary-button"
           onClick={() => setShowAddFriendModal(true)}
         >
-          ➕ Add Friend
+          Add Friend
         </button>
         <button
           className="secondary-button"
           onClick={() => setShowCreateHouseholdModal(true)}
         >
-          🏠 Create Household
+          Create Household
         </button>
       </div>
 
       {/* Messages */}
       {error && (
         <div className="message error-message">
-          ❌ {error}
+          {error}
           <button onClick={() => setError('')} className="close-message">×</button>
         </div>
       )}
       {success && (
         <div className="message success-message">
-          ✅ {success}
+          {success}
           <button onClick={() => setSuccess('')} className="close-message">×</button>
         </div>
       )}
@@ -679,7 +676,7 @@ const FriendsView = () => {
         <div className="modal-overlay" onClick={() => setShowHouseholdDetailsModal(false)}>
           <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>🏠 {selectedHousehold.name}</h3>
+              <h3>{selectedHousehold.name}</h3>
               <button
                 className="close-button"
                 onClick={() => setShowHouseholdDetailsModal(false)}
@@ -698,19 +695,19 @@ const FriendsView = () => {
                   className={`household-tab ${activeHouseholdTab === 'members' ? 'active' : ''}`}
                   onClick={() => setActiveHouseholdTab('members')}
                 >
-                  👥 Members ({householdMembers.length})
+                  Members ({householdMembers.length})
                 </button>
                 <button
                   className={`household-tab ${activeHouseholdTab === 'grocery' ? 'active' : ''}`}
                   onClick={() => setActiveHouseholdTab('grocery')}
                 >
-                  🛒 Grocery List
+                  Grocery List
                 </button>
                 <button
                   className={`household-tab ${activeHouseholdTab === 'meals' ? 'active' : ''}`}
                   onClick={() => setActiveHouseholdTab('meals')}
                 >
-                  🍽️ Meal Plan
+                  Meal Plan
                 </button>
               </div>
 
@@ -722,13 +719,13 @@ const FriendsView = () => {
                       className="primary-button"
                       onClick={() => setShowAddMemberModal(true)}
                     >
-                      ➕ Add Member
+                      Add Member
                     </button>
                     <button
                       className="danger-button"
                       onClick={() => handleDeleteHousehold(selectedHousehold)}
                     >
-                      🗑️ Delete Household
+                      Delete Household
                     </button>
                   </div>
 
@@ -785,7 +782,7 @@ const FriendsView = () => {
         <div className="modal-overlay" onClick={() => setShowAddMemberModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>👥 Add Member to {selectedHousehold.name}</h3>
+              <h3>Add Member to {selectedHousehold.name}</h3>
               <button
                 className="close-button"
                 onClick={() => setShowAddMemberModal(false)}

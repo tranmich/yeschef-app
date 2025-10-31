@@ -2,6 +2,35 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './ImportRecipeModal.css';
 
+// Helper function to extract clean image URL from corrupted data
+const extractCleanImageUrl = (imageData) => {
+  if (!imageData) return null;
+  
+  // If it's already a clean URL, return it
+  if (typeof imageData === 'string' && imageData.startsWith('http')) {
+    return imageData;
+  }
+  
+  // If it's a corrupted dict string, extract contentUrl
+  if (typeof imageData === 'string' && imageData.includes("'contentUrl':")) {
+    try {
+      const match = imageData.match(/'contentUrl':\s*'([^']+)'/);
+      if (match && match[1]) {
+        return match[1];
+      }
+      // Try 'url' field as fallback
+      const urlMatch = imageData.match(/'url':\s*'([^']+)'/);
+      if (urlMatch && urlMatch[1]) {
+        return urlMatch[1];
+      }
+    } catch (e) {
+      console.error('Failed to extract image URL:', e);
+    }
+  }
+  
+  return null;
+};
+
 const ImportRecipeModal = ({ isOpen, onClose, onImport, isInlineView = false }) => {
   const { user, token } = useAuth();
   const [importType, setImportType] = useState('url'); // Changed default to 'url' (Web first)
@@ -93,11 +122,12 @@ Instructions:
       console.log('🌐 Import API Response Data:', data);
 
       if (data.success) {
-        setResult(data);
         console.log('✅ Import successful, showing preview for editing:', data);
         
+        setResult(data);
+        
         // Create editable version of the recipe data
-        setEditableRecipe({
+        const editableData = {
           title: data.recipe_data.title || '',
           description: data.recipe_data.description || '',
           ingredients: data.recipe_data.ingredients || '',
@@ -106,9 +136,11 @@ Instructions:
           cook_time: data.recipe_data.cook_time || '',
           prep_time: data.recipe_data.prep_time || '',
           category: data.recipe_data.category || '',
-          source_url: data.recipe_data.source_url || ''
-        });
+          source_url: data.recipe_data.source_url || '',
+          image_url: data.recipe_data.image_url || ''
+        };
         
+        setEditableRecipe(editableData);
         setShowPreview(true);
       } else {
         console.error('❌ Import failed on server:', data);
@@ -393,7 +425,7 @@ Instructions:
             id="photo-input"
           />
           <label htmlFor="photo-input" className="photo-upload-label">
-            📷 Click to select photos or drag & drop
+            Click to select photos or drag & drop
           </label>
         </div>
 
@@ -413,9 +445,9 @@ Instructions:
           </div>
         )}
 
-        <div className="photo-help">
-          <p>📸 Take photos of recipe pages, cookbooks, or handwritten recipes</p>
-          <p>🔍 YesChef will extract text and create a structured recipe</p>
+        <div className="import-option-description">
+          <p>Take photos of recipe pages, cookbooks, or handwritten recipes</p>
+          <p>YesChef will extract text and create a structured recipe</p>
         </div>
       </div>
     );
@@ -430,13 +462,13 @@ Instructions:
             onClick={isRecording ? stopRecording : startRecording}
             className={`voice-button ${isRecording ? 'recording' : ''}`}
           >
-            {isRecording ? '⏹️ Stop Recording' : '🎤 Start Recording'}
+            {isRecording ? 'Stop Recording' : 'Start Recording'}
           </button>
 
           {isRecording && (
             <div className="recording-indicator">
               <span className="recording-time">
-                🔴 {formatRecordingTime(recordingTime)}
+                {formatRecordingTime(recordingTime)}
               </span>
             </div>
           )}
@@ -449,8 +481,8 @@ Instructions:
         </div>
 
         <div className="voice-help">
-          <p>🎤 Record yourself reading a recipe out loud</p>
-          <p>🔊 YesChef will transcribe and structure your recipe</p>
+          <p>Record yourself reading a recipe out loud</p>
+          <p>YesChef will transcribe and structure your recipe</p>
         </div>
       </div>
     );
@@ -474,8 +506,8 @@ Instructions:
                 className="recipe-url-input"
               />
               <div className="url-help">
-                <p>✨ Paste a recipe URL from your favorite cooking site</p>
-                <p>🍳 Works with BonAppetit, Food Network, AllRecipes, and many more!</p>
+                <p>Paste a recipe URL from your favorite cooking site</p>
+                <p>Works with BonAppetit, Food Network, AllRecipes, and many more!</p>
               </div>
             </div>
           ) : importType === 'text' ? (
@@ -490,8 +522,8 @@ Instructions:
                 rows={15}
               />
               <div className="text-help">
-                <p>📋 Paste recipe text from any source</p>
-                <p>✨ YesChef will intelligently parse ingredients and instructions</p>
+                <p>Paste recipe text from any source</p>
+                <p>YesChef will intelligently parse ingredients and instructions</p>
               </div>
             </div>
           ) : importType === 'photo' ? (
@@ -508,13 +540,13 @@ Instructions:
             disabled={isLoading || (!inputValue && importType !== 'photo' && importType !== 'voice')}
             className="import-button"
           >
-            {isLoading ? '🔄 Processing...' : '🍽️ Import Recipe'}
+            {isLoading ? 'Processing...' : 'Import Recipe'}
           </button>
         </div>
 
         {error && (
           <div className="error-message">
-            <p>❌ {error}</p>
+            <p>{error}</p>
           </div>
         )}
       </>
@@ -523,6 +555,184 @@ Instructions:
 
   // Helper function to render results
   const renderResult = () => {
+    // If showPreview is true, render the editable preview
+    if (showPreview && editableRecipe) {
+      return (
+        <div className="recipe-preview-edit">
+          <div className="preview-header">
+            <h3>Review & Edit Recipe</h3>
+            <div className="confidence-indicator">
+              <span>Extraction Confidence: {Math.round(result.confidence * 100)}%</span>
+              <div className="confidence-bar">
+                <div 
+                  className="confidence-fill"
+                  style={{width: `${result.confidence * 100}%`}}
+                ></div>
+              </div>
+            </div>
+            <p className="preview-help">Review the imported recipe and make any necessary corrections before saving.</p>
+          </div>
+
+          <div className="editable-fields">
+            {/* Title */}
+            <div className="edit-field">
+              <label htmlFor="edit-title">Recipe Title:</label>
+              <input
+                id="edit-title"
+                type="text"
+                value={editableRecipe?.title || ''}
+                onChange={(e) => handlePreviewEdit('title', e.target.value)}
+                className="edit-input"
+                placeholder="Enter recipe title"
+              />
+            </div>
+
+            {/* Description */}
+            <div className="edit-field">
+              <label htmlFor="edit-description">Description:</label>
+              <textarea
+                id="edit-description"
+                value={editableRecipe?.description || ''}
+                onChange={(e) => handlePreviewEdit('description', e.target.value)}
+                className="edit-textarea short"
+                placeholder="Brief recipe description"
+                rows={2}
+              />
+            </div>
+
+            {/* Image Preview */}
+            {editableRecipe?.image_url && (
+              <div className="edit-field">
+                <label>Recipe Image:</label>
+                <div className="recipe-image-preview">
+                  <img 
+                    src={extractCleanImageUrl(editableRecipe.image_url) || `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${editableRecipe.image_url}`}
+                    alt={editableRecipe.title || 'Recipe'}
+                    onError={(e) => {
+                      console.error('❌ Image failed to load');
+                      // Show a placeholder instead of hiding
+                      const svgPlaceholder = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23e5e7eb' width='400' height='300'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='16' fill='%239ca3af'%3EImage Not Available%3C/text%3E%3C/svg%3E`;
+                      e.target.src = svgPlaceholder;
+                    }}
+                    onLoad={() => {
+                      console.log('✅ Image loaded successfully');
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Category and Servings Row */}
+            <div className="edit-row">
+              <div className="edit-field">
+                <label htmlFor="edit-category">Category:</label>
+                <input
+                  id="edit-category"
+                  type="text"
+                  value={editableRecipe?.category || ''}
+                  onChange={(e) => handlePreviewEdit('category', e.target.value)}
+                  className="edit-input"
+                  placeholder="e.g., Main Course"
+                />
+              </div>
+              <div className="edit-field">
+                <label htmlFor="edit-servings">Servings:</label>
+                <input
+                  id="edit-servings"
+                  type="text"
+                  value={editableRecipe?.servings || ''}
+                  onChange={(e) => handlePreviewEdit('servings', e.target.value)}
+                  className="edit-input"
+                  placeholder="e.g., 4"
+                />
+              </div>
+            </div>
+
+            {/* Times Row */}
+            <div className="edit-row">
+              <div className="edit-field">
+                <label htmlFor="edit-prep-time">Prep Time:</label>
+                <input
+                  id="edit-prep-time"
+                  type="text"
+                  value={editableRecipe?.prep_time || ''}
+                  onChange={(e) => handlePreviewEdit('prep_time', e.target.value)}
+                  className="edit-input"
+                  placeholder="e.g., 15 minutes"
+                />
+              </div>
+              <div className="edit-field">
+                <label htmlFor="edit-cook-time">Cook Time:</label>
+                <input
+                  id="edit-cook-time"
+                  type="text"
+                  value={editableRecipe?.cook_time || ''}
+                  onChange={(e) => handlePreviewEdit('cook_time', e.target.value)}
+                  className="edit-input"
+                  placeholder="e.g., 30 minutes"
+                />
+              </div>
+            </div>
+
+            {/* Ingredients */}
+            <div className="edit-field">
+              <label htmlFor="edit-ingredients">Ingredients:</label>
+              <textarea
+                id="edit-ingredients"
+                value={editableRecipe?.ingredients || ''}
+                onChange={(e) => handlePreviewEdit('ingredients', e.target.value)}
+                className="edit-textarea"
+                placeholder="Enter ingredients (one per line)"
+                rows={8}
+              />
+            </div>
+
+            {/* Instructions */}
+            <div className="edit-field">
+              <label htmlFor="edit-instructions">Instructions:</label>
+              <textarea
+                id="edit-instructions"
+                value={editableRecipe?.instructions || ''}
+                onChange={(e) => handlePreviewEdit('instructions', e.target.value)}
+                className="edit-textarea"
+                placeholder="Enter cooking instructions"
+                rows={8}
+              />
+            </div>
+
+            {/* Source URL (read-only) */}
+            <div className="edit-field">
+              <label htmlFor="edit-source">Source URL:</label>
+              <input
+                id="edit-source"
+                type="url"
+                value={editableRecipe?.source_url || ''}
+                className="edit-input readonly"
+                disabled
+              />
+            </div>
+          </div>
+
+          {/* Preview Actions */}
+          <div className="preview-actions">
+            <button
+              className="cancel-button"
+              onClick={handleCancelPreview}
+            >
+              ← Back to Import
+            </button>
+            <button
+              className="confirm-button"
+              onClick={handleConfirmImport}
+            >
+              ✅ Save Recipe
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Otherwise, show the simple success message
     return (
       <div className="result-section">
         {result && (
@@ -620,25 +830,25 @@ Instructions:
                   className={`type-button ${importType === 'url' ? 'active' : ''}`}
                   onClick={() => setImportType('url')}
                 >
-                  🌐 From Web
+                  From Web
                 </button>
                 <button
                   className={`type-button ${importType === 'text' ? 'active' : ''}`}
                   onClick={() => setImportType('text')}
                 >
-                  ✍️ Manual Entry
+                  Manual Entry
                 </button>
                 <button
                   className={`type-button ${importType === 'photo' ? 'active' : ''}`}
                   onClick={() => setImportType('photo')}
                 >
-                  📸 From Photo
+                  From Photo
                 </button>
                 <button
                   className={`type-button ${importType === 'voice' ? 'active' : ''}`}
                   onClick={() => setImportType('voice')}
                 >
-                  🎤 Voice Recipe
+                  Voice Recipe
                 </button>
               </div>
 
@@ -673,25 +883,25 @@ Instructions:
                   className={`type-button ${importType === 'url' ? 'active' : ''}`}
                   onClick={() => setImportType('url')}
                 >
-                  🌐 From Web
+                  From Web
                 </button>
                 <button
                   className={`type-button ${importType === 'text' ? 'active' : ''}`}
                   onClick={() => setImportType('text')}
                 >
-                  ✍️ Manual Entry
+                  Manual Entry
                 </button>
                 <button
                   className={`type-button ${importType === 'photo' ? 'active' : ''}`}
                   onClick={() => setImportType('photo')}
                 >
-                  📸 Photo/Scan
+                  Photo/Scan
                 </button>
                 <button
                   className={`type-button ${importType === 'voice' ? 'active' : ''}`}
                   onClick={() => setImportType('voice')}
                 >
-                  🎤 Voice
+                  Voice
                 </button>
               </div>
 
@@ -902,6 +1112,27 @@ Instructions:
                     rows={2}
                   />
                 </div>
+
+                {/* Image Preview */}
+                {editableRecipe?.image_url && (
+                  <div className="edit-field">
+                    <label>Recipe Image:</label>
+                    <div className="recipe-image-preview">
+                      <img 
+                        src={extractCleanImageUrl(editableRecipe.image_url) || `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${editableRecipe.image_url}`}
+                        alt={editableRecipe.title || 'Recipe'}
+                        onError={(e) => {
+                          console.error('❌ Image failed to load');
+                          const svgPlaceholder = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23e5e7eb' width='400' height='300'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='16' fill='%239ca3af'%3EImage Not Available%3C/text%3E%3C/svg%3E`;
+                          e.target.src = svgPlaceholder;
+                        }}
+                        onLoad={() => {
+                          console.log('✅ Image loaded successfully');
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Category and Times Row */}
                 <div className="edit-row">

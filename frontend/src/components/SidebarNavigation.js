@@ -70,17 +70,17 @@ const SidebarNavigation = ({
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Default categories with icons and colors (from CookbookSidebar)
+  // Default categories without icons
   const defaultCategories = [
-    { id: 'all', name: 'All', icon: '📚', color: '#6B7280', isDefault: true },
-    { id: 'recent-imports', name: 'Recent Imports', icon: '📥', color: '#059669', isDefault: true, priority: true },
-    { id: 'breakfast', name: 'Breakfast', icon: '🍳', color: '#F59E0B', isDefault: true },
-    { id: 'lunch', name: 'Lunch', icon: '🥗', color: '#10B981', isDefault: true },
-    { id: 'dinner', name: 'Dinner', icon: '🍽️', color: '#3B82F6', isDefault: true },
-    { id: 'desserts', name: 'Desserts', icon: '🍰', color: '#8B5CF6', isDefault: true },
-    { id: 'one-pot', name: 'One-Pot', icon: '🥘', color: '#EF4444', isDefault: true },
-    { id: 'quick', name: 'Quick', icon: '⚡', color: '#F97316', isDefault: true },
-    { id: 'favorites', name: 'Favorites', icon: '⭐', color: '#EC4899', isDefault: true }
+    { id: 'all', name: 'All', color: '#6B7280', isDefault: true },
+    { id: 'recent-imports', name: 'Recent Imports', color: '#059669', isDefault: true, priority: true },
+    { id: 'breakfast', name: 'Breakfast', color: '#F59E0B', isDefault: true },
+    { id: 'lunch', name: 'Lunch', color: '#10B981', isDefault: true },
+    { id: 'dinner', name: 'Dinner', color: '#3B82F6', isDefault: true },
+    { id: 'desserts', name: 'Desserts', color: '#8B5CF6', isDefault: true },
+    { id: 'one-pot', name: 'One-Pot', color: '#EF4444', isDefault: true },
+    { id: 'quick', name: 'Quick', color: '#F97316', isDefault: true },
+    { id: 'favorites', name: 'Favorites', color: '#EC4899', isDefault: true }
   ];
 
   // Merge default categories with user custom categories
@@ -104,7 +104,12 @@ const SidebarNavigation = ({
   const features = [
     {
       id: 'community',
-      icon: '🌟',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      ),
       label: 'Home',
       description: 'Discover amazing recipes',
       available: true,
@@ -115,7 +120,12 @@ const SidebarNavigation = ({
     },
     {
       id: 'cookbook',
-      icon: '📖',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+        </svg>
+      ),
       label: 'My Recipes',
       description: 'Browse and organize recipes',
       available: true,
@@ -126,7 +136,13 @@ const SidebarNavigation = ({
     },
     {
       id: 'add-recipe',
-      icon: '➕',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="16"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+      ),
       label: 'Add Recipe',
       description: 'Import or create recipe',
       available: true,
@@ -137,7 +153,14 @@ const SidebarNavigation = ({
     },
     {
       id: 'meal-planner',
-      icon: '📅',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      ),
       label: 'Meal Plan',
       description: 'Weekly meal planning',
       available: true,
@@ -148,7 +171,13 @@ const SidebarNavigation = ({
     },
     {
       id: 'grocery-lists',
-      icon: '🛒',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="9" cy="21" r="1"/>
+          <circle cx="20" cy="21" r="1"/>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+        </svg>
+      ),
       label: 'Grocery List',
       description: 'Shopping lists',
       available: true,
@@ -159,7 +188,13 @@ const SidebarNavigation = ({
     },
     {
       id: 'pantry',
-      icon: '🥕',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      ),
       label: 'Pantry',
       description: 'Track ingredients',
       available: true,
@@ -170,7 +205,14 @@ const SidebarNavigation = ({
     },
     {
       id: 'friends',
-      icon: '👥',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      ),
       label: 'Friends',
       description: 'Connect with friends and family',
       available: true,
@@ -279,7 +321,6 @@ const SidebarNavigation = ({
                           data-category={category.id}
                           style={{ '--category-color': category.color }}
                         >
-                          <span className="category-icon">{category.icon}</span>
                           <span className="category-name">{category.name}</span>
                           <span className="category-count">({getRecipeCount(category.id)})</span>
                         </button>

@@ -138,7 +138,7 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
                 
                 {/* Header */}
                 <div className="load-panel-header">
-                    <h2>📂 Saved Grocery Lists</h2>
+                    <h2>Saved Grocery Lists</h2>
                     <button className="load-panel-close-btn" onClick={onClose}>✕</button>
                 </div>
 
@@ -157,22 +157,22 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
                 <div className="load-panel-content">
                     {loading && (
                         <div className="load-panel-loading">
-                            <p>🔄 Loading grocery lists...</p>
+                            <p>Loading grocery lists...</p>
                         </div>
                     )}
 
                     {error && (
                         <div className="load-panel-error">
-                            <p>❌ {error}</p>
+                            <p>{error}</p>
                             <button onClick={loadSavedLists} className="retry-btn">
-                                🔄 Retry
+                                Retry
                             </button>
                         </div>
                     )}
 
                     {!loading && !error && filteredLists.length === 0 && (
                         <div className="load-panel-empty">
-                            <p>📭 No saved grocery lists found</p>
+                            <p>No saved grocery lists found</p>
                             {searchTerm && <p className="empty-hint">Try a different search term</p>}
                         </div>
                     )}
@@ -186,7 +186,6 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
                                     onClick={() => handleLoadList(list.id)}
                                 >
                                     <div className="list-item-main">
-                                        <div className="list-item-icon">🛒</div>
                                         <div className="list-item-info">
                                             <h3 className="list-item-name">{list.list_name}</h3>
                                             <div className="list-item-meta">
@@ -207,7 +206,7 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
                                             onClick={(e) => handleDeleteList(list.id, list.list_name, e)}
                                             title="Delete this list"
                                         >
-                                            🗑️
+                                            ×
                                         </button>
                                     </div>
                                 </div>

@@ -171,3 +171,77 @@ export const updateRecipe = async (recipeId, updatedRecipe) => {
     throw error;
   }
 };
+
+// ===== V2 API FUNCTIONS =====
+
+// V2: Get user recipes with stats
+export const getUserRecipesV2 = async (userId, category = 'all', page = 1, perPage = 50) => {
+  const params = new URLSearchParams();
+  if (category !== 'all') params.append('category', category);
+  params.append('page', page);
+  params.append('per_page', perPage);
+  
+  const queryString = params.toString();
+  return apiCall(`/api/v2/recipes/user/${userId}${queryString ? `?${queryString}` : ''}`);
+};
+
+// V2: Get recipe by ID
+export const getRecipeV2 = (recipeId, userId) => {
+  return apiCall(`/api/v2/recipes/${recipeId}?user_id=${userId}`);
+};
+
+// V2: Create new recipe
+export const createRecipeV2 = async (recipeData) => {
+  return apiCall('/api/v2/recipes', {
+    method: 'POST',
+    body: JSON.stringify(recipeData)
+  });
+};
+
+// V2: Update recipe
+export const updateRecipeV2 = async (recipeId, recipeData) => {
+  return apiCall(`/api/v2/recipes/${recipeId}`, {
+    method: 'PUT',
+    body: JSON.stringify(recipeData)
+  });
+};
+
+// V2: Delete recipe
+export const deleteRecipeV2 = async (recipeId, userId) => {
+  return apiCall(`/api/v2/recipes/${recipeId}?user_id=${userId}`, {
+    method: 'DELETE'
+  });
+};
+
+// V2: Import recipe from photo
+export const importRecipeFromPhoto = async (formData) => {
+  try {
+    const response = await api.post('/api/v2/recipes/import/photo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error importing recipe from photo:', error);
+    throw error;
+  }
+};
+
+// V2: Get user recipe stats
+export const getUserRecipeStatsV2 = async (userId) => {
+  return apiCall(`/api/v2/recipes/user/${userId}/stats`);
+};
+
+// V2: Search recipes
+export const searchRecipesV2 = async (userId, query, filters = {}) => {
+  const params = new URLSearchParams();
+  params.append('user_id', userId);
+  params.append('q', query);
+  
+  if (filters.category) params.append('category', filters.category);
+  if (filters.difficulty) params.append('difficulty', filters.difficulty);
+  if (filters.max_time) params.append('max_time', filters.max_time);
+  
+  return apiCall(`/api/v2/recipes/search?${params.toString()}`);
+};
