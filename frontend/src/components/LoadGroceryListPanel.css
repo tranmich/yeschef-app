@@ -162,7 +162,26 @@
 .saved-lists-container {
     display: flex;
     flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Section Headers */
+.lists-section {
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
+}
+
+.section-header {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0 0.25rem;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 0.5rem;
 }
 
 .saved-list-item {
@@ -181,6 +200,18 @@
     border-color: #10b981;
     background: #f0fdf4;
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+}
+
+/* Collaborative list styling */
+.saved-list-item.collaborative {
+    background: linear-gradient(to right, #fefce8, #ffffff);
+    border-color: #fbbf24;
+}
+
+.saved-list-item.collaborative:hover {
+    border-color: #f59e0b;
+    background: #fef3c7;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
 }
 
 .list-item-main {
@@ -203,7 +234,7 @@
 
 .list-item-name {
     margin: 0 0 0.25rem 0;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     color: #1f2937;
     overflow: hidden;
@@ -213,6 +244,7 @@
 
 .list-item-meta {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
     font-size: 0.8rem;
     color: #6b7280;
@@ -225,6 +257,11 @@
 
 .list-item-recipes {
     color: #6b7280;
+}
+
+.list-item-whiteboard {
+    color: #f59e0b;
+    font-weight: 500;
 }
 
 /* Actions */

@@ -1,0 +1,284 @@
+/**
+ * Liveblocks Configuration
+ * 
+ * Configures real-time collaboration for YesChef whiteboards
+ * - Authentication via our backend
+ * - User presence (cursors, avatars)
+ * - Comments and threads
+ */
+
+import { createClient } from "@liveblocks/client";
+import { createRoomContext } from "@liveblocks/react";
+
+// Get API base URL from environment or use default
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://yeschefapp-production.up.railway.app';
+
+console.log('� Liveblocks using authEndpoint for secure authentication');
+
+/**
+ * Create Liveblocks client  
+ * Using authEndpoint for proper user authentication with userId
+ */
+const client = createClient({
+  authEndpoint: async (room) => {
+    console.log('🔐 Liveblocks auth request for room:', room);
+    
+    // Get YesChef auth token from localStorage
+    const authToken = localStorage.getItem('authToken');
+    
+    // Get user from sessionStorage (fallback to localStorage for compatibility)
+    let currentUser = null;
+    const sessionUser = sessionStorage.getItem('user');
+    const localUser = localStorage.getItem('currentUser');
+    
+    if (sessionUser) {
+      currentUser = JSON.parse(sessionUser);
+    } else if (localUser) {
+      currentUser = JSON.parse(localUser);
+    }
+    
+    console.log('🔍 Checking auth data:');
+    console.log('  - authToken:', authToken ? 'EXISTS ✅' : 'MISSING ❌');
+    console.log('  - currentUser:', currentUser ? 'EXISTS ✅' : 'MISSING ❌');
+    
+    if (!authToken) {
+      console.error('❌ Missing auth token');
+      throw new Error('Not authenticated');
+    }
+    
+    if (!currentUser) {
+      console.error('❌ Missing user data - trying to fetch from /me endpoint');
+      // Fallback: Try to fetch current user from backend
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v2/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          currentUser = data.data?.user || data.user;
+          console.log('✅ Fetched user from /me:', currentUser);
+        }
+      } catch (e) {
+        console.error('Failed to fetch user:', e);
+      }
+    }
+    
+    if (!currentUser) {
+      throw new Error('Not authenticated - no user data');
+    }
+    
+    const userId = String(currentUser.id);
+    
+    console.log('👤 Authenticating as user:', userId, currentUser.username || currentUser.name || currentUser.email);
+    
+    // Call our backend auth endpoint
+    const response = await fetch(`${API_BASE_URL}/api/v2/liveblocks/auth`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        room,
+        userId, // Pass the userId explicitly
+      }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('❌ Liveblocks auth failed:', error);
+      throw new Error('Authentication failed');
+    }
+    
+    const data = await response.json();
+    console.log('✅ Liveblocks auth successful');
+    console.log('📦 Backend response:', data);
+    console.log('🔑 Token value:', data.token);
+    console.log('🔑 Token type:', typeof data.token);
+    
+    // Liveblocks REQUIRES this exact format
+    const result = { token: data.token };
+    console.log('🎯 Returning to Liveblocks:', result);
+    return result;
+  },
+  
+  // Resolve user display info for comments
+  resolveUsers: async ({ userIds }) => {
+    console.log('🔍 Resolving users:', userIds);
+    
+    // Get current user
+    const currentUserStr = localStorage.getItem('currentUser');
+    if (!currentUserStr) return [];
+    
+    try {
+      const currentUser = JSON.parse(currentUserStr);
+      
+      return userIds.map((userId) => {
+        if (userId === String(currentUser.id)) {
+          return {
+            name: currentUser.name || currentUser.email || 'You',
+            avatar: currentUser.avatar_url || null,
+          };
+        }
+        // For other users, we'd fetch from backend
+        // For now, show User ID
+        return {
+          name: `User ${userId}`,
+          avatar: null,
+        };
+      });
+    } catch (error) {
+      console.error('Error resolving users:', error);
+      return [];
+    }
+  },
+  
+  // Throttle updates
+  throttle: 100,
+});
+
+/**
+ * Presence shape - what data each user broadcasts
+ * This is visible to all users in the room
+ */
+export const presenceShape = {
+  cursor: null, // { x: number, y: number } or null
+  selectedObjectId: null, // Currently selected object
+  activityStatus: 'viewing', // 'viewing' | 'editing' | 'commenting'
+};
+
+/**
+ * Storage shape - shared data structure
+ * Currently not used (we store in PostgreSQL), but available for future
+ */
+export const storageShape = {
+  // Example: could store temporary drawing annotations
+  // annotations: new LiveList([]),
+};
+
+/**
+ * User meta shape - data about each user
+ * Set by backend in Liveblocks token
+ */
+export const userMetaShape = {
+  id: '',          // YesChef user ID
+  info: {
+    name: '',      // Display name
+    email: '',     // Email address
+    initials: '',  // Computed initials (e.g., "JD")
+    color: '',     // Assigned color (e.g., "#7FD4C1")
+    avatar: null,  // Profile picture URL (future)
+  },
+};
+
+/**
+ * Room event shape - custom events
+ * For notifications and real-time updates
+ */
+export const roomEventShape = {
+  // Example events (not implemented yet):
+  // objectCreated: { objectId: number, type: string },
+  // objectDeleted: { objectId: number },
+  // objectMoved: { objectId: number, position: { x, y } },
+};
+
+/**
+ * Create React hooks for Liveblocks
+ * Using REGULAR API (not suspense) to avoid blocking
+ */
+export const {
+  RoomProvider,
+  useRoom,
+  useMyPresence,
+  useUpdateMyPresence,
+  useSelf,
+  useOthers,
+  useOthersMapped,
+  useOthersConnectionIds,
+  useOther,
+  useBroadcastEvent,
+  useEventListener,
+  useErrorListener,
+  useStorage,
+  useObject,
+  useMap,
+  useList,
+  useBatch,
+  useHistory,
+  useUndo,
+  useRedo,
+  useCanUndo,
+  useCanRedo,
+  useMutation,
+  useStatus,
+  useLostConnectionListener,
+  useThreads,
+  useUser,
+  useCreateThread,
+  useEditThreadMetadata,
+  useCreateComment,
+  useEditComment,
+  useDeleteComment,
+  useAddReaction,
+  useRemoveReaction,
+} = createRoomContext(client);
+
+// Export client for advanced use cases
+export { client };
+
+/**
+ * Helper: Get room ID for a whiteboard
+ */
+export function getWhiteboardRoomId(whiteboardId) {
+  return `whiteboard-${whiteboardId}`;
+}
+
+/**
+ * Helper: Get user color from Liveblocks presence
+ */
+export function getUserColor(user) {
+  return user?.info?.color || '#7FD4C1'; // Default to mint
+}
+
+/**
+ * Helper: Get user initials from Liveblocks presence
+ */
+export function getUserInitials(user) {
+  return user?.info?.initials || '?';
+}
+
+/**
+ * Helper: Get user name from Liveblocks presence
+ */
+export function getUserName(user) {
+  return user?.info?.name || 'Unknown User';
+}
+
+/**
+ * Color palette (matches backend)
+ * These are assigned automatically by the backend
+ */
+export const USER_COLORS = [
+  '#7FD4C1',  // Medium mint
+  '#4FB69A',  // Dark mint
+  '#9FDFCD',  // Light mint  
+  '#5BC0A3',  // Teal mint
+  '#FF9B9B',  // Soft coral
+  '#FFB84D',  // Soft orange
+  '#9B9BFF',  // Soft purple
+  '#FFB6D9',  // Soft pink
+];
+
+/**
+ * Activity status labels
+ */
+export const ACTIVITY_STATUS_LABELS = {
+  viewing: 'Viewing',
+  editing: 'Editing',
+  commenting: 'Commenting',
+};
+
+console.log('✅ Liveblocks configured with auth endpoint:', `${API_BASE_URL}/api/v2/liveblocks/auth`);

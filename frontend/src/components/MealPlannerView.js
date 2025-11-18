@@ -3,6 +3,7 @@ import MealCalendar from './MealCalendar';
 import DraggableRecipeCard from './DraggableRecipeCard';
 import ShareResourceModal from './ShareResourceModal';
 import { getApiUrl } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 import './MealPlannerView.css';
 
 const MealPlannerView = ({
@@ -16,6 +17,9 @@ const MealPlannerView = ({
     setContainerRecipes,
     onShowGroceryList
 }) => {
+    // Auth
+    const { user, token } = useAuth();
+    
     // Use the meal plan from props (which comes from the hook)
     const currentMealPlan = mealPlan;
     const updateMealPlan = setMealPlan;
@@ -34,7 +38,13 @@ const MealPlannerView = ({
 
     const loadSavedMealPlans = async () => {
         try {
-            const token = localStorage.getItem('authToken');
+            const userId = user?.id;
+            if (!userId) {
+                console.warn('No user ID available');
+                setSavedMealPlans([]);
+                return;
+            }
+            
             const headers = {
                 'Content-Type': 'application/json'
             };
@@ -43,13 +53,13 @@ const MealPlannerView = ({
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${getApiUrl()}/api/meal-plans`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/meal-plans/user/${userId}`, {
                 headers: headers
             });
             const data = await response.json();
 
             if (data.success) {
-                setSavedMealPlans(data.meal_plans);
+                setSavedMealPlans(data.data?.meal_plans || data.meal_plans || []);
             } else {
                 // Gracefully handle disabled/unavailable meal planning system
                 console.log('Meal planning system not available:', data.error);
@@ -135,23 +145,24 @@ const MealPlannerView = ({
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('authToken');
-            if (!token) {
+            const userId = user?.id;
+            if (!userId || !token) {
                 alert('Please log in to save meal plans');
                 setLoading(false);
                 return;
             }
 
-            const response = await fetch(`${getApiUrl()}/api/meal-plans`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/meal-plans`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
+                    user_id: userId,
                     plan_name: currentPlanName,
                     week_start_date: getCurrentWeekStart(),
-                    meal_data: currentMealPlan
+                    plan_data: currentMealPlan
                 })
             });
 
@@ -159,7 +170,7 @@ const MealPlannerView = ({
 
             if (data.success) {
                 alert('Meal plan saved successfully!');
-                setCurrentPlanId(data.plan_id); // Store the plan ID for sharing
+                setCurrentPlanId(data.data?.id || data.plan_id); // Store the plan ID for sharing
                 setCurrentPlanName('');
                 loadSavedMealPlans();
             } else {
@@ -186,7 +197,13 @@ const MealPlannerView = ({
     const loadMealPlan = async (planId) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('authToken');
+            const userId = user?.id;
+            if (!userId) {
+                console.warn('No user ID available');
+                setLoading(false);
+                return;
+            }
+            
             const headers = {
                 'Content-Type': 'application/json'
             };
@@ -195,23 +212,25 @@ const MealPlannerView = ({
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${getApiUrl()}/api/meal-plans/${planId}`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/meal-plans/${planId}?user_id=${userId}`, {
                 headers: headers
             });
             const data = await response.json();
 
             if (data.success) {
+                // V2 returns data.data
+                const mealPlan = data.data || data.meal_plan;
                 // Ensure meal_data has proper structure before loading
-                const mealData = data.meal_plan.meal_data || {};
+                const mealData = mealPlan.meal_data || {};
                 const initializedData = {
                     days: mealData.days || {},
                     dayOrder: mealData.dayOrder || Object.keys(mealData.days || {})
                 };
                 
                 updateMealPlan(initializedData);
-                setCurrentPlanName(data.meal_plan.plan_name);
+                setCurrentPlanName(mealPlan.plan_name);
                 setCurrentPlanId(planId); // Store the plan ID for sharing
-                console.log('✅ Loaded meal plan:', data.meal_plan.plan_name, initializedData);
+                console.log('✅ Loaded meal plan:', mealPlan.plan_name, initializedData);
             } else {
                 alert('Error loading meal plan: ' + data.error);
             }
@@ -248,7 +267,12 @@ const MealPlannerView = ({
         }
 
         try {
-            const token = localStorage.getItem('authToken');
+            const userId = user?.id;
+            if (!userId) {
+                alert('Please log in to delete meal plans');
+                return;
+            }
+            
             const headers = {
                 'Content-Type': 'application/json'
             };
@@ -257,7 +281,7 @@ const MealPlannerView = ({
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${getApiUrl()}/api/meal-plans/${planId}`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/meal-plans/${planId}?user_id=${userId}`, {
                 method: 'DELETE',
                 headers: headers
             });

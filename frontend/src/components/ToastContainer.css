@@ -1,0 +1,16 @@
+/* Toast Container Styles */
+
+.toast-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast-wrapper {
+  position: absolute;
+  right: 0;
+  pointer-events: auto;
+  transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

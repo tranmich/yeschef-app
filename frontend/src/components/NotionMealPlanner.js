@@ -5,12 +5,16 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import './NotionMealPlanner.css';
 import { getApiUrl } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const NotionMealPlanner = ({ 
     searchResults = [], 
     containerRecipes = [],
     isVisible = false 
 }) => {
+    // Auth
+    const { user, token } = useAuth();
+    
     // Dynamic meal plan structure
     const [mealPlan, setMealPlan] = useState({
         days: [
@@ -182,12 +186,24 @@ const NotionMealPlanner = ({
 
         setLoading(true);
         try {
-            const response = await fetch(`${getApiUrl()}/api/meal-plans`, {
+            const userId = user?.id;
+            if (!userId) {
+                alert('Please log in to save meal plans');
+                setLoading(false);
+                return;
+            }
+            
+            const response = await fetch(`${getApiUrl()}/api/v2/meal-plans`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                },
                 body: JSON.stringify({
+                    user_id: userId,
                     plan_name: planName,
-                    meal_data: mealPlan,
+                    week_start_date: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD
+                    plan_data: mealPlan,
                     plan_type: 'notion_style'
                 })
             });
@@ -210,10 +226,17 @@ const NotionMealPlanner = ({
     // Load saved plans
     const loadSavedPlans = async () => {
         try {
-            const response = await fetch(`${getApiUrl()}/api/meal-plans`);
+            const userId = user?.id;
+            if (!userId) {
+                console.warn('No user ID available');
+                return;
+            }
+            
+            const response = await fetch(`${getApiUrl()}/api/v2/meal-plans/user/${userId}`);
             const data = await response.json();
             if (data.success) {
-                setSavedPlans(data.meal_plans.filter(plan => 
+                const plans = data.data?.meal_plans || data.meal_plans || [];
+                setSavedPlans(plans.filter(plan => 
                     plan.meal_data && plan.meal_data.days
                 ));
             }
@@ -457,6 +480,17 @@ const NotionMealPlanner = ({
                                 <h3>📋 Saved Plans</h3>
                                 <button onClick={() => setShowSavedPlans(false)}>❌</button>
                             </div>
+                            
+                            <div className="plans-info">
+                                <p className="info-text">
+                                    📝 <strong>Personal Plans:</strong> These are your individual meal plans.
+                                </p>
+                                <p className="info-text">
+                                    👥 <strong>Collaborative Plans:</strong> For household collaboration, use the 
+                                    <strong> Whiteboard</strong> feature to create shared meal plan containers!
+                                </p>
+                            </div>
+
                             <div className="plans-list">
                                 {savedPlans.map(plan => (
                                     <div key={plan.id} className="plan-item">
@@ -465,7 +499,7 @@ const NotionMealPlanner = ({
                                     </div>
                                 ))}
                                 {savedPlans.length === 0 && (
-                                    <p>No Notion-style plans saved yet!</p>
+                                    <p className="empty-message">No plans saved yet! Create and save your first meal plan above.</p>
                                 )}
                             </div>
                         </div>

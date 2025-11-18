@@ -17,11 +17,21 @@ import RecipePanel from '../components/RecipePanel';
 import AdminDashboard from '../components/AdminDashboard';
 import AdminRecipeOverlay from '../components/AdminRecipeOverlay';
 import GroceryManagerWorkspace from '../components/GroceryManagerWorkspace';
+import { ToastProvider } from '../components/ToastContainer';
 import './MainApp.css';
+import './ActivityFeedView.css';
 import SessionMemoryManager from '../utils/SessionMemoryManager';
 import { usePantry } from '../hooks/usePantry';
 import { useMealPlanner, useDragAndDrop, useSidebar } from '../hooks';
 import * as api from '../utils/api';
+
+// 🆕 Whiteboard Components
+import HouseholdSelector from './HouseholdSelector';
+import WhiteboardNavigator from './WhiteboardNavigator';
+import WhiteboardApp from './WhiteboardApp';
+
+// 🆕 Activity Feed Components
+import ActivityFeed from '../components/ActivityFeed';
 
 const MainApp = () => {
   console.log('🚀 MainApp component loaded - COOKBOOK-FIRST VERSION 2025-08-22');
@@ -60,6 +70,10 @@ const MainApp = () => {
     return localStorage.getItem('preferredRecipeView') || 'gallery';
   });
   const [showPhotoImport, setShowPhotoImport] = useState(false);
+
+  // 🆕 Whiteboard State
+  const [selectedHouseholdId, setSelectedHouseholdId] = useState(null);
+  const [selectedWhiteboardId, setSelectedWhiteboardId] = useState(null);
 
   // --- Drag and Drop State ---
   const [activeRecipe, setActiveRecipe] = useState(null);
@@ -114,12 +128,20 @@ const MainApp = () => {
     setLoading(true);
     console.log(`🔄 Starting recipe load process for category: ${category}...`);
     
+    // V2 Migration: Check if user is authenticated
+    if (!currentUser?.id) {
+      console.warn('⚠️ No user ID available - user may not be logged in');
+      setRecipes([]);
+      setLoading(false);
+      return;
+    }
+    
     try {
-      console.log('🍽️ Loading user recipes from personal collection...');
+      console.log(`🍽️ Loading recipes for user ${currentUser.id} from v2 API...`);
       
-      // Use the new user-specific API with category filtering
-      const response = await api.getUserRecipes(category);
-      console.log('📊 User recipes response:', response);
+      // V2 API: Use getUserRecipesV2 with user ID
+      const response = await api.getUserRecipesV2(currentUser.id, category);
+      console.log('📊 V2 User recipes response:', response);
       
       // Check for admin access
       if (response && response.admin_access) {
@@ -131,35 +153,35 @@ const MainApp = () => {
         setIsAdmin(false);
       }
       
-      // Handle the response structure
+      // Handle v2 response structure
       let recipes = [];
-      if (response && response.success && Array.isArray(response.data)) {
-        recipes = response.data;
-        console.log(`✅ Found ${recipes.length} recipes for category '${category}'`);
-        console.log('📝 Recipe types:', recipes.map(r => r.recipe_type || 'unknown'));
+      if (response && response.success) {
+        // V2 response structure: { success: true, data: { items: [...], pagination: {...} } }
+        if (response.data?.items) {
+          recipes = response.data.items;
+          console.log(`✅ V2 API: Found ${recipes.length} recipes for category '${category}'`);
+          console.log('📊 Pagination info:', response.data.pagination);
+        } else if (Array.isArray(response.data)) {
+          // Fallback for direct array response
+          recipes = response.data;
+          console.log(`✅ V2 API: Found ${recipes.length} recipes (direct array)`);
+        }
         
-        // Admin gets different message
+        console.log('📝 Recipe types:', recipes.slice(0, 3).map(r => r.recipe_type || 'unknown'));
+        
         if (response.admin_access) {
           console.log('🔧 Admin loaded ALL database recipes for curation');
         }
       } else if (response && Array.isArray(response)) {
+        // Fallback for direct array response
         recipes = response;
         console.log('✅ Response itself is array:', recipes.length);
       } else {
-        console.log('⚠️ Unexpected response structure, falling back to search');
-        // Fallback to old method if user recipes fails
-        const fallback = await api.searchRecipes('recipe');
-        if (fallback && Array.isArray(fallback.recipes)) {
-          recipes = fallback.recipes;
-          console.log('🔄 Fallback found recipes:', recipes.length);
-        } else if (fallback && Array.isArray(fallback.data)) {
-          recipes = fallback.data;
-          console.log('🔄 Fallback found recipes in data:', recipes.length);
-        }
+        console.log('⚠️ Unexpected v2 response structure:', response);
       }
       
       if (recipes.length > 0) {
-        console.log(`✅ Setting ${recipes.length} recipes from database`);
+        console.log(`✅ Setting ${recipes.length} recipes from v2 API`);
         console.log('📋 First recipe sample:', recipes[0]);
         setRecipes(recipes);
       } else {
@@ -167,7 +189,7 @@ const MainApp = () => {
         setRecipes([]);
       }
     } catch (error) {
-      console.error('❌ Error loading recipes via api.searchRecipes:', error);
+      console.error('❌ Error loading recipes from v2 API:', error);
       console.error('❌ Error details:', error.message, error.stack);
       console.log('ℹ️ Starting with empty cookbook due to error');
       setRecipes([]);
@@ -448,14 +470,27 @@ const MainApp = () => {
   };
 
   // Handle recipe import functionality
-  const handleImportRecipe = (importResult) => {
+  const handleImportRecipe = async (importResult) => {
     console.log('Recipe imported successfully:', importResult);
-    console.log('🔍 Raw recipe data:', importResult.recipe_data);
+    
+    // V2 API structure validation: fail fast if wrong structure
+    if (!importResult.success || !importResult.data?.recipe) {
+      console.error('❌ Invalid v2 import response structure:', importResult);
+      alert('Import failed: Invalid response from server. Please try again.');
+      return;
+    }
+    
+    // V2 API structure: { success: true, data: { recipe, recipe_id, confidence, ... } }
+    const recipeData = importResult.data.recipe;
+    const recipeId = importResult.data.recipe_id;
+    
+    console.log('🔍 Raw recipe data:', recipeData);
+    console.log('🔍 Recipe ID:', recipeId);
     
     // Instead of reloading all recipes, add the new recipe to the existing list
-    if (importResult.success && importResult.recipe_data) {
+    if (recipeData) {
       // Normalize ingredients to be searchable
-      let normalizedIngredients = importResult.recipe_data.ingredients || [];
+      let normalizedIngredients = recipeData.ingredients || [];
       console.log('🔍 Raw ingredients:', normalizedIngredients);
       
       // Convert array of ingredients to a searchable string format
@@ -472,7 +507,8 @@ const MainApp = () => {
       
       // Parse time to get time_min for compatibility
       const parseTimeToMinutes = (timeStr) => {
-        if (!timeStr) return null;
+        // Handle null, undefined, or non-string values
+        if (!timeStr || typeof timeStr !== 'string') return null;
         const match = timeStr.match(/(\d+)/);
         return match ? parseInt(match[1]) : null;
       };
@@ -490,24 +526,24 @@ const MainApp = () => {
         return 'dinner';
       };
       
-      const prepTimeMin = parseTimeToMinutes(importResult.recipe_data.prep_time);
-      const cookTimeMin = parseTimeToMinutes(importResult.recipe_data.cook_time);
+      const prepTimeMin = parseTimeToMinutes(recipeData.prep_time);
+      const cookTimeMin = parseTimeToMinutes(recipeData.cook_time);
       const totalTimeMin = (prepTimeMin || 0) + (cookTimeMin || 0) || null;
       
       const newRecipe = {
-        id: importResult.recipe_id,
-        title: importResult.recipe_data.title || 'Imported Recipe',
-        description: importResult.recipe_data.description || '',
+        id: recipeId, // Use extracted recipe ID from v2 response
+        title: recipeData.title || 'Imported Recipe',
+        description: recipeData.description || '',
         ingredients: ingredientsString, // Store as string for search compatibility
-        instructions: importResult.recipe_data.instructions || [],
-        prep_time: importResult.recipe_data.prep_time || '',
-        cook_time: importResult.recipe_data.cook_time || '',
+        instructions: recipeData.instructions || [],
+        prep_time: recipeData.prep_time || '',
+        cook_time: recipeData.cook_time || '',
         time_min: totalTimeMin, // Add time_min field that UI expects
-        servings: importResult.recipe_data.servings || '',
-        category: 'imported', // Use lowercase to match backend database schema
-        meal_role: mapCategoryToMealRole(importResult.recipe_data.category), // Proper meal role mapping
-        source_url: importResult.recipe_data.source_url || '',
-        confidence: importResult.confidence || 0.0,
+        servings: recipeData.servings || '',
+        category: recipeData.category || 'imported', // Use backend category or default to 'imported'
+        meal_role: mapCategoryToMealRole(recipeData.category), // Proper meal role mapping
+        source_url: recipeData.source_url || '',
+        confidence: importResult.data?.confidence || importResult.confidence || 0.0,
         is_easy: totalTimeMin && totalTimeMin <= 30, // Mark as easy if quick
         pantryOverlap: 0, // Default pantry overlap
         // Add import tracking metadata
@@ -519,18 +555,40 @@ const MainApp = () => {
       
       console.log('🔍 Final normalized recipe:', newRecipe);
       
-      // Add the new recipe to the top of the list
-      setRecipes(prevRecipes => [newRecipe, ...prevRecipes]);
-      console.log('✅ Added imported recipe to list:', newRecipe.title);
+      // If recipe_id is null, the backend didn't save it - we need to save it now
+      if (!recipeId) {
+        console.log('💾 Recipe not saved by backend (needs_review), saving now...');
+        
+        try {
+          // Save the recipe using v2 create endpoint
+          const saveResult = await api.createRecipeV2({
+            ...recipeData,
+            user_id: currentUser?.id,
+            category: recipeData.category || 'imported',
+            // Convert arrays back to proper format if needed
+            ingredients: Array.isArray(recipeData.ingredients) 
+              ? recipeData.ingredients 
+              : ingredientsString,
+            instructions: Array.isArray(recipeData.instructions)
+              ? recipeData.instructions
+              : []
+          });
+          
+          console.log('✅ Recipe saved successfully:', saveResult);
+          
+          // Show success message
+          if (saveResult.success && saveResult.data) {
+            alert(`Recipe "${recipeData.title}" imported and saved successfully!`);
+          }
+        } catch (error) {
+          console.error('❌ Error saving imported recipe:', error);
+          alert(`Recipe extracted but failed to save: ${error.message}`);
+        }
+      }
       
-      // 🎯 AUTOMATICALLY SWITCH TO RECENT IMPORTS CATEGORY AND RELOAD
-      setSelectedCategory('recent-imports');
-      console.log('📥 Switching to Recent Imports category and reloading...');
-      
-      // Reload the recent-imports category to ensure backend data is fresh
-      setTimeout(() => {
-        loadRecipes('recent-imports');
-      }, 500); // Small delay to ensure backend has processed the import
+      // Reload all recipes from backend to get the fresh one with correct ID
+      console.log('📥 Reloading all recipes to include newly imported recipe...');
+      loadRecipes(selectedCategory); // Reload current category to show the new recipe
       
     } else {
       // Fallback: refresh recipe list only if we couldn't get the recipe data
@@ -549,27 +607,30 @@ const MainApp = () => {
       console.log('📸 Starting photo import...');
       const response = await api.importRecipeFromPhoto(formData);
       
-      if (response.success && response.data) {
-        console.log('✅ Photo import successful:', response.data);
-        
-        // Add the imported recipe to the list
-        const newRecipe = response.data.recipe || response.data;
-        setRecipes(prevRecipes => [newRecipe, ...prevRecipes]);
-        
-        // Show success message
-        alert(`Recipe "${newRecipe.title}" imported successfully!`);
-        
-        // Refresh recipes to get latest from backend
-        setTimeout(() => {
-          loadRecipes(selectedCategory);
-        }, 500);
-        
-        return response;
-      } else {
-        throw new Error(response.error || 'Photo import failed');
+      // V2 response validation
+      if (!response.success || !response.data?.recipe) {
+        console.error('❌ Invalid v2 photo import response:', response);
+        throw new Error(response.error || 'Photo import failed: Invalid response structure');
       }
+      
+      console.log('✅ Photo import successful:', response.data);
+      
+      // V2 structure: response.data.recipe
+      const newRecipe = response.data.recipe;
+      const recipeId = response.data.recipe_id || newRecipe.id;
+      
+      console.log(`✅ Imported recipe: "${newRecipe.title}" (ID: ${recipeId})`);
+      
+      // Show success message
+      alert(`Recipe "${newRecipe.title}" imported successfully!`);
+      
+      // Refresh recipes to get latest from backend
+      loadRecipes(selectedCategory);
+      
+      return response;
     } catch (error) {
       console.error('❌ Photo import error:', error);
+      alert(`Failed to import photo: ${error.message}`);
       throw error;
     }
   };
@@ -581,16 +642,19 @@ const MainApp = () => {
       let userId = currentUser?.id;
       
       if (!userId) {
-        // Fetch current user from auth API
+        // Fetch current user from V2 auth API
         try {
-          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/me`, {
+          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/v2/auth/me`, {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('authToken')}`
             }
           });
           if (response.ok) {
-            const userData = await response.json();
-            userId = userData.id;
+            const result = await response.json();
+            // V2 response format: { success, data: { user } }
+            if (result.success && result.data) {
+              userId = result.data.user.id;
+            }
           }
         } catch (error) {
           console.error('Failed to get user ID:', error);
@@ -668,23 +732,24 @@ const MainApp = () => {
     >
       <div className={`app-container cookbook-first ${showRecipeDetail ? 'recipe-panel-open' : ''}`}>
         {/* Navigation Sidebar - Left Side */}
-        <SidebarContainer
-          showMealPlanner={sidebarHook.isMealPlannerVisible}
-          onToggleMealPlanner={sidebarHook.toggleMealPlanner}
-          showPantry={sidebarHook.isPantryVisible}
-          onTogglePantry={sidebarHook.togglePantry}
-          isPantryExpanded={sidebarHook.isPantryExpanded}
-          isMealPlannerExpanded={sidebarHook.isMealPlannerExpanded}
-          onTogglePantryExpand={sidebarHook.togglePantryExpand}
-          onToggleMealPlannerExpand={sidebarHook.toggleMealPlannerExpand}
-          mealPlan={mealPlannerHook.mealPlan}
-          setMealPlan={mealPlannerHook.setMealPlan}
-          containerRecipes={containerRecipes}
-          setContainerRecipes={setContainerRecipes}
-          onShowGroceryList={handleShowGroceryList}
-          showChat={showChat}
-          onToggleChat={handleToggleChat}
-          // Pass recipe category props to the navigation
+        <ToastProvider>
+          <SidebarContainer
+            showMealPlanner={sidebarHook.isMealPlannerVisible}
+            onToggleMealPlanner={sidebarHook.toggleMealPlanner}
+            showPantry={sidebarHook.isPantryVisible}
+            onTogglePantry={sidebarHook.togglePantry}
+            isPantryExpanded={sidebarHook.isPantryExpanded}
+            isMealPlannerExpanded={sidebarHook.isMealPlannerExpanded}
+            onTogglePantryExpand={sidebarHook.togglePantryExpand}
+            onToggleMealPlannerExpand={sidebarHook.toggleMealPlannerExpand}
+            mealPlan={mealPlannerHook.mealPlan}
+            setMealPlan={mealPlannerHook.setMealPlan}
+            containerRecipes={containerRecipes}
+            setContainerRecipes={setContainerRecipes}
+            onShowGroceryList={handleShowGroceryList}
+            showChat={showChat}
+            onToggleChat={handleToggleChat}
+            // Pass recipe category props to the navigation
           selectedCategory={selectedCategory}
           onCategorySelect={handleCategorySelect}
           recipeCounts={recipeCounts}
@@ -694,8 +759,8 @@ const MainApp = () => {
           // Admin props
           isAdmin={isAdmin}
           onShowAdminDashboard={() => setShowAdminDashboard(true)}
-          onFeatureSelect={(feature) => {
-            console.log('Feature selected:', feature);
+          onFeatureSelect={(feature, data) => {
+            console.log('Feature selected:', feature, data);
             if (feature === 'cookbook') {
               setActiveView('cookbook');
               setShowChat(false);
@@ -716,6 +781,21 @@ const MainApp = () => {
               setActiveView('community');
               setShowChat(false);
               sidebarHook.closeAllSidebars();
+            } else if (feature === 'households') {
+              setActiveView('households');
+              setShowChat(false);
+              sidebarHook.closeAllSidebars();
+              
+              // If household ID provided, show gallery for that household
+              if (data?.householdId) {
+                setSelectedHouseholdId(data.householdId);
+                // Don't auto-select whiteboard - show gallery instead
+                setSelectedWhiteboardId(null);
+              } else {
+                // Reset - show household selector
+                setSelectedHouseholdId(null);
+                setSelectedWhiteboardId(null);
+              }
             } else if (feature === 'import') {
               setActiveView('import');
               setShowChat(false);
@@ -725,18 +805,53 @@ const MainApp = () => {
             }
           }}
         />
+        </ToastProvider>
 
         {/* Main Content Area */}
         <div className="main-content">
           {/* Admin controls moved to sidebar navigation */}
 
           {/* Main Content - Conditional View */}
+          {activeView === 'community' && (
+            <div className="community-home-view">
+              {/* Activity Feed Section */}
+              <div className="activity-feed-section">
+                <h2 className="section-title">🔔 Recent Activity</h2>
+                <ActivityFeed maxHeight="500px" />
+              </div>
+              
+              {/* Community Recipes Section */}
+              <div className="community-recipes-section">
+                <h2 className="section-title">🌟 Community Recipes</h2>
+                <CommunityBrowser />
+              </div>
+            </div>
+          )}
+
           {activeView === 'friends' && (
             <FriendsView />
           )}
 
-          {activeView === 'community' && (
-            <CommunityBrowser />
+          {activeView === 'households' && (
+            <>
+              {!selectedHouseholdId ? (
+                <HouseholdSelector 
+                  onSelectHousehold={(householdId) => setSelectedHouseholdId(householdId)}
+                />
+              ) : !selectedWhiteboardId ? (
+                <WhiteboardNavigator 
+                  householdId={selectedHouseholdId}
+                  onBack={() => setSelectedHouseholdId(null)}
+                  onSelectWhiteboard={(whiteboardId) => setSelectedWhiteboardId(whiteboardId)}
+                />
+              ) : (
+                <WhiteboardApp 
+                  householdId={selectedHouseholdId}
+                  whiteboardId={selectedWhiteboardId}
+                  onBack={() => setSelectedWhiteboardId(null)}
+                />
+              )}
+            </>
           )}
 
           {activeView === 'cookbook' && (

@@ -11,7 +11,7 @@ import ShareResourceModal from './ShareResourceModal';
 
 const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
     // Authentication hook
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     
     // Main state
     const [savedLists, setSavedLists] = useState([]);
@@ -78,6 +78,19 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
             loadPantryItems();
             loadSavedLists(); // Reload lists with authentication
         }
+    }, [token]);
+
+    // Reload grocery lists when window regains focus (to catch updates from whiteboard)
+    useEffect(() => {
+        const handleFocus = () => {
+            console.log('🔄 Window focused - reloading grocery lists to catch any updates');
+            if (token) {
+                loadSavedLists();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
     }, [token]);
 
     // Load from localStorage on mount
@@ -160,26 +173,41 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                 headers['Authorization'] = `Bearer ${token}`;
             }
             
-            const response = await fetch(`${getApiUrl()}/api/grocery-lists`, {
+            // Get user ID from auth context
+            const userId = user?.id;
+            
+            if (!userId) {
+                console.warn('⚠️ No user ID available, skipping grocery list load');
+                setLoading(false);
+                return;
+            }
+            
+            // Use V2 API endpoint
+            const response = await fetch(`${getApiUrl()}/api/v2/grocery-lists/user/${userId}`, {
                 headers
             });
             const data = await response.json();
 
             if (data.success) {
-                const allLists = data.grocery_lists || [];
+                // V2 API returns: {success: true, data: {grocery_lists: [...], pagination: {...}}}
+                const allLists = data.data?.grocery_lists || data.grocery_lists || [];
                 console.log(`📋 Loaded ${allLists.length} grocery lists:`, allLists);
                 setSavedLists(allLists);
                 
                 // Organize into folders
                 // Recent: All lists sorted by date (most recent first)
                 const recentLists = [...allLists]
-                    .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+                    .sort((a, b) => new Date(b.created_date || b.created_at || 0) - new Date(a.created_date || a.created_at || 0))
                     .slice(0, 10); // Show last 10 lists
                 
                 // Favorites: Lists marked as favorites (if we have that field)
                 // For now, showing all lists in favorites too until we add favorite feature
                 const favoriteLists = [...allLists]
-                    .sort((a, b) => a.list_name.localeCompare(b.list_name)); // Alphabetically
+                    .sort((a, b) => {
+                        const nameA = a.name || a.list_name || '';
+                        const nameB = b.name || b.list_name || '';
+                        return nameA.localeCompare(nameB);
+                    }); // Alphabetically
                 
                 setFolders([
                     { id: 'recent', name: 'Recent Lists', lists: recentLists },
@@ -202,7 +230,7 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
         if (mealPlanRecipes.length === 0) return;
 
         try {
-            const response = await fetch(`${getApiUrl()}/api/grocery-list`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/grocery-lists`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ recipe_ids: mealPlanRecipes })
@@ -253,7 +281,7 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
         };
 
         try {
-            const response = await fetch(`${getApiUrl()}/api/grocery-lists`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/grocery-lists`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -282,7 +310,7 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
     const loadList = async (listId) => {
         try {
             console.log(`📂 Loading grocery list: ${listId}`);
-            const response = await fetch(`${getApiUrl()}/api/grocery-lists/${listId}`);
+            const response = await fetch(`${getApiUrl()}/api/v2/grocery-lists/${listId}`);
             const data = await response.json();
             
             console.log(`📂 Load response:`, data);
@@ -331,7 +359,7 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
 
         try {
             console.log(`🗑️ Deleting grocery list: ${listId}`);
-            const response = await fetch(`${getApiUrl()}/api/grocery-lists/${listId}`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/grocery-lists/${listId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -859,6 +887,14 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
     // Function to check if a list name already exists
     const checkForDuplicateName = async (listName) => {
         try {
+            // Get user ID from auth context
+            const userId = user?.id;
+            
+            if (!userId) {
+                console.warn('⚠️ No user ID available');
+                return null;
+            }
+            
             const headers = {
                 'Content-Type': 'application/json'
             };
@@ -867,15 +903,15 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${getApiUrl()}/api/grocery-lists`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/grocery-lists/user/${userId}`, {
                 headers
             });
             const data = await response.json();
 
             if (data.success) {
-                const existingLists = data.grocery_lists || [];
+                const existingLists = data.grocery_lists || data.data?.grocery_lists || [];
                 const duplicateList = existingLists.find(list => 
-                    list.list_name.toLowerCase().trim() === listName.toLowerCase().trim()
+                    list.name.toLowerCase().trim() === listName.toLowerCase().trim()
                 );
                 return duplicateList || null;
             }
@@ -949,8 +985,8 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
             const isOverwrite = forceOverwrite && duplicateListInfo;
             const method = isOverwrite ? 'PUT' : 'POST';
             const url = isOverwrite 
-                ? `${getApiUrl()}/api/grocery-lists/${duplicateListInfo.id}`
-                : `${getApiUrl()}/api/grocery-lists`;
+                ? `${getApiUrl()}/api/v2/grocery-lists/${duplicateListInfo.id}`
+                : `${getApiUrl()}/api/v2/grocery-lists`;
             
             const response = await fetch(url, {
                 method: method,
@@ -1439,15 +1475,12 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
     // Handler for loading a saved list
     const handleLoadList = (loadedList) => {
         console.log('📂 Loading saved grocery list:', loadedList);
-        console.log('📂 List data structure:', loadedList.list_data);
-        console.log('📂 List data type:', typeof loadedList.list_data);
-        console.log('📂 List data keys:', loadedList.list_data ? Object.keys(loadedList.list_data) : 'null');
         
-        // Set the current list
+        // Set the current list (backend always returns standard format now)
         setCurrentList({
             id: loadedList.id,
-            name: loadedList.list_name,
-            data: loadedList.list_data
+            name: loadedList.name,
+            data: loadedList.items
         });
         
         // Initialize empty sections with proper structure
@@ -1459,23 +1492,40 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
         };
         
         // Parse and set the grocery list data
-        if (loadedList.list_data && typeof loadedList.list_data === 'object') {
-            console.log('📂 Processing list_data...');
+        if (loadedList.items && typeof loadedList.items === 'object') {
+            console.log('📂 Processing list items...');
             
-            // Check if list_data has sections property
-            if (loadedList.list_data.sections && typeof loadedList.list_data.sections === 'object') {
-                console.log('📂 Loading from list_data.sections');
-                console.log('📂 Sections data:', loadedList.list_data.sections);
-                setSections({ ...emptySections, ...loadedList.list_data.sections });
+            // Check if this is whiteboard format (flat array of items)
+            if (Array.isArray(loadedList.items)) {
+                console.log('📂 Loading PHASE 2 whiteboard format (flat array)');
+                
+                // Convert flat array to sections format
+                const convertedSections = { ...emptySections };
+                convertedSections.other.items = loadedList.items.map(item => ({
+                    id: item.id || `item-${Date.now()}-${Math.random()}`,
+                    name: item.name || 'Unknown item',
+                    checked: item.checked || false
+                }));
+                
+                setSections(convertedSections);
+                setShowLoadPanel(false);
+                return;
+            }
+            
+            // Check if items has sections property
+            if (loadedList.items.sections && typeof loadedList.items.sections === 'object') {
+                console.log('📂 Loading from items.sections');
+                console.log('📂 Sections data:', loadedList.items.sections);
+                setSections({ ...emptySections, ...loadedList.items.sections });
             } 
-            // Check if list_data IS the sections object (has section keys)
-            else if (loadedList.list_data.produce || loadedList.list_data.meat_seafood || 
-                     loadedList.list_data.dairy || loadedList.list_data.pantry || 
-                     loadedList.list_data.other) {
-                console.log('📂 Loading from list_data directly (is sections)');
+            // Check if items IS the sections object (has section keys)
+            else if (loadedList.items.produce || loadedList.items.meat_seafood || 
+                     loadedList.items.dairy || loadedList.items.pantry || 
+                     loadedList.items.other) {
+                console.log('📂 Loading from items directly (is sections)');
                 
                 // Remove non-section fields like ingredient_count
-                const { ingredient_count, ...sectionsData } = loadedList.list_data;
+                const { ingredient_count, ...sectionsData } = loadedList.items;
                 console.log('📂 Extracted sections data:', sectionsData);
                 
                 // Convert mobile format to web format if needed
@@ -1508,31 +1558,15 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                 // Merge with empty structure to ensure all sections exist
                 setSections({ ...emptySections, ...convertedSections });
             } 
-            // Check if this is mobile simple format (plain array)
-            else if (Array.isArray(loadedList.list_data)) {
-                console.log('📂 Loading mobile simple array format');
-                
-                // Convert mobile array to web sections format
-                const convertedSections = { ...emptySections };
-                convertedSections.other.items = loadedList.list_data.map(item => ({
-                    id: item.id || `item-${Date.now()}-${Math.random()}`,
-                    name: item.name,
-                    checked: item.checked || false,
-                    display_text: item.display_text || item.name
-                }));
-                
-                console.log('📂 Converted mobile array to sections:', convertedSections);
-                setSections(convertedSections);
-            }
             // Try to interpret as sections anyway
             else {
-                console.warn('📂 Unknown list_data structure, attempting to parse:', loadedList.list_data);
+                console.warn('📂 Unknown list structure, attempting to parse:', loadedList.items);
                 
                 // Try to merge with empty structure
-                setSections({ ...emptySections, ...loadedList.list_data });
+                setSections({ ...emptySections, ...loadedList.items });
             }
         } else {
-            console.warn('📂 No valid list_data found, setting empty sections');
+            console.warn('📂 No valid list items found, setting empty sections');
             setSections(emptySections);
         }
         

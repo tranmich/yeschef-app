@@ -1,4 +1,5 @@
 /* RecipeDetailModal.css - Clean Mobile-Inspired Design */
+/* UPDATED: Slide-in from right for whiteboard integration */
 
 /* Modal Overlay */
 .recipe-detail-overlay {
@@ -8,24 +9,42 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 999;
   font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .recipe-detail-modal {
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  max-width: 800px;
-  width: 95vw;
-  max-height: 90vh;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 600px;
+  max-width: 90vw;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  position: relative;
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 /* Header Section - Clean & Simple */
@@ -39,7 +58,6 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  border-radius: 12px 12px 0 0;
 }
 
 .recipe-title-section {

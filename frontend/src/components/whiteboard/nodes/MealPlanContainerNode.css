@@ -1,0 +1,312 @@
+/**
+ * Meal Plan Container Node Styles
+ * React Flow parent node
+ * UPDATED: Using design system mint colors
+ */
+
+.meal-plan-container-node {
+  background: var(--color-bg-panel);
+  border: 3px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  min-width: 400px;
+  min-height: 300px;
+  width: 100%;  /* Take full width of React Flow node */
+  height: 100%; /* Take full height of React Flow node */
+  display: flex;
+  flex-direction: column;
+  overflow: visible; /* Changed to visible for dropdown */
+  position: relative;
+  box-sizing: border-box;
+  z-index: 1; /* Ensure parent is below children */
+  transition: all var(--transition-base);
+}
+
+/* Prevent dropdown from being cut off */
+.meal-plan-container-node .color-picker-wrapper {
+  position: relative;
+  z-index: 1001;
+}
+
+.meal-plan-container-node.selected {
+  border-color: var(--color-primary-dark);
+  box-shadow: 0 0 0 4px rgba(170, 198, 173, 0.3), var(--shadow-lg);
+}
+
+.meal-plan-container-node.drag-over {
+  border-color: var(--color-success);
+  border-style: dashed;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+/* Header */
+.meal-plan-container-node .node-header {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+  color: var(--color-text-primary);
+  padding: 16px 20px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: grab;
+  user-select: none;
+  position: relative;
+  z-index: 10;
+}
+
+.meal-plan-container-node .node-header:active {
+  cursor: grabbing;
+}
+
+.meal-plan-container-node .header-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Comment Badge in Header */
+.meal-plan-container-node .comment-badge-header {
+  background: rgba(127, 212, 193, 0.95);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.meal-plan-container-node .comment-badge-header.has-new {
+  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.meal-plan-container-node .node-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: text;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background var(--transition-base);
+}
+
+.meal-plan-container-node .node-title:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.meal-plan-container-node .name-input {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  padding: 4px 8px;
+  outline: none;
+  width: 100%;
+  max-width: 300px;
+}
+
+.meal-plan-container-node .name-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(170, 198, 173, 0.2);
+}
+
+.meal-plan-container-node .header-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.meal-plan-container-node .header-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  color: var(--color-text-primary);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-base);
+  padding: 0;
+}
+
+.meal-plan-container-node .header-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.1);
+}
+
+.meal-plan-container-node .delete-btn:hover {
+  background: #ff4444;
+  color: white;
+  border-color: #ff4444;
+}
+
+/* Color Picker */
+.meal-plan-container-node .color-picker-wrapper {
+  position: relative;
+  z-index: 10001;
+}
+
+.meal-plan-container-node .color-btn {
+  font-size: 16px;
+}
+
+.meal-plan-container-node .color-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  box-shadow: var(--shadow-xl);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  z-index: 10000;
+  min-width: 180px;
+}
+
+.meal-plan-container-node .color-option {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  padding: 0;
+}
+
+.meal-plan-container-node .color-option:hover {
+  transform: scale(1.1);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Content Area - Full drop zone */
+/* Content Area */
+.meal-plan-container-node .node-content {
+  flex: 1;  /* Take remaining space */
+  padding: 20px;
+  background: white;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: visible; /* Allow children to be visible */
+  border-radius: 0 0 12px 12px; /* Round bottom corners to match container */
+  pointer-events: none; /* Allow clicks to pass through to children */
+}
+
+/* Re-enable pointer events for interactive elements */
+.meal-plan-container-node .node-content > * {
+  pointer-events: auto;
+}
+
+.meal-plan-container-node .empty-state {
+  text-align: center;
+  color: #6b7280;
+  /* Removed background and padding - now blends with content area */
+}
+
+.meal-plan-container-node .empty-state p {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0 0 8px 0;
+  color: #9ca3af;
+}
+
+.meal-plan-container-node .empty-state .hint {
+  font-size: 14px;
+  color: #d1d5db;
+}
+
+.meal-plan-container-node .recipe-summary {
+  text-align: center;
+}
+
+.meal-plan-container-node .recipe-summary .count {
+  display: block;
+  font-size: 48px;
+  font-weight: 700;
+  color: #667eea;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.meal-plan-container-node .recipe-summary .label {
+  font-size: 16px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Footer */
+.meal-plan-container-node .node-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: white;
+  border-radius: 0 0 12px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meal-plan-container-node .footer-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.meal-plan-container-node .footer-btn:hover:not(:disabled) {
+  background: #5568d3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.meal-plan-container-node .footer-btn:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.meal-plan-container-node .footer-hint {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* Prevent text selection during drag */
+.meal-plan-container-node.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* nodrag class prevents dragging on interactive elements */
+.nodrag {
+  cursor: default;
+}

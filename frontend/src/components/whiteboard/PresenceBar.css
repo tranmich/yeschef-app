@@ -1,0 +1,137 @@
+/**
+ * Presence Bar Styles
+ * Clean, minimal design positioned at the bottom of the whiteboard
+ */
+
+.presence-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  
+  /* Subtle glass morphism effect */
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(127, 212, 193, 0.2);
+  border-radius: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  
+  padding: 8px 16px;
+  
+  /* Smooth entrance animation */
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.presence-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.presence-label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.presence-avatars {
+  display: flex;
+  align-items: center;
+  gap: -8px; /* Negative gap for overlap */
+}
+
+.presence-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  position: relative;
+  cursor: pointer;
+}
+
+.presence-avatar:hover {
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  z-index: 999 !important;
+}
+
+.presence-avatar.idle {
+  opacity: 0.6;
+}
+
+.presence-avatar.active {
+  opacity: 1;
+  /* Subtle pulse animation for active users */
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 2px 8px rgba(127, 212, 193, 0.3);
+  }
+}
+
+.presence-initials {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  user-select: none;
+}
+
+.presence-you-label {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 600;
+  color: #7FD4C1;
+  background: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .presence-bar {
+    bottom: 10px;
+    padding: 6px 12px;
+  }
+  
+  .presence-label {
+    font-size: 12px;
+  }
+  
+  .presence-avatar {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .presence-initials {
+    font-size: 11px;
+  }
+}

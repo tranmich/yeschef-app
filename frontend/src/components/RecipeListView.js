@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDraggable } from '@dnd-kit/core';
+import { useAuth } from '../contexts/AuthContext';
 import { formatRecipeText } from '../utils/recipeFormatting';
 import './RecipeListView.css';
 
@@ -11,6 +12,7 @@ const RecipeListView = ({
   onRefreshRecipes,
   loading = false 
 }) => {
+  const { user, token } = useAuth();
   const [sortBy, setSortBy] = useState('alphabetical');
   const [sortOrder, setSortOrder] = useState('asc');
   const [searchTerm, setSearchTerm] = useState('');
@@ -315,6 +317,7 @@ const RecipeCard = ({
   onRefreshRecipes,
   isChild = false
 }) => {
+  const { user, token } = useAuth(); // Add auth context for delete/claim operations
   const [isHovered, setIsHovered] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
@@ -352,7 +355,7 @@ const RecipeCard = ({
     return { text: 'Medium', color: '#f59e0b' };
   };
 
-  const handleMenuAction = (action, e) => {
+  const handleMenuAction = (action, recipe, e) => {
     e.stopPropagation();
     setShowMenu(false);
     
@@ -361,7 +364,7 @@ const RecipeCard = ({
         onRecipeEdit(recipe);
         break;
       case 'remove':
-        handleDeleteRecipe();
+        handleDeleteRecipe(recipe);
         break;
       case 'move':
         console.log('Move recipe:', recipe.id);
@@ -371,7 +374,7 @@ const RecipeCard = ({
     }
   };
 
-  const handleDeleteRecipe = async () => {
+  const handleDeleteRecipe = async (recipe) => {
     // Show confirmation dialog
     const confirmDelete = window.confirm(
       `Are you sure you want to delete "${recipe.title}"?\n\nThis action cannot be undone.`
@@ -381,28 +384,33 @@ const RecipeCard = ({
       return;
     }
     
-    console.log('🗑️ Attempting to delete recipe:', {
+    // V2 Migration: Check user authentication
+    const userId = user?.id;
+    if (!userId || !token) {
+      alert('Please log in to delete recipes');
+      return;
+    }
+    
+    console.log('🗑️ Attempting to delete recipe (v2):', {
       id: recipe.id,
       title: recipe.title,
-      user_id: recipe.user_id,
+      user_id: userId,
       is_template: recipe.is_template
     });
     
     try {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        alert('Please log in to delete recipes');
-        return;
-      }
+      // V2 endpoint with user_id query parameter
+      console.log(`🌐 Making DELETE request to v2: /api/v2/recipes/${recipe.id}?user_id=${userId}`);
       
-      console.log(`🌐 Making DELETE request to: /api/recipes/${recipe.id}`);
-      
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/recipes/${recipe.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/v2/recipes/${recipe.id}?user_id=${userId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         }
-      });
+      );
       
       console.log('📡 Delete response status:', response.status);
       
@@ -410,7 +418,7 @@ const RecipeCard = ({
       console.log('📄 Delete response data:', result);
       
       if (result.success) {
-        alert(`✅ ${result.message}`);
+        alert(`✅ ${result.message || 'Recipe deleted successfully'}`);
         // Refresh the recipe list using the parent's refresh function
         if (onRefreshRecipes) {
           onRefreshRecipes();
@@ -426,7 +434,7 @@ const RecipeCard = ({
           );
           
           if (claimConfirm) {
-            await handleClaimRecipe();
+            await handleClaimRecipe(recipe);
           }
         } else {
           alert(`❌ Error: ${result.error}`);
@@ -439,20 +447,34 @@ const RecipeCard = ({
     }
   };
 
-  const handleClaimRecipe = async () => {
+  const handleClaimRecipe = async (recipe) => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/recipes/${recipe.id}/claim`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
+      // V2 Migration: Check user authentication
+      const userId = user?.id;
+      if (!userId || !token) {
+        alert('Please log in to claim recipes');
+        return;
+      }
+      
+      console.log(`🌐 Attempting to claim recipe (v2): ${recipe.id}`);
+      
+      // V2 endpoint: Use community claim endpoint
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/v2/community/recipes/${recipe.id}/claim`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ user_id: userId })
         }
-      });
+      );
       
       const result = await response.json();
       
       if (result.success) {
-        alert(`✅ ${result.message}\n\nYou can now delete this recipe if needed.`);
+        alert(`✅ ${result.message || 'Recipe claimed successfully'}\n\nYou can now delete this recipe if needed.`);
         // Refresh the recipe list
         if (onRefreshRecipes) {
           onRefreshRecipes();

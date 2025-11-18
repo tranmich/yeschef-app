@@ -1,0 +1,182 @@
+/**
+ * Comments Sidebar Component
+ * 
+ * Right sidebar for viewing and adding comments on whiteboard objects
+ * - Uses Liveblocks Thread component for threaded discussions
+ * - Auto-opens when object is selected
+ * - Shows object name and type
+ * - Collapsible with smooth animation
+ */
+
+import React from 'react';
+import { useThreads, useCreateThread, useEditThreadMetadata, useCreateComment } from '../../liveblocks.config';
+import { Thread } from '@liveblocks/react-ui';
+import '@liveblocks/react-ui/styles.css';
+import './CommentsSidebar.css';
+
+const CommentsSidebar = ({ isOpen, onClose, selectedObject }) => {
+  const { threads } = useThreads();
+  const createThread = useCreateThread();
+
+  if (!isOpen) {
+    return null;
+  }
+
+  // Filter threads for this object
+  const objectThreads = selectedObject && threads
+    ? threads.filter(thread => thread.metadata?.objectId === selectedObject.id)
+    : [];
+
+  // Get object display info
+  const getObjectInfo = () => {
+    if (!selectedObject) return { name: 'No object selected', type: '' };
+    
+    if (selectedObject.type === 'recipeCardNew') {
+      return {
+        name: selectedObject.data?.recipe?.title || 'Recipe',
+        type: 'Recipe',
+        icon: '🍽️'
+      };
+    }
+    
+    if (selectedObject.type === 'mealPlanContainer') {
+      return {
+        name: selectedObject.data?.dayName || 'Meal Plan',
+        type: 'Meal Plan',
+        icon: '📅'
+      };
+    }
+    
+    if (selectedObject.type === 'groceryListNode') {
+      return {
+        name: selectedObject.data?.name || 'Grocery List',
+        type: 'Shopping List',
+        icon: '🛒'
+      };
+    }
+    
+    return { name: 'Object', type: '', icon: '📌' };
+  };
+
+  const objectInfo = getObjectInfo();
+
+  const handleCreateComment = async (content) => {
+    if (!selectedObject || !content.trim()) return;
+
+    try {
+      await createThread({
+        body: {
+          version: 1,
+          content: [{ type: 'paragraph', children: [{ text: content }] }]
+        },
+        metadata: {
+          objectId: selectedObject.id,
+          objectType: selectedObject.type,
+          objectName: objectInfo.name,
+        }
+      });
+    } catch (error) {
+      console.error('Failed to create comment:', error);
+    }
+  };
+
+  return (
+    <div className={`comments-sidebar ${isOpen ? 'open' : ''}`}>
+      {/* Header */}
+      <div className="comments-header">
+        <div className="comments-title">
+          <span className="object-icon">{objectInfo.icon}</span>
+          <div>
+            <h3>{objectInfo.name}</h3>
+            <span className="object-type">{objectInfo.type}</span>
+          </div>
+        </div>
+        <button className="close-button" onClick={onClose} title="Close comments">
+          ✕
+        </button>
+      </div>
+
+      {/* Comments content */}
+      <div className="comments-content">
+        {!selectedObject ? (
+          <div className="empty-state">
+            <div className="empty-icon">💬</div>
+            <p>Select an object to view comments</p>
+          </div>
+        ) : objectThreads.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">💬</div>
+            <p>No comments yet</p>
+            <span className="empty-hint">Be the first to comment!</span>
+          </div>
+        ) : (
+          <div className="threads-list">
+            {objectThreads.map(thread => (
+              <div key={thread.id} className="thread-wrapper">
+                <Thread
+                  thread={thread}
+                  className="liveblocks-thread"
+                  showActions={true}
+                  showReactions={true}
+                  components={{
+                    // Custom user display
+                    User: ({ userId }) => {
+                      // Get user info from localStorage
+                      const currentUserStr = localStorage.getItem('currentUser');
+                      if (currentUserStr) {
+                        try {
+                          const currentUser = JSON.parse(currentUserStr);
+                          if (userId === String(currentUser.id)) {
+                            return <span style={{ fontWeight: 600 }}>{currentUser.name || 'You'}</span>;
+                          }
+                        } catch (e) {}
+                      }
+                      return <span style={{ fontStyle: 'italic', color: '#999' }}>User {userId}</span>;
+                    }
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* New comment input */}
+        {selectedObject && (
+          <div className="new-comment-section">
+            <NewCommentInput onSubmit={handleCreateComment} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Simple new comment input
+const NewCommentInput = ({ onSubmit }) => {
+  const [value, setValue] = React.useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (value.trim()) {
+      onSubmit(value);
+      setValue('');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="new-comment-form">
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Add a comment..."
+        rows={3}
+        className="comment-input"
+      />
+      <button type="submit" className="submit-button" disabled={!value.trim()}>
+        Post Comment
+      </button>
+    </form>
+  );
+};
+
+export default CommentsSidebar;

@@ -97,12 +97,13 @@ Instructions:
     setResult(null);
 
     try {
+      // V2 Migration: Update endpoints to v2
       const endpoint = importType === 'text' 
-        ? '/api/recipes/import/text'
-        : '/api/recipes/import/url';
+        ? '/api/v2/recipes/import/text'   // V2 endpoint
+        : '/api/v2/recipes/import/url';   // V2 endpoint
 
       const requestBody = importType === 'text'
-        ? { recipe_text: inputValue, user_id: user.id }
+        ? { text: inputValue, user_id: user.id }  // Changed from recipe_text to text
         : { url: inputValue, user_id: user.id };
 
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${endpoint}`, {
@@ -126,18 +127,21 @@ Instructions:
         
         setResult(data);
         
+        // V2 response structure: { success: true, data: { recipe: {...}, recipe_id, confidence, ... } }
+        const recipeData = data.data?.recipe || {};
+        
         // Create editable version of the recipe data
         const editableData = {
-          title: data.recipe_data.title || '',
-          description: data.recipe_data.description || '',
-          ingredients: data.recipe_data.ingredients || '',
-          instructions: data.recipe_data.instructions || '',
-          servings: data.recipe_data.servings || '',
-          cook_time: data.recipe_data.cook_time || '',
-          prep_time: data.recipe_data.prep_time || '',
-          category: data.recipe_data.category || '',
-          source_url: data.recipe_data.source_url || '',
-          image_url: data.recipe_data.image_url || ''
+          title: recipeData.title || '',
+          description: recipeData.description || '',
+          ingredients: recipeData.ingredients || '',
+          instructions: recipeData.instructions || '',
+          servings: recipeData.servings || '',
+          cook_time: recipeData.cook_time || '',
+          prep_time: recipeData.prep_time || '',
+          category: recipeData.category || '',
+          source_url: recipeData.source_url || '',
+          image_url: recipeData.image_url || ''
         };
         
         setEditableRecipe(editableData);
@@ -178,12 +182,16 @@ Instructions:
   const handleConfirmImport = () => {
     console.log('✅ User confirmed import with edits:', editableRecipe);
     
-    // Create the final result with user edits
+    // Create the final result with user edits - V2 structure only
     const finalResult = {
-      ...result,
-      recipe_data: {
-        ...result.recipe_data,
-        ...editableRecipe
+      success: result.success,
+      data: {
+        recipe: editableRecipe,
+        recipe_id: result.data?.recipe_id,
+        confidence: result.data?.confidence,
+        needs_review: result.data?.needs_review,
+        extraction_method: result.data?.extraction_method,
+        processing_time: result.data?.processing_time
       }
     };
     
@@ -251,34 +259,45 @@ Instructions:
         formData.append(`image_${index}`, image);
       });
 
+      // IMPORTANT: Add user_id to form data for v2 endpoint
+      formData.append('user_id', user.id);
+
       // Add metadata
       formData.append('metadata', JSON.stringify({
         user_id: user.id,
         image_count: selectedImages.length
       }));
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/recipes/import/ocr`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: formData
-      });
+      // V2 endpoint
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/v2/recipes/import/ocr`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` })
+            // Don't set Content-Type - browser sets it with boundary for multipart
+          },
+          body: formData
+        }
+      );
 
       const data = await response.json();
 
       if (data.success) {
+        // V2 response structure: { success: true, data: { recipe: {...}, confidence, ... } }
+        const recipeData = data.data?.recipe || data.recipe || {};
+        
         setResult(data);
         setEditableRecipe({
-          title: data.recipe_data.title || '',
-          description: data.recipe_data.description || '',
-          ingredients: data.recipe_data.ingredients || '',
-          instructions: data.recipe_data.instructions || '',
-          servings: data.recipe_data.servings || '',
-          cook_time: data.recipe_data.cook_time || '',
-          prep_time: data.recipe_data.prep_time || '',
-          category: data.recipe_data.category || ''
+          title: recipeData.title || '',
+          description: recipeData.description || '',
+          ingredients: recipeData.ingredients || '',
+          instructions: recipeData.instructions || '',
+          servings: recipeData.servings || '',
+          cook_time: recipeData.cook_time || '',
+          prep_time: recipeData.prep_time || '',
+          category: recipeData.category || ''
         });
         setShowPreview(true);
       } else {
@@ -353,17 +372,16 @@ Instructions:
     try {
       const formData = new FormData();
       
-      // Add audio as single segment
-      formData.append('segment_0', audioBlob, 'recording.webm');
+      // Add audio as 'audio' (v2 expects 'audio', not 'segment_0')
+      formData.append('audio', audioBlob, 'recording.webm');
+
+      // Add user_id
+      formData.append('user_id', user.id);
 
       // Add metadata
       formData.append('metadata', JSON.stringify({
         session_id: `web_${Date.now()}`,
         total_duration_ms: recordingTime * 1000,
-        segments: [{
-          label: 'Full Recording',
-          duration_ms: recordingTime * 1000
-        }],
         language_config: {
           whisperCode: 'en',
           culture: 'English',
@@ -371,28 +389,35 @@ Instructions:
         }
       }));
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/recipes/voice/session/process`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: formData
-      });
+      // V2 endpoint
+      const response = await fetch(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/v2/recipes/voice/session/process`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          },
+          body: formData
+        }
+      );
 
       const data = await response.json();
 
       if (data.success) {
+        // V2 response structure: { success: true, data: { recipe: {...}, ... } }
+        const recipeData = data.data?.recipe || data.recipe_data || {};
+        
         setResult(data);
         setEditableRecipe({
-          title: data.recipe_data?.title || '',
-          description: data.recipe_data?.description || '',
-          ingredients: data.recipe_data?.ingredients || '',
-          instructions: data.recipe_data?.instructions || '',
-          servings: data.recipe_data?.servings || '',
-          cook_time: data.recipe_data?.cook_time || '',
-          prep_time: data.recipe_data?.prep_time || '',
-          category: data.recipe_data?.category || ''
+          title: recipeData.title || '',
+          description: recipeData.description || '',
+          ingredients: recipeData.ingredients || '',
+          instructions: recipeData.instructions || '',
+          servings: recipeData.servings || '',
+          cook_time: recipeData.cook_time || '',
+          prep_time: recipeData.prep_time || '',
+          category: recipeData.category || ''
         });
         setShowPreview(true);
       } else {

@@ -1,0 +1,185 @@
+/**
+ * Tag System Styles
+ * ==================
+ * Beautiful tag pills and autocomplete
+ */
+
+.tag-system {
+  width: 100%;
+}
+
+/* Tag Pills Container */
+.tag-pills-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  min-height: 42px;
+  transition: border-color 0.2s;
+}
+
+.tag-pills-container:focus-within {
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+/* Tag Pills */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  cursor: default;
+  user-select: none;
+}
+
+.tag-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
+}
+
+.tag-text {
+  line-height: 1;
+}
+
+.tag-remove {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 18px;
+  line-height: 1;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  padding: 0;
+}
+
+.tag-remove:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Tag Input */
+.tag-input-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 120px;
+}
+
+.tag-input {
+  border: none;
+  outline: none;
+  padding: 4px 0;
+  font-size: 14px;
+  width: 100%;
+  background: transparent;
+  font-family: inherit;
+}
+
+.tag-input::placeholder {
+  color: #9ca3af;
+}
+
+/* Suggestions Dropdown */
+.tag-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tag-suggestion {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 14px;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tag-suggestion:hover,
+.tag-suggestion.selected {
+  background: #fef3c7;
+}
+
+.tag-suggestion.create-new {
+  color: #f97316;
+  font-weight: 500;
+  border-top: 1px solid #e5e7eb;
+}
+
+.tag-suggestion.create-new:hover {
+  background: #fff7ed;
+}
+
+/* Scrollbar Styling */
+.tag-suggestions::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tag-suggestions::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 0 8px 8px 0;
+}
+
+.tag-suggestions::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.tag-suggestions::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .tag-pill {
+    font-size: 12px;
+    padding: 3px 6px;
+  }
+  
+  .tag-remove {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+  
+  .tag-input {
+    font-size: 13px;
+  }
+}

@@ -52,15 +52,17 @@ const PantryManager = () => {
 
   const loadAvailableIngredients = async () => {
     try {
-      console.log('🔍 Loading ingredients from API...');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/ingredients`);
+      console.log('🔍 Loading ingredients from v2 API...');
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v2/ingredients`);
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Ingredients loaded from API:', {
-          count: data.ingredients?.length || 0,
-          sample: data.ingredients?.slice(0, 5) || []
+        console.log('✅ Ingredients loaded from v2 API:', {
+          count: data.data?.ingredients?.length || data.ingredients?.length || 0,
+          sample: data.data?.ingredients?.slice(0, 5) || data.ingredients?.slice(0, 5) || []
         });
-        setAvailableIngredients(data.ingredients || []);
+        // Handle v2 response structure
+        const ingredients = data.data?.ingredients || data.ingredients || [];
+        setAvailableIngredients(ingredients);
       } else {
         console.log('⚠️ Failed to load ingredients, using smart fallback');
         // Enhanced fallback with proper categorization
@@ -167,7 +169,7 @@ const PantryManager = () => {
     return categorized;
   }, [pantryItems]);
 
-  // Search for ingredients with API
+  // Search for ingredients with v2 API
   const searchIngredients = async (query) => {
     if (!query || query.length < 2) {
       setSearchSuggestions([]);
@@ -178,17 +180,20 @@ const PantryManager = () => {
     try {
       setIsSearching(true);
       const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
-      const response = await fetch(`${apiUrl}/api/ingredients?query=${encodeURIComponent(query)}`);
+      const response = await fetch(`${apiUrl}/api/v2/ingredients/search?query=${encodeURIComponent(query)}`);
       
-      console.log('🔍 Search API response status:', response.status);
+      console.log('🔍 Search v2 API response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('🔍 Search results:', data.ingredients?.length || 0, 'ingredients');
-        console.log('🔍 Raw search response:', data);
+        console.log('🔍 Search v2 results:', data.data?.ingredients?.length || data.ingredients?.length || 0, 'ingredients');
+        console.log('🔍 Raw search v2 response:', data);
+        
+        // Handle v2 response structure
+        const ingredients = data.data?.ingredients || data.ingredients || [];
         
         // Filter out ingredients already in pantry
-        const filteredSuggestions = (data.ingredients || []).filter(ingredient => 
+        const filteredSuggestions = ingredients.filter(ingredient => 
           !pantryItems.find(item => item.name.toLowerCase() === ingredient.name.toLowerCase())
         );
         
@@ -211,11 +216,14 @@ const PantryManager = () => {
 
   const checkPantryStatus = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/pantry/status`);
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v2/pantry/status`);
       if (response.ok) {
         const data = await response.json();
-        setPantryStatus(data.status);
-        setPantryEnabled(data.enabled);
+        // Handle v2 response structure
+        const status = data.data?.status || data.status;
+        const enabled = data.data?.enabled || data.enabled;
+        setPantryStatus(status);
+        setPantryEnabled(enabled);
       }
     } catch (err) {
       console.log('Pantry status check failed:', err);

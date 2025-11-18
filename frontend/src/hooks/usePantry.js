@@ -22,13 +22,25 @@ export const usePantry = () => {
       setError(null);
       
       const token = localStorage.getItem('authToken');
-      if (!token) {
-        console.log('🔑 usePantry Hook - No auth token, skipping pantry load');
+      const userStr = localStorage.getItem('user');
+      
+      if (!token || !userStr) {
+        console.log('🔑 usePantry Hook - No auth token or user, skipping pantry load');
+        setPantryItems([]);
+        return;
+      }
+      
+      const user = JSON.parse(userStr);
+      const userId = user?.id;
+      
+      if (!userId) {
+        console.log('🔑 usePantry Hook - No user ID, skipping pantry load');
         setPantryItems([]);
         return;
       }
 
-      const response = await fetch(`${getApiUrl()}/api/pantry`, {
+      // V2 endpoint with user_id in path
+      const response = await fetch(`${getApiUrl()}/api/v2/pantry/user/${userId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -38,9 +50,12 @@ export const usePantry = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('🥫 usePantry Hook - Loaded from API:', data.items?.length || 0, 'items');
+        console.log('🥫 usePantry Hook - Loaded from v2 API:', data.data?.items?.length || data.items?.length || 0, 'items');
         console.log('🥫 usePantry Hook - API response data:', data);
-        setPantryItems(data.items || []);
+        
+        // Handle v2 response structure
+        const items = data.data?.items || data.items || [];
+        setPantryItems(items);
       } else if (response.status === 401) {
         console.log('🔑 usePantry Hook - Unauthorized, clearing pantry');
         setPantryItems([]);
@@ -62,17 +77,25 @@ export const usePantry = () => {
   const addPantryItem = async (ingredient) => {
     let tempId = null; // Declare tempId in function scope
     try {
-      console.log('🥫 usePantry Hook - Adding to pantry via API:', ingredient);
+      console.log('🥫 usePantry Hook - Adding to pantry via v2 API:', ingredient);
       
       const token = localStorage.getItem('authToken');
+      const userStr = localStorage.getItem('user');
+      
       console.log('🔑 usePantry Hook - Auth token present:', !!token);
-      console.log('🔑 usePantry Hook - Raw token value:', token ? token.substring(0, 20) + '...' : 'null');
-      console.log('🔑 usePantry Hook - localStorage keys:', Object.keys(localStorage));
       
       setError(null);
       
-      if (!token) {
+      if (!token || !userStr) {
         setError('Please log in to manage pantry');
+        return;
+      }
+      
+      const user = JSON.parse(userStr);
+      const userId = user?.id;
+      
+      if (!userId) {
+        setError('User ID not found');
         return;
       }
 
@@ -96,16 +119,17 @@ export const usePantry = () => {
       return [...prev, newItem];
       });
 
-      // Save to backend
-      console.log('🌐 usePantry Hook - Making API request to:', `${getApiUrl()}/api/pantry`);
+      // Save to backend - v2 endpoint
+      console.log('🌐 usePantry Hook - Making v2 API request to:', `${getApiUrl()}/api/v2/pantry`);
       const requestBody = JSON.stringify({
+        user_id: userId,  // V2 requires user_id
         name: ingredient.name,
         category: ingredient.category || 'other',
         amount: ingredient.amount || 'some'
       });
       console.log('📤 usePantry Hook - Request body:', requestBody);
       
-      const response = await fetch(`${getApiUrl()}/api/pantry`, {
+      const response = await fetch(`${getApiUrl()}/api/v2/pantry`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -119,13 +143,16 @@ export const usePantry = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ usePantry Hook - Added to API successfully:', data);
+        console.log('✅ usePantry Hook - Added to v2 API successfully:', data);
+        
+        // Handle v2 response structure
+        const returnedItem = data.data?.item || data.item;
         
         // Update with real ID from backend
         setPantryItems(prev => 
           prev.map(item => 
             item.id === tempId 
-              ? { ...item, id: data.item?.id || tempId }
+              ? { ...item, id: returnedItem?.id || tempId }
               : item
           )
         );
@@ -148,12 +175,22 @@ export const usePantry = () => {
 
   // Remove item from pantry via API
   const removePantryItem = async (itemId) => {
-    console.log('🗑️ usePantry Hook - Removing from pantry via API:', itemId);
+    console.log('🗑️ usePantry Hook - Removing from pantry via v2 API:', itemId);
     setError(null);
     
     const token = localStorage.getItem('authToken');
-    if (!token) {
+    const userStr = localStorage.getItem('user');
+    
+    if (!token || !userStr) {
       setError('Please log in to manage pantry');
+      return;
+    }
+    
+    const user = JSON.parse(userStr);
+    const userId = user?.id;
+    
+    if (!userId) {
+      setError('User ID not found');
       return;
     }
 
@@ -164,8 +201,8 @@ export const usePantry = () => {
       // Optimistic update
       setPantryItems(prev => prev.filter(item => item.id !== itemId));
 
-      // Remove from backend
-      const response = await fetch(`${getApiUrl()}/api/pantry/${itemId}`, {
+      // Remove from backend - v2 endpoint with user_id query param
+      const response = await fetch(`${getApiUrl()}/api/v2/pantry/${itemId}?user_id=${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -174,7 +211,7 @@ export const usePantry = () => {
       });
 
       if (response.ok) {
-        console.log('✅ usePantry Hook - Removed from API successfully');
+        console.log('✅ usePantry Hook - Removed from v2 API successfully');
       } else {
         throw new Error(`Failed to remove item: ${response.status}`);
       }

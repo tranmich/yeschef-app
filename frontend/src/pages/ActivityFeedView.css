@@ -1,0 +1,37 @@
+
+/* Community Home View - Container for Activity + Community */
+.community-home-view {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Section Titles */
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+/* Activity Feed Section */
+.activity-feed-section {
+  width: 100%;
+  margin-bottom: 3rem;
+}
+
+/* Community Recipes Section */
+.community-recipes-section {
+  width: 100%;
+}
+
+/* Activity Feed View (if used standalone) */
+.activity-feed-view {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}

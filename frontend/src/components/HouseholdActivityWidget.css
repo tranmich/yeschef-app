@@ -1,0 +1,254 @@
+/* Household Activity Widget */
+
+.household-activity-widget {
+    width: 320px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.household-activity-widget.dragging {
+    cursor: move;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+    opacity: 0.95;
+}
+
+.household-activity-widget.collapsed {
+    width: 200px;
+}
+
+/* Header */
+.widget-header {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 0.875rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: move;
+}
+
+.widget-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
+}
+
+.drag-handle {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1rem;
+    cursor: move;
+}
+
+.widget-badge {
+    background: #ef4444;
+    color: white;
+    padding: 0.125rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.widget-controls {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.widget-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.widget-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.widget-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.widget-btn.close-btn:hover {
+    background: rgba(239, 68, 68, 0.9);
+}
+
+/* Content */
+.widget-content {
+    max-height: 400px;
+    overflow-y: auto;
+    background: #fafbfc;
+}
+
+.widget-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.widget-content::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+.widget-content::-webkit-scrollbar-thumb {
+    background: #10b981;
+    border-radius: 3px;
+}
+
+.widget-content::-webkit-scrollbar-thumb:hover {
+    background: #059669;
+}
+
+/* States */
+.widget-loading,
+.widget-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.widget-empty p {
+    margin: 0;
+}
+
+/* Events */
+.widget-events {
+    padding: 0.5rem;
+}
+
+.widget-event {
+    padding: 0.75rem;
+    display: flex;
+    gap: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+.widget-event:hover {
+    background: #f9fafb;
+    border-color: #10b981;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
+}
+
+.widget-event:last-child {
+    margin-bottom: 0;
+}
+
+.widget-event-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0fdf4;
+    border-radius: 8px;
+}
+
+.widget-event-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.widget-event-text {
+    font-size: 0.8125rem;
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+    line-height: 1.4;
+}
+
+.widget-event-text strong {
+    font-weight: 600;
+    color: #111827;
+}
+
+.event-action {
+    color: #6b7280;
+    margin-left: 0.25rem;
+}
+
+.widget-event-time {
+    font-size: 0.75rem;
+    color: #10b981;
+    font-weight: 500;
+}
+
+/* Footer */
+.widget-footer {
+    padding: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+    background: white;
+    text-align: center;
+}
+
+.view-all-btn {
+    background: transparent;
+    border: 1px solid #10b981;
+    color: #10b981;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.view-all-btn:hover {
+    background: #10b981;
+    color: white;
+}
+
+/* Compact mode when collapsed */
+.household-activity-widget.collapsed .widget-content {
+    display: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .household-activity-widget {
+        width: 280px;
+    }
+
+    .household-activity-widget.collapsed {
+        width: 180px;
+    }
+
+    .widget-content {
+        max-height: 300px;
+    }
+}
+
+/* Animation */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.household-activity-widget {
+    animation: slideIn 0.3s ease;
+}

@@ -4,7 +4,7 @@ import { getApiUrl } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     const [savedLists, setSavedLists] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -21,6 +21,15 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
         setError(null);
 
         try {
+            // Get user ID from auth context
+            const userId = user?.id;
+            
+            if (!userId) {
+                setError('No user ID available');
+                setLoading(false);
+                return;
+            }
+            
             const headers = {
                 'Content-Type': 'application/json'
             };
@@ -29,13 +38,13 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${getApiUrl()}/api/grocery-lists`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/grocery-lists/user/${userId}`, {
                 headers
             });
             const data = await response.json();
 
             if (data.success) {
-                setSavedLists(data.grocery_lists || []);
+                setSavedLists(data.grocery_lists || data.data?.grocery_lists || []);
             } else {
                 setError(data.error || 'Failed to load grocery lists');
             }
@@ -48,6 +57,14 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
 
     const handleLoadList = async (listId) => {
         try {
+            // Get user ID from auth context
+            const userId = user?.id;
+            
+            if (!userId) {
+                alert('No user ID available');
+                return;
+            }
+            
             const headers = {
                 'Content-Type': 'application/json'
             };
@@ -56,13 +73,14 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${getApiUrl()}/api/grocery-lists/${listId}`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/grocery-lists/${listId}?user_id=${userId}`, {
+                method: 'GET',
                 headers
             });
             const data = await response.json();
 
             if (data.success) {
-                onLoadList(data.grocery_list);
+                onLoadList(data.data);
                 onClose();
             } else {
                 alert('Failed to load list: ' + data.error);
@@ -88,7 +106,7 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${getApiUrl()}/api/grocery-lists/${listId}`, {
+            const response = await fetch(`${getApiUrl()}/api/v2/grocery-lists/${listId}`, {
                 method: 'DELETE',
                 headers
             });
@@ -123,7 +141,15 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
     };
 
     const filteredLists = savedLists.filter(list =>
-        list.list_name.toLowerCase().includes(searchTerm.toLowerCase())
+        list.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Separate into personal and collaborative lists
+    const personalLists = filteredLists.filter(list => 
+        !list.household_id && !list.whiteboard_id
+    );
+    const collaborativeLists = filteredLists.filter(list => 
+        list.household_id || list.whiteboard_id
     );
 
     if (!isOpen) return null;
@@ -179,38 +205,92 @@ const LoadGroceryListPanel = ({ isOpen, onClose, onLoadList }) => {
 
                     {!loading && !error && filteredLists.length > 0 && (
                         <div className="saved-lists-container">
-                            {filteredLists.map(list => (
-                                <div 
-                                    key={list.id} 
-                                    className="saved-list-item"
-                                    onClick={() => handleLoadList(list.id)}
-                                >
-                                    <div className="list-item-main">
-                                        <div className="list-item-info">
-                                            <h3 className="list-item-name">{list.list_name}</h3>
-                                            <div className="list-item-meta">
-                                                <span className="list-item-date">
-                                                    {formatDate(list.created_at)}
-                                                </span>
-                                                {list.recipe_ids && list.recipe_ids.length > 0 && (
-                                                    <span className="list-item-recipes">
-                                                        • {list.recipe_ids.length} recipe{list.recipe_ids.length !== 1 ? 's' : ''}
-                                                    </span>
-                                                )}
+                            {/* Personal Lists Section */}
+                            {personalLists.length > 0 && (
+                                <div className="lists-section">
+                                    <h3 className="section-header">
+                                        📝 Personal Lists ({personalLists.length})
+                                    </h3>
+                                    {personalLists.map(list => (
+                                        <div 
+                                            key={list.id} 
+                                            className="saved-list-item"
+                                            onClick={() => handleLoadList(list.id)}
+                                        >
+                                            <div className="list-item-main">
+                                                <div className="list-item-info">
+                                                    <h4 className="list-item-name">{list.name}</h4>
+                                                    <div className="list-item-meta">
+                                                        <span className="list-item-date">
+                                                            {formatDate(list.created_at)}
+                                                        </span>
+                                                        {list.recipe_ids && list.recipe_ids.length > 0 && (
+                                                            <span className="list-item-recipes">
+                                                                • {list.recipe_ids.length} recipe{list.recipe_ids.length !== 1 ? 's' : ''}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="list-item-actions">
+                                                <button
+                                                    className="list-action-btn delete-btn"
+                                                    onClick={(e) => handleDeleteList(list.id, list.name, e)}
+                                                    title="Delete this list"
+                                                >
+                                                    ×
+                                                </button>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="list-item-actions">
-                                        <button
-                                            className="list-action-btn delete-btn"
-                                            onClick={(e) => handleDeleteList(list.id, list.list_name, e)}
-                                            title="Delete this list"
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
+                            )}
+
+                            {/* Collaborative Lists Section */}
+                            {collaborativeLists.length > 0 && (
+                                <div className="lists-section">
+                                    <h3 className="section-header">
+                                        👥 Collaborative Lists ({collaborativeLists.length})
+                                    </h3>
+                                    {collaborativeLists.map(list => (
+                                        <div 
+                                            key={list.id} 
+                                            className="saved-list-item collaborative"
+                                            onClick={() => handleLoadList(list.id)}
+                                        >
+                                            <div className="list-item-main">
+                                                <div className="list-item-info">
+                                                    <h4 className="list-item-name">{list.name}</h4>
+                                                    <div className="list-item-meta">
+                                                        <span className="list-item-date">
+                                                            {formatDate(list.created_at)}
+                                                        </span>
+                                                        {list.recipe_ids && list.recipe_ids.length > 0 && (
+                                                            <span className="list-item-recipes">
+                                                                • {list.recipe_ids.length} recipe{list.recipe_ids.length !== 1 ? 's' : ''}
+                                                            </span>
+                                                        )}
+                                                        {list.whiteboard_id && (
+                                                            <span className="list-item-whiteboard">
+                                                                • Whiteboard #{list.whiteboard_id}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="list-item-actions">
+                                                <button
+                                                    className="list-action-btn delete-btn"
+                                                    onClick={(e) => handleDeleteList(list.id, list.name, e)}
+                                                    title="Delete this list"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

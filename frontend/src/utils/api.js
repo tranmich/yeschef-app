@@ -1,19 +1,33 @@
 ﻿import axios from "axios";
 
 const getApiUrl = () => {
-  // Use environment variable if available, otherwise fallback to hardcoded URL
+  // Check if running locally (localhost or 127.0.0.1)
+  const isLocal = window.location.hostname === 'localhost' || 
+                  window.location.hostname === '127.0.0.1';
+  
+  // Use environment variable if available
   const envUrl = process.env.REACT_APP_API_URL;
-  const fallbackUrl = "https://yeschefapp-production.up.railway.app";
+  
+  // Determine API URL based on environment
+  let apiUrl;
+  if (envUrl) {
+    // Environment variable takes precedence
+    apiUrl = envUrl;
+  } else if (isLocal) {
+    // Local development - use local backend
+    apiUrl = "http://127.0.0.1:5000";
+  } else {
+    // Production fallback
+    apiUrl = "https://yeschefapp-production.up.railway.app";
+  }
 
-  const apiUrl = envUrl || fallbackUrl;
   console.log("🌐 Current window location:", window.location.href);
-  console.log("🔧 Environment variables:", {
+  console.log("🔧 Environment:", {
+    isLocal,
     REACT_APP_API_URL: process.env.REACT_APP_API_URL,
-    REACT_APP_ENVIRONMENT: process.env.REACT_APP_ENVIRONMENT,
     NODE_ENV: process.env.NODE_ENV
   });
-  console.log("📡 API URL Source:", envUrl ? "Environment Variable" : "Hardcoded Fallback");
-  console.log("📡 Final API URL:", apiUrl);
+  console.log("📡 API URL:", apiUrl);
 
   return apiUrl;
 };

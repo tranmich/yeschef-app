@@ -2,6 +2,23 @@
 import axios from 'axios';
 import { apiCall } from '../utils/api';
 
+/**
+ * AuthContext - V2 API Migration Complete
+ * 
+ * Migrated to V2 auth endpoints on Oct 31, 2025
+ * Changes:
+ * - /api/auth/* → /api/v2/auth/*
+ * - Token: access_token → data.token
+ * - User: response.user → data.user
+ * - Response format: { success, data, message }
+ * 
+ * V2 Features:
+ * - ✅ Email validation
+ * - ✅ Password strength validation (6+ chars)
+ * - ✅ Consistent error responses
+ * - ✅ Better security
+ */
+
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -34,13 +51,20 @@ export const AuthProvider = ({ children }) => {
         if (savedToken) {
           try {
             setToken(savedToken);
-            const response = await apiCall('/api/auth/me', {
+            // V2 API: /api/v2/auth/me
+            const response = await apiCall('/api/v2/auth/me', {
               method: 'GET',
               headers: {
                 'Authorization': `Bearer ${savedToken}`
               }
             });
-            setUser(response.user);
+            
+            // V2 response format: { success, data: { user } }
+            if (response.success && response.data) {
+              setUser(response.data.user);
+            } else {
+              logout();
+            }
           } catch (error) {
             console.error('Token validation failed:', error);
             logout();
@@ -55,7 +79,8 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await apiCall('/api/auth/login', {
+      // V2 API: /api/v2/auth/login
+      const response = await apiCall('/api/v2/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -66,16 +91,24 @@ export const AuthProvider = ({ children }) => {
         })
       });
 
-      const { access_token, user: userData } = response;
+      // V2 response format: { success, data: { token, user }, message }
+      if (response.success && response.data) {
+        const { token: authToken, user: userData } = response.data;
 
-      // Store token and user data (with SSR safety)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('authToken', access_token);
+        // Store token and user data (with SSR safety)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('authToken', authToken);
+        }
+        setToken(authToken);
+        setUser(userData);
+
+        return { success: true, user: userData };
+      } else {
+        return {
+          success: false,
+          message: response.error || 'Login failed'
+        };
       }
-      setToken(access_token);
-      setUser(userData);
-
-      return { success: true, user: userData };
     } catch (error) {
       console.error('Login failed:', error);
       return {
@@ -87,7 +120,8 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password) => {
     try {
-      const response = await apiCall('/api/auth/register', {
+      // V2 API: /api/v2/auth/register
+      const response = await apiCall('/api/v2/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -99,16 +133,24 @@ export const AuthProvider = ({ children }) => {
         })
       });
 
-      const { access_token, user: userData } = response;
+      // V2 response format: { success, data: { token, user }, message }
+      if (response.success && response.data) {
+        const { token: authToken, user: userData } = response.data;
 
-      // Store token and user data (with SSR safety)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('authToken', access_token);
+        // Store token and user data (with SSR safety)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('authToken', authToken);
+        }
+        setToken(authToken);
+        setUser(userData);
+
+        return { success: true, user: userData };
+      } else {
+        return {
+          success: false,
+          message: response.error || 'Registration failed'
+        };
       }
-      setToken(access_token);
-      setUser(userData);
-
-      return { success: true, user: userData };
     } catch (error) {
       console.error('Registration failed:', error);
       return {

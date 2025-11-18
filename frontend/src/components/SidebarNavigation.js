@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import * as householdAPI from '../utils/householdAPI';
+import { useToast } from '../components/ToastContainer';
 import './SidebarNavigation.css';
 
 const SidebarNavigation = ({ 
@@ -25,9 +27,17 @@ const SidebarNavigation = ({
 }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [activeFeature, setActiveFeature] = useState('cookbook');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isCategoriesExpanded, setIsCategoriesExpanded] = useState(true);
+  const [isHouseholdsExpanded, setIsHouseholdsExpanded] = useState(false);
+  const [households, setHouseholds] = useState([]);
+  const [loadingHouseholds, setLoadingHouseholds] = useState(false);
+  const [showCreateHouseholdModal, setShowCreateHouseholdModal] = useState(false);
+  const [newHouseholdName, setNewHouseholdName] = useState('');
+  const [newHouseholdDescription, setNewHouseholdDescription] = useState('');
+  const [creatingHousehold, setCreatingHousehold] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const userMenuRef = useRef(null);
   const userButtonRef = useRef(null);
@@ -47,6 +57,38 @@ const SidebarNavigation = ({
       };
     }
   }, [showUserMenu]);
+
+  // Load households function
+  const loadHouseholds = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoadingHouseholds(true);
+      console.log('📋 Loading households for user:', user.id);
+      const response = await householdAPI.getHouseholds();
+      console.log('📋 Households API response:', response);
+      
+      if (response.success) {
+        // API returns households in response.households, not response.data
+        const householdsList = response.households || response.data || [];
+        console.log('✅ Households loaded:', householdsList);
+        setHouseholds(householdsList);
+      } else {
+        console.error('❌ Failed to load households:', response);
+      }
+    } catch (error) {
+      console.error('❌ Error loading households:', error);
+    } finally {
+      setLoadingHouseholds(false);
+    }
+  };
+
+  // Load households on mount and when user changes
+  useEffect(() => {
+    if (user?.id) {
+      loadHouseholds();
+    }
+  }, [user?.id]);
 
     const handleLogout = () => {
       logout();
@@ -95,6 +137,56 @@ const SidebarNavigation = ({
 
   const toggleCategoriesExpansion = () => {
     setIsCategoriesExpanded(!isCategoriesExpanded);
+  };
+
+  const toggleHouseholdsExpansion = () => {
+    setIsHouseholdsExpanded(!isHouseholdsExpanded);
+  };
+
+  const handleHouseholdClick = (household) => {
+    // Open whiteboard gallery for this household (not direct to canvas)
+    setActiveFeature('households');
+    onFeatureSelect?.('households', { 
+      householdId: household.id,
+      showGallery: true // Show gallery, not canvas
+    });
+  };
+
+  const handleCreateHousehold = async (e) => {
+    e.preventDefault();
+
+    if (!newHouseholdName.trim()) {
+      toast.warning('Please enter a household name');
+      return;
+    }
+
+    try {
+      setCreatingHousehold(true);
+
+      const response = await householdAPI.createHousehold(
+        newHouseholdName.trim(),
+        newHouseholdDescription.trim() || ''
+      );
+
+      if (response.success) {
+        // Close modal and reset form
+        setShowCreateHouseholdModal(false);
+        setNewHouseholdName('');
+        setNewHouseholdDescription('');
+
+        // Reload households to show the new one
+        await loadHouseholds();
+        
+        toast.success(`Created: ${newHouseholdName.trim()}`);
+      } else {
+        toast.error(response.message || 'Failed to create household');
+      }
+    } catch (err) {
+      console.error('Error creating household:', err);
+      toast.error('Failed to create household');
+    } finally {
+      setCreatingHousehold(false);
+    }
   };
 
   const handleCategoryClick = (categoryId) => {
@@ -220,6 +312,23 @@ const SidebarNavigation = ({
         setActiveFeature('friends');
         onFeatureSelect?.('friends');
       }
+    },
+    {
+      id: 'households',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      ),
+      label: 'Households',
+      description: 'Collaborative whiteboards',
+      available: true,
+      badge: 'NEW',
+      onClick: () => {
+        setActiveFeature('households');
+        onFeatureSelect?.('households');
+      }
     }
   ];
 
@@ -339,6 +448,57 @@ const SidebarNavigation = ({
                   </div>
                 </div>
               )}
+
+              {/* Households Inline Section */}
+              {feature.id === 'households' && (
+                <div className="households-section">
+                  <button 
+                    className="households-toggle"
+                    onClick={toggleHouseholdsExpansion}
+                  >
+                    <span className="toggle-icon">
+                      {isHouseholdsExpanded ? '▼' : '▶'}
+                    </span>
+                    <span className="toggle-label">My Households</span>
+                    <button 
+                      className="add-household-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCreateHouseholdModal(true);
+                      }}
+                      title="Create New Household"
+                    >
+                      +
+                    </button>
+                  </button>
+                  
+                  {isHouseholdsExpanded && (
+                    <div className="households-list-inline">
+                      {loadingHouseholds ? (
+                        <div className="households-loading">Loading...</div>
+                      ) : households.length === 0 ? (
+                        <div className="households-empty">
+                          <p>No households yet</p>
+                          <small>Click + to create one</small>
+                        </div>
+                      ) : (
+                        households.map(household => (
+                          <button
+                            key={household.id}
+                            className="household-item-inline"
+                            onClick={() => handleHouseholdClick(household)}
+                            title={`Open ${household.name} whiteboard`}
+                          >
+                            <span className="household-icon">🏠</span>
+                            <span className="household-name">{household.name}</span>
+                            <span className="household-role">{household.role}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -355,6 +515,65 @@ const SidebarNavigation = ({
             <span className="admin-icon">🔧</span>
             <span className="admin-label">Admin Dashboard</span>
           </button>
+        </div>
+      )}
+
+      {/* Create Household Modal */}
+      {showCreateHouseholdModal && (
+        <div className="household-modal-overlay" onClick={() => setShowCreateHouseholdModal(false)}>
+          <div className="household-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="household-modal-header">
+              <h2>Create New Household</h2>
+              <button className="close-button" onClick={() => setShowCreateHouseholdModal(false)}>
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateHousehold}>
+              <div className="form-group">
+                <label htmlFor="household-name">Household Name *</label>
+                <input
+                  id="household-name"
+                  type="text"
+                  placeholder="e.g., My Family, Roommates"
+                  value={newHouseholdName}
+                  onChange={(e) => setNewHouseholdName(e.target.value)}
+                  autoFocus
+                  disabled={creatingHousehold}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="household-description">Description (optional)</label>
+                <textarea
+                  id="household-description"
+                  placeholder="Who's in this household?"
+                  value={newHouseholdDescription}
+                  onChange={(e) => setNewHouseholdDescription(e.target.value)}
+                  rows={3}
+                  disabled={creatingHousehold}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="cancel-button"
+                  onClick={() => setShowCreateHouseholdModal(false)}
+                  disabled={creatingHousehold}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="create-button"
+                  disabled={creatingHousehold || !newHouseholdName.trim()}
+                >
+                  {creatingHousehold ? 'Creating...' : 'Create Household'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </nav>

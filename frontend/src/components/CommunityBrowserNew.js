@@ -35,9 +35,9 @@ function CommunityBrowser() {
     setError('');
     
     try {
-      console.log('🔍 Fetching community recipes from:', `${API_BASE_URL}/api/community/recipes`);
+      console.log('🔍 Fetching community recipes from v2:', `${API_BASE_URL}/api/v2/community/recipes`);
       
-      const response = await fetch(`${API_BASE_URL}/api/community/recipes?limit=50&sort=recent`, {
+      const response = await fetch(`${API_BASE_URL}/api/v2/community/recipes?limit=50&sort=recent`, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -49,11 +49,14 @@ function CommunityBrowser() {
       
       const data = await response.json();
       
-      console.log('✅ Community recipes loaded:', data);
+      console.log('✅ Community recipes loaded (v2):', data);
       
-      if (data.success && data.recipes) {
+      // Handle v2 response structure: data.data.recipes or data.recipes
+      const recipes = data.data?.recipes || data.recipes || [];
+      
+      if (data.success && recipes.length > 0) {
         // Transform backend data to match frontend expectations
-        const transformedRecipes = data.recipes.map(recipe => ({
+        const transformedRecipes = recipes.map(recipe => ({
           id: recipe.id,
           title: recipe.title || recipe.community_title,
           description: recipe.description || recipe.community_description || 'No description available',
