@@ -14,6 +14,7 @@ def register_v2_routes(app: Flask):
     Register v2 API routes to the existing Flask app
     
     This adds the new v2 endpoints alongside existing routes:
+    - /api/v2/auth/*  🔐 NEW!
     - /api/v2/users/*
     - /api/v2/recipes/*
     - /api/v2/health
@@ -28,37 +29,80 @@ def register_v2_routes(app: Flask):
         init_database()
         logger.info("  ✅ Database connection pool initialized")
         
+        # Initialize auth service with existing auth_system
+        try:
+            from auth_system import AuthenticationSystem
+            from app.services.auth_service import get_auth_service
+            
+            # Get the auth_system from the app context if it exists
+            auth_system = getattr(app, 'auth_system', None)
+            
+            if auth_system:
+                # Initialize auth service with existing auth system
+                auth_service = get_auth_service(auth_system)
+                logger.info("  ✅ Auth service initialized with existing auth_system")
+            else:
+                logger.warning("  ⚠️  No auth_system found on app - auth service may have limited functionality")
+        except Exception as e:
+            logger.warning(f"  ⚠️  Could not initialize auth service: {e}")
+        
         # Register v2 blueprints
+        try:
+            from app.api.v2.auth import auth_bp  # 🔐 NEW!
+            logger.info("  ✅ Auth blueprint imported successfully")
+        except Exception as e:
+            logger.error(f"  ❌ FAILED to import auth blueprint: {e}")
+            logger.exception("Full auth import error:")
+            raise  # Re-raise to see full error
+        
         from app.api.v2.users import user_bp
         from app.api.v2.recipes import recipe_bp
+        from app.api.v2.recipe_import import recipe_import_bp  # 📥 Recipe import
+        from app.api.v2.recipe_voice import recipe_voice_bp  # 🎤 Voice recipes
         from app.api.v2.meal_plans import meal_plan_bp
         from app.api.v2.grocery_lists import grocery_list_bp
         from app.api.v2.friends import friends_bp
         from app.api.v2.households import households_bp
         from app.api.v2.community import community_bp
-        from app.api.v2.favorites import favorites_bp
         from app.api.v2.profile import profile_bp
         from app.api.v2.pantry import pantry_bp
         from app.api.v2.recipe_search import recipe_search_bp
         from app.api.v2.system import system_bp
         from app.api.v2.images import image_bp  # Image serving
+        from app.api.v2.whiteboards import whiteboard_bp  # 🆕 Whiteboards (Phase 1)
+        from app.api.v2.whiteboard_images import whiteboard_images_bp  # 🆕 Whiteboard image uploads
+        from app.api.v2.liveblocks import liveblocks_bp  # 🆕 Liveblocks auth (Phase 3A)
+        from app.api.v2.comments import comments_bp  # 🆕 Comments with Pusher
+        from app.api.v2.pusher_auth import pusher_auth_bp  # 🆕 Pusher presence auth
+        from app.api.v2.activity import activity_bp  # 🆕 Activity Feed & Notifications
         
+        app.register_blueprint(auth_bp)  # 🔐 Authentication - Register FIRST!
         app.register_blueprint(user_bp)
         app.register_blueprint(recipe_bp)
+        app.register_blueprint(recipe_import_bp)  # 📥 Recipe import
+        app.register_blueprint(recipe_voice_bp)  # 🎤 Voice recipes
         app.register_blueprint(meal_plan_bp)
         app.register_blueprint(grocery_list_bp)
         app.register_blueprint(friends_bp)
         app.register_blueprint(households_bp)
         app.register_blueprint(community_bp)
-        app.register_blueprint(favorites_bp)
         app.register_blueprint(profile_bp)
         app.register_blueprint(pantry_bp)
         app.register_blueprint(recipe_search_bp)
         app.register_blueprint(system_bp)
         app.register_blueprint(image_bp)  # Image serving
+        app.register_blueprint(whiteboard_bp)  # 🆕 Whiteboards (Phase 1)
+        app.register_blueprint(whiteboard_images_bp)  # 🆕 Whiteboard image uploads
+        app.register_blueprint(liveblocks_bp)  # 🆕 Liveblocks auth (Phase 3A)
+        app.register_blueprint(comments_bp)  # 🆕 Comments with Pusher
+        app.register_blueprint(pusher_auth_bp)  # 🆕 Pusher presence auth
+        app.register_blueprint(activity_bp)  # 🆕 Activity Feed & Notifications
         
+        logger.info("  ✅ Auth API v2 registered: /api/v2/auth 🔐 NEW!")
         logger.info("  ✅ User API v2 registered: /api/v2/users")
         logger.info("  ✅ Recipe API v2 registered: /api/v2/recipes")
+        logger.info("  ✅ Recipe Import API v2 registered: /api/v2/recipes/import 📥 NEW!")
+        logger.info("  ✅ Recipe Voice API v2 registered: /api/v2/recipes/voice 🎤 NEW!")
         logger.info("  ✅ MealPlan API v2 registered: /api/v2/meal-plans")
         logger.info("  ✅ GroceryList API v2 registered: /api/v2/grocery-lists")
         logger.info("  ✅ Friends API v2 registered: /api/v2/friends 👥")
@@ -70,6 +114,12 @@ def register_v2_routes(app: Flask):
         logger.info("  ✅ Recipe Search API v2 registered: /api/v2/recipes/search 🔍")
         logger.info("  ✅ Images API v2 registered: /api/v2/images 📸")
         logger.info("  ✅ System API v2 registered: /api/v2/system ⚙️")
+        logger.info("  ✅ Whiteboard API v2 registered: /api/v2/whiteboard (25 endpoints) 🎨 NEW!")
+        logger.info("  ✅ Whiteboard Images API v2 registered: /api/v2/whiteboards/images 📸 NEW!")
+        logger.info("  ✅ Liveblocks API v2 registered: /api/v2/liveblocks 🔴 LIVE!")
+        logger.info("  ✅ Comments API v2 registered: /api/v2/comments 💬 NEW!")
+        logger.info("  ✅ Pusher Auth API v2 registered: /api/v2/pusher/auth 🔌 NEW!")
+        logger.info("  ✅ Activity Feed API v2 registered: /api/v2/activity 🔔 NEW!")
         
         # Add health check endpoint
         from flask import jsonify
