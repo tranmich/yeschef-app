@@ -384,6 +384,21 @@ ALLOWED_ORIGINS = [
     "https://yeschef-app.vercel.app"
 ]
 
+@app.before_request
+def handle_preflight():
+    """Handle CORS preflight OPTIONS requests"""
+    if request.method == 'OPTIONS':
+        origin = request.headers.get('Origin')
+        if origin in ALLOWED_ORIGINS:
+            response = jsonify({'success': True})
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Max-Age'] = '3600'
+            return response, 200
+        return jsonify({'error': 'Origin not allowed'}), 403
+
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')
@@ -394,20 +409,6 @@ def after_request(response):
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     return response
-
-# Global OPTIONS handler for CORS preflight requests
-@app.route('/<path:path>', methods=['OPTIONS'])
-def handle_options(path):
-    """Handle OPTIONS requests for CORS preflight"""
-    origin = request.headers.get('Origin')
-    if origin in ALLOWED_ORIGINS:
-        response = jsonify({'success': True})
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        return response, 200
-    return jsonify({'error': 'Origin not allowed'}), 403
 
 # Initialize Authentication System
 try:
