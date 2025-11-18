@@ -374,11 +374,21 @@ CORS(app,
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 )
 
-# Ensure CORS headers are always set (especially Access-Control-Allow-Credentials)
+# Ensure CORS headers are properly set for whitelisted origins only
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://yeschefapp.io",
+    "https://www.yeschefapp.io",
+    "https://yeschefapp.vercel.app",
+    "https://yeschef-app.vercel.app"
+]
+
 @app.after_request
 def after_request(response):
     origin = request.headers.get('Origin')
-    if origin:
+    # Only set CORS headers if origin is in whitelist
+    if origin in ALLOWED_ORIGINS:
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
