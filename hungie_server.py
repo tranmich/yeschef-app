@@ -5,6 +5,7 @@ Complete recipe search, meal planning, and grocery list functionality
 """
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from functools import wraps
 import json, os
 import psycopg2
 import psycopg2.extras
@@ -112,6 +113,17 @@ CHEF_PERSONALITY = """You are Hungie, an enthusiastic and knowledgeable personal
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = os.getenv('JWT_SECRET_KEY', 'your-secret-key-for-sessions-' + str(os.urandom(24).hex()))
+
+# Initialize WebSocket service
+try:
+    from app.services.websocket_service import init_socketio
+    socketio = init_socketio(app)
+    WEBSOCKET_AVAILABLE = True
+    logger.info("✅ WebSocket service initialized - Real-time features enabled")
+except Exception as e:
+    WEBSOCKET_AVAILABLE = False
+    socketio = None
+    logger.warning(f"⚠️ WebSocket service not available: {e}")
 
 # Configure Google OAuth
 app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID')
@@ -345,32 +357,33 @@ def export_waitlist():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # Configure CORS properly - use only one method
-CORS(app, resources={
-    r"/api/*": {
+# Note: Cannot use origins="*" with supports_credentials=True
+CORS(app, 
+    resources={r"/api/*": {
         "origins": [
             "http://localhost:3000",
-            "http://localhost:3001", 
-            "http://localhost:3002",
-            "http://localhost:3003",
-            "http://localhost:3004",
-            "http://localhost:3005",
-            "http://localhost:3006",
             "http://127.0.0.1:3000",
-            "http://127.0.0.1:3001",
-            "http://127.0.0.1:3002", 
-            "http://127.0.0.1:3003",
-            "http://127.0.0.1:3004",
-            "http://127.0.0.1:3005",
-            "http://127.0.0.1:3006",
-            "https://yeschef-app.vercel.app",
             "https://yeschefapp.io",
-            "https://www.yeschefapp.io"
-        ],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
-    }
-})
+            "https://www.yeschefapp.io",
+            "https://yeschefapp.vercel.app",
+            "https://yeschef-app.vercel.app"
+        ]
+    }},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+)
+
+# Ensure CORS headers are always set (especially Access-Control-Allow-Credentials)
+@app.after_request
+def after_request(response):
+    origin = request.headers.get('Origin')
+    if origin:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    return response
 
 # Initialize Authentication System
 try:
@@ -864,6 +877,59 @@ def get_recipe_by_id(recipe_id):
         return None
 
 # API Routes
+
+# ========================================
+# V1 API DEPRECATION DECORATOR
+# ========================================
+
+def deprecated_v1_endpoint(v2_endpoint, migration_note=""):
+    """
+    Decorator to mark v1 endpoints as deprecated and log usage.
+    Adds deprecation headers and warnings to responses.
+    
+    Args:
+        v2_endpoint: The v2 endpoint path that should be used instead
+        migration_note: Additional migration guidance
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Log v1 endpoint usage for monitoring
+            logger.warning(f"⚠️ DEPRECATED V1 ENDPOINT CALLED: {request.path} -> Use {v2_endpoint} instead")
+            
+            # Call the original function
+            result = f(*args, **kwargs)
+            
+            # Add deprecation headers to response
+            if isinstance(result, tuple):
+                response, status_code = result[0], result[1] if len(result) > 1 else 200
+            else:
+                response, status_code = result, 200
+            
+            # Create response object if it's not already one
+            if not hasattr(response, 'headers'):
+                response = jsonify(response) if not isinstance(response, str) else response
+            
+            # Add deprecation warning headers
+            if hasattr(response, 'headers'):
+                response.headers['X-API-Deprecated'] = 'true'
+                response.headers['X-API-Deprecation-Date'] = '2025-11-18'
+                response.headers['X-API-Sunset-Date'] = '2026-01-01'  # 6 weeks from now
+                response.headers['X-API-Replacement'] = v2_endpoint
+                if migration_note:
+                    response.headers['X-API-Migration-Note'] = migration_note
+                response.headers['Warning'] = f'299 - "This endpoint is deprecated. Use {v2_endpoint} instead."'
+            
+            return response, status_code
+        
+        return decorated_function
+    return decorator
+
+
+# ========================================
+# ROOT & HEALTH CHECK ENDPOINTS
+# ========================================
+
 @app.route('/')
 def api_root():
     """API root endpoint - DEPLOYMENT TEST"""
@@ -883,6 +949,7 @@ def api_root():
     })
 
 @app.route('/api/recipes', methods=['GET'])
+@deprecated_v1_endpoint('/api/v2/recipes/user/{user_id}', 'Use v2 endpoint with user_id in path')
 def get_recipes():
     """Get recipes with optional filtering"""
     try:
@@ -971,6 +1038,7 @@ def get_recipes():
         }), 500
 
 @app.route('/api/recipes', methods=['POST'])
+@deprecated_v1_endpoint('/api/v2/recipes', 'Use v2 endpoint with user_id in request body')
 def create_recipe():
     """Create a new recipe"""
     try:
@@ -1043,15 +1111,20 @@ def create_recipe():
             'error': f'Database error: {str(e)}'
         }), 500
 
-@app.route('/api/recipes/<recipe_id>', methods=['GET'])
+@app.route('/api/recipes/<recipe_id>', methods=['GET', 'OPTIONS'])
+@deprecated_v1_endpoint('/api/v2/recipes/{recipe_id}?user_id={user_id}', 'Use v2 endpoint with user_id query param')
 def get_recipe(recipe_id):
     """Get a single recipe"""
+    # Handle OPTIONS request for CORS preflight
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
+        
     try:
         recipe = get_recipe_by_id(recipe_id)
         if recipe:
             return jsonify({
                 'success': True,
-                'data': recipe
+                'recipe': recipe  # Keep 'recipe' key for consistency
             })
         else:
             return jsonify({
@@ -1941,6 +2014,7 @@ def delete_user_recipe(recipe_id):
         }), 500
 
 @app.route('/api/recipes/<recipe_id>/category', methods=['PUT'])
+@deprecated_v1_endpoint('/api/v2/recipes/{recipe_id}', 'Use PATCH /api/v2/recipes/{recipe_id} with category in body')
 def update_recipe_category(recipe_id):
     """Update a recipe's category/collection"""
     try:
@@ -3563,10 +3637,20 @@ def get_meal_plan(plan_id):
             
             plan['meal_data'] = normalized_data
             logger.info(f"✅ Converted loaded plan to web format: {len(normalized_data['days'])} days")
-        elif isinstance(meal_data, dict) and 'days' not in meal_data:
-            # Old or malformed format
-            logger.warning(f"⚠️ Meal plan has no 'days' structure, initializing empty")
-            plan['meal_data'] = {'days': {}, 'dayOrder': []}
+        elif isinstance(meal_data, dict):
+            # Already in dict format - check if it has days
+            if 'days' not in meal_data:
+                # Empty or malformed - add days wrapper but keep existing data
+                logger.warning(f"⚠️ Meal plan missing 'days' wrapper, adding it. Original data: {meal_data}")
+                # If there's any data, preserve it; otherwise start fresh
+                if meal_data:
+                    # Has some data but no days wrapper - this shouldn't happen
+                    logger.error(f"❌ Unexpected meal_data structure: {meal_data}")
+                plan['meal_data'] = {'days': {}, 'dayOrder': []}
+            else:
+                # Already has days wrapper - use as-is!
+                logger.info(f"✅ Meal plan already in web format with {len(meal_data.get('days', {}))} days")
+                plan['meal_data'] = meal_data
 
         return jsonify({
             'success': True,
@@ -3723,6 +3807,7 @@ def generate_grocery_list_from_recipes():
 # ===================================
 
 @app.route('/api/community/recipes', methods=['POST'])
+@deprecated_v1_endpoint('/api/v2/community/recipes', 'Use v2 community endpoint with user_id')
 def share_recipe():
     """Share a recipe with the community"""
     try:
@@ -3784,6 +3869,7 @@ def share_recipe():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/community/recipes', methods=['GET'])
+@deprecated_v1_endpoint('/api/v2/community/recipes', 'Use v2 community endpoint')
 def get_community_recipes():
     """Get shared community recipes"""
     try:
@@ -4037,30 +4123,43 @@ def get_user_grocery_lists():
             )
         """)
         
-        # Get user's owned grocery lists
+        # Get user's owned grocery lists (exclude soft-deleted)
+        # FIXED: Use COALESCE to get the most recent timestamp from either updated_date or updated_at
         cursor.execute("""
-            SELECT id, list_name, recipe_ids, created_at, updated_at,
+            SELECT id, 
+                   COALESCE(name, list_name) as list_name, 
+                   recipe_ids, 
+                   created_at, 
+                   COALESCE(updated_date, updated_at, created_at) as updated_at,
                    (list_data->>'ingredient_count')::int as item_count,
+                   hid as household_id, 
+                   wid as whiteboard_id,
                    false as is_shared
             FROM grocery_lists 
-            WHERE user_id = %s 
-            ORDER BY updated_at DESC
+            WHERE user_id = %s AND deleted_at IS NULL
+            ORDER BY COALESCE(updated_date, updated_at, created_at) DESC
         """, (user_id,))
         
         owned_lists = cursor.fetchall()
         
-        # Get shared grocery lists from collaboration system
+        # Get shared grocery lists from collaboration system (exclude soft-deleted)
+        # FIXED: Use COALESCE to get most recent name and timestamp
         cursor.execute("""
             SELECT DISTINCT c.resource_id, c.permission_level, c.created_at as shared_at,
                    u.name as owner_name,
-                   gl.list_name, gl.recipe_ids, gl.created_at, gl.updated_at,
-                   (gl.list_data->>'ingredient_count')::int as item_count
+                   COALESCE(gl.name, gl.list_name) as list_name, 
+                   gl.recipe_ids, 
+                   gl.created_at, 
+                   COALESCE(gl.updated_date, gl.updated_at, gl.created_at) as updated_at,
+                   (gl.list_data->>'ingredient_count')::int as item_count,
+                   gl.hid as household_id, gl.wid as whiteboard_id
             FROM collaborations c
             JOIN users u ON c.invited_by = u.id
             JOIN grocery_lists gl ON c.resource_id = gl.id
             WHERE c.resource_type = 'grocery_list' 
             AND c.user_id = %s 
             AND c.status = 'active'
+            AND gl.deleted_at IS NULL
             ORDER BY c.created_at DESC
         """, (user_id,))
         
@@ -4200,11 +4299,17 @@ def get_grocery_list_details(list_id):
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
         # First try to get as owner
+        # FIXED: Use COALESCE to get most recent name and timestamp
         cursor.execute("""
-            SELECT id, list_name, list_data, recipe_ids, created_at, updated_at,
+            SELECT id, 
+                   COALESCE(name, list_name) as list_name, 
+                   list_data, 
+                   recipe_ids, 
+                   created_at, 
+                   COALESCE(updated_date, updated_at, created_at) as updated_at,
                    false as is_shared
             FROM grocery_lists 
-            WHERE id = %s AND user_id = %s
+            WHERE id = %s AND user_id = %s AND deleted_at IS NULL
         """, (list_id, user_id))
         
         grocery_list = cursor.fetchone()
@@ -4220,10 +4325,16 @@ def get_grocery_list_details(list_id):
             collaboration = cursor.fetchone()
             if collaboration:
                 # User has access via collaboration, load the list
+                # FIXED: Use COALESCE to get most recent name and timestamp
                 cursor.execute("""
-                    SELECT id, list_name, list_data, recipe_ids, created_at, updated_at
+                    SELECT id, 
+                           COALESCE(name, list_name) as list_name, 
+                           list_data, 
+                           recipe_ids, 
+                           created_at, 
+                           COALESCE(updated_date, updated_at, created_at) as updated_at
                     FROM grocery_lists 
-                    WHERE id = %s
+                    WHERE id = %s AND deleted_at IS NULL
                 """, (list_id,))
                 
                 grocery_list = cursor.fetchone()
@@ -4694,40 +4805,8 @@ def compare_grocery_lists():
         }), 500
 
 # ===================================
-# FAVORITES API ENDPOINTS
+# ADMIN API ENDPOINTS
 # ===================================
-
-@app.route('/api/favorites', methods=['POST'])
-def toggle_favorite():
-    """Add or remove a recipe from favorites - DISABLED"""
-    return jsonify({
-        'success': False,
-        'error': 'Favorites system temporarily disabled'
-    }), 503
-
-@app.route('/api/favorites', methods=['GET'])
-def get_favorites():
-    """Get user's favorite recipes - DISABLED"""
-    return jsonify({
-        'success': False,
-        'error': 'Favorites system temporarily disabled'
-    }), 503
-
-@app.route('/api/favorites/check', methods=['POST'])
-def check_favorites():
-    """Check favorite status for multiple recipes - DISABLED"""
-    return jsonify({
-        'success': False,
-        'error': 'Favorites system temporarily disabled'
-    }), 503
-
-@app.route('/api/favorites/summary', methods=['GET'])
-def get_favorites_summary():
-    """Get favorites summary information - DISABLED"""
-    return jsonify({
-        'success': False,
-        'error': 'Favorites system temporarily disabled'
-    }), 503
 
 @app.route('/api/admin/migrate-intelligence', methods=['POST'])
 def migrate_intelligence_endpoint():
@@ -4989,6 +5068,20 @@ def get_pantry_items():
                 )
             """)
             conn.commit()
+            
+            # Add amount column if it doesn't exist (migration fix)
+            cursor.execute("""
+                DO $$ 
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='pantry_items' AND column_name='amount'
+                    ) THEN
+                        ALTER TABLE pantry_items ADD COLUMN amount VARCHAR(100) DEFAULT 'some';
+                    END IF;
+                END $$;
+            """)
+            conn.commit()
             logger.info("✅ Pantry table ensured to exist")
             
             # Fetch all pantry items for this user
@@ -5032,6 +5125,7 @@ def get_pantry_items():
         }), 500
 
 @app.route('/api/pantry', methods=['POST'])
+@deprecated_v1_endpoint('/api/v2/pantry', 'Use v2 endpoint with user_id in body')
 def add_pantry_item():
     """Add item to user's pantry"""
     try:
@@ -5129,6 +5223,7 @@ def add_pantry_item():
         }), 500
 
 @app.route('/api/pantry/<int:item_id>', methods=['PUT'])
+@deprecated_v1_endpoint('/api/v2/pantry/{item_id}', 'Use v2 endpoint with user_id in body')
 def update_pantry_item(item_id):
     """Update pantry item"""
     try:
@@ -5179,6 +5274,7 @@ def remove_pantry_item(item_id):
         }), 500
 
 @app.route('/api/ingredients', methods=['GET'])
+@deprecated_v1_endpoint('/api/v2/ingredients', 'Use v2 ingredients endpoint')
 def get_ingredients():
     """Get available canonical ingredients for pantry"""
     try:
@@ -5259,6 +5355,7 @@ def get_ingredients():
         }), 500
 
 @app.route('/api/pantry/status', methods=['GET'])
+@deprecated_v1_endpoint('/api/v2/pantry/status', 'Use v2 status endpoint')
 def get_pantry_status():
     """Get current pantry system status - frontend compatibility"""
     try:
@@ -5312,6 +5409,7 @@ def get_pantry_toggle_status():
 # ===================================
 
 @app.route('/api/recipes/import/text', methods=['POST'])
+@deprecated_v1_endpoint('/api/v2/recipes/import/text', 'Use v2 import endpoint with user_id in body')
 def import_recipe_from_text():
     """Import recipe from pasted text"""
     if not RECIPE_IMPORT_AVAILABLE:
@@ -5370,6 +5468,7 @@ def import_recipe_from_text():
         }), 500
 
 @app.route('/api/recipes/import/url', methods=['POST'])
+@deprecated_v1_endpoint('/api/v2/recipes/import/url', 'Use v2 import endpoint with user_id in body')
 def import_recipe_from_url():
     """Import recipe from website URL (Day 2 implementation)"""
     print("🚨 IMPORT REQUEST RECEIVED!")  # This will definitely show up
@@ -5480,6 +5579,7 @@ def import_recipe_from_url():
         }), 500
 
 @app.route('/api/recipes/import/ocr', methods=['POST'])
+@deprecated_v1_endpoint('/api/v2/recipes/import/ocr', 'Use v2 import endpoint with user_id in form data')
 def import_recipe_from_ocr():
     """
     Import recipe from scanned images using OCR
@@ -5719,6 +5819,7 @@ def search_languages():
         }), 500
 
 @app.route('/api/recipes/voice/session/process', methods=['POST'])
+@deprecated_v1_endpoint('/api/v2/recipes/voice/session/process', 'Use v2 voice import endpoint')
 def process_voice_session():
     """
     Process complete voice recording session
@@ -5967,8 +6068,20 @@ if __name__ == "__main__":
     # Initialize Authentication System with database connection
     try:
         auth_system = AuthenticationSystem(app, get_db_connection)
+        
+        # Store auth_system on app for V2 access
+        app.auth_system = auth_system
+        
         auth_routes = create_auth_routes(auth_system)
         app.register_blueprint(auth_routes)
+        
+        # Register Comments API (v2) - MOVED TO register_v2_routes()
+        # try:
+        #     from app.api.v2.comments import comments_bp
+        #     app.register_blueprint(comments_bp)
+        #     logger.info("✅ Comments API registered")
+        # except Exception as e:
+        #     logger.error(f"❌ Failed to register Comments API: {e}")
         
         # Debug: List auth routes
         auth_route_list = []
@@ -7306,16 +7419,33 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
 
-    logger.info(f"?? Server starting on {host}:{port}")
+    logger.info(f"🚀 Server starting on {host}:{port}")
+    
+    # Check if WebSocket is available
+    if WEBSOCKET_AVAILABLE and socketio:
+        logger.info("🔌 Starting server with WebSocket support")
+    else:
+        logger.warning("⚠️ Starting server WITHOUT WebSocket support")
 
     try:
-        app.run(
-            host=host,
-            port=port,
-            debug=False,
-            use_reloader=False,
-            threaded=True
-        )
+        # Use socketio.run if available, otherwise fallback to app.run
+        if WEBSOCKET_AVAILABLE and socketio:
+            socketio.run(
+                app,
+                host=host,
+                port=port,
+                debug=False,
+                use_reloader=False,
+                allow_unsafe_werkzeug=True  # For development
+            )
+        else:
+            app.run(
+                host=host,
+                port=port,
+                debug=False,
+                use_reloader=False,
+                threaded=True
+            )
     except Exception as e:
         logger.error(f"? Server startup failed: {e}")
         logger.error("Please check if ports are available and try again")
