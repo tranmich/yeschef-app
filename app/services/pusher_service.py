@@ -14,16 +14,35 @@ class PusherService:
     """Service for broadcasting real-time events via Pusher"""
     
     def __init__(self):
-        """Initialize Pusher client"""
+        """Initialize Pusher client with environment variable validation"""
+        # Validate required Pusher environment variables
+        app_id = os.getenv('PUSHER_APP_ID')
+        key = os.getenv('PUSHER_KEY')
+        secret = os.getenv('PUSHER_SECRET')
+        cluster = os.getenv('PUSHER_CLUSTER', 'us2')
+        
+        missing_vars = []
+        if not app_id:
+            missing_vars.append('PUSHER_APP_ID')
+        if not key:
+            missing_vars.append('PUSHER_KEY')
+        if not secret:
+            missing_vars.append('PUSHER_SECRET')
+        
+        if missing_vars:
+            error_msg = f"Missing required Pusher environment variables: {', '.join(missing_vars)}"
+            logger.error(f"❌ {error_msg}")
+            raise ValueError(error_msg)
+        
         self.pusher = Pusher(
-            app_id=os.getenv('PUSHER_APP_ID'),
-            key=os.getenv('PUSHER_KEY'),
-            secret=os.getenv('PUSHER_SECRET'),
-            cluster=os.getenv('PUSHER_CLUSTER', 'us2'),
+            app_id=app_id,
+            key=key,
+            secret=secret,
+            cluster=cluster,
             ssl=True
         )
         
-        logger.info(f"✅ Pusher initialized for cluster: {os.getenv('PUSHER_CLUSTER', 'us2')}")
+        logger.info(f"✅ Pusher initialized - App ID: {app_id[:6]}***, Cluster: {cluster}")
     
     def broadcast_comment_created(self, whiteboard_id, comment_data):
         """
