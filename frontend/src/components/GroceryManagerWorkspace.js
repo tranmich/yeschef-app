@@ -995,6 +995,7 @@ const GroceryManagerWorkspace = ({ mealPlanRecipes = [] }) => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
+                    user_id: currentUser?.id,
                     list_name: listName.trim(),
                     list_data: listDataToSave,
                     recipe_ids: currentList?.isFromMealPlan ? mealPlanRecipes : []
