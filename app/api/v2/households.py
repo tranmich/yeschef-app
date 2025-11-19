@@ -4,6 +4,7 @@ RESTful endpoints for households and household members management
 """
 
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
 import logging
 
 from app.services.households_service import get_households_service
@@ -255,15 +256,13 @@ def delete_household(household_id):
 
 
 @households_bp.route('/households/<int:household_id>/members', methods=['GET'])
+@jwt_required()
 def get_household_members(household_id):
     """
     Get all members of a household
     
     Path Parameters:
         household_id: Household ID
-    
-    Query Parameters:
-        user_id: User ID (for authorization check)
     
     Response:
         {
@@ -285,13 +284,7 @@ def get_household_members(household_id):
         }
     """
     try:
-        user_id = request.args.get('user_id', type=int)
-        
-        if not user_id:
-            return jsonify({
-                'success': False,
-                'error': 'user_id is required'
-            }), 400
+        user_id = int(get_jwt_identity())
         
         result = households_service.get_household_members(household_id, user_id)
         status_code = 200 if result.get('success') else 400
@@ -464,3 +457,169 @@ def update_member_role(household_id, member_id):
             'success': False,
             'error': 'Internal server error'
         }), 500
+
+
+@households_bp.route('/household/<int:household_id>/activity', methods=['GET'])
+def get_household_activity(household_id):
+    """
+    Get recent household activity (for mobile collaboration)
+    
+    Path Parameters:
+        household_id: Household ID
+    
+    Query Parameters:
+        limit: Number of activities to return (default: 20, max: 50)
+        offset: Number of activities to skip (for pagination)
+    
+    Response:
+        {
+            "success": true,
+            "activities": [
+                {
+                    "id": 123,
+                    "type": "recipe_added",
+                    "user": {
+                        "id": 1,
+                        "name": "Sarah",
+                        "avatar": "https://..."
+                    },
+                    "action": "added Chicken Parmesan",
+                    "preview": "Let's make this Tuesday!",
+                    "tags": ["quick", "italian"],
+                    "created_at": "2025-11-10T14:30:00",
+                    "is_live": false,
+                    "related_object": {
+                        "type": "recipe",
+                        "id": 456
+                    }
+                }
+            ],
+            "count": 20,
+            "has_more": true
+        }
+    """
+    try:
+        from app.database.connection import get_db_connection, return_db_connection
+        
+        # Get query parameters
+        limit = min(int(request.args.get('limit', 20)), 50)
+        offset = int(request.args.get('offset', 0))
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # For now, get activities from comments table (most active data source)
+        # Later can merge with whiteboard_events when that's populated
+        query = """
+            SELECT 
+                c.id,
+                'comment_added' as event_type,
+                c.object_type,
+                c.object_id,
+                c.content,
+                c.created_at,
+                u.id as user_id,
+                u.name as user_name,
+                u.email as user_email,
+                c.whiteboard_id
+            FROM comments c
+            JOIN whiteboards wb ON c.whiteboard_id = wb.id
+            LEFT JOIN users u ON c.user_id = u.id
+            WHERE wb.household_id = %s
+                AND c.created_at >= NOW() - INTERVAL '7 days'
+            ORDER BY c.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        
+        cursor.execute(query, (household_id, limit + 1, offset))
+        rows = cursor.fetchall()
+        
+        has_more = len(rows) > limit
+        if has_more:
+            rows = rows[:limit]
+        
+        # Transform results into activity objects
+        activities = []
+        for row in rows:
+            object_type = row[2]
+            object_id = row[3]
+            
+            # Parse object info for better display
+            object_name = 'an item'
+            related_type = 'unknown'
+            related_id = None
+            
+            if object_type == 'recipeCard':
+                object_name = 'a recipe'
+                related_type = 'recipe'
+                # Extract recipe ID from 'recipe-2609' format
+                if object_id and object_id.startswith('recipe-'):
+                    try:
+                        related_id = int(object_id.replace('recipe-', ''))
+                    except:
+                        pass
+            elif object_type == 'groceryListNode':
+                object_name = 'a grocery list'
+                related_type = 'grocery_list'
+            elif object_type == 'mealPlanContainer':
+                object_name = 'a meal plan'
+                related_type = 'meal_plan'
+            elif object_type == 'note':
+                object_name = 'a note'
+                related_type = 'note'
+            
+            # Build activity object
+            activity = {
+                'id': row[0],
+                'type': 'comment_added',
+                'user': {
+                    'id': row[6],
+                    'name': row[7] or 'Anonymous',
+                    'email': row[8],
+                    'avatar': None
+                },
+                'action': f"commented on {object_name}",
+                'preview': row[4][:100] if row[4] else None,  # First 100 chars
+                'tags': [],
+                'created_at': row[5].isoformat() if row[5] else None,
+                'is_live': False,
+                'related_object': {
+                    'type': related_type,
+                    'id': related_id
+                } if related_id else None,
+                'whiteboard': {
+                    'id': row[9],
+                    'name': 'Whiteboard'
+                }
+            }
+            
+            activities.append(activity)
+        
+        return_db_connection(conn)
+        
+        return jsonify({
+            'success': True,
+            'activities': activities,
+            'count': len(activities),
+            'has_more': has_more
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in get_household_activity: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'activities': []
+        }), 500
+
+
+def _format_activity_action(event_type, event_data):
+    """Format activity action text based on event type"""
+    actions = {
+        'object_created': f"added {event_data.get('object_name', 'an item')}",
+        'comment_added': f"commented on {event_data.get('object_name', 'an item')}",
+        'object_updated': f"updated {event_data.get('object_name', 'an item')}",
+        'tag_added': f"tagged {event_data.get('object_name', 'an item')}",
+        'user_joined': 'joined the whiteboard',
+    }
+    return actions.get(event_type, 'did something')

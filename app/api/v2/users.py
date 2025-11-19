@@ -278,3 +278,72 @@ def get_user_stats(user_id):
     else:
         status_code = 404 if result.get('error_code') == 'NOT_FOUND' else 400
         return jsonify(result), status_code
+
+
+@user_bp.route('/batch', methods=['POST'])
+@handle_errors
+def get_users_batch():
+    """
+    Get multiple users by IDs (for Liveblocks user resolution)
+    
+    Request body:
+    {
+        "user_ids": [1, 2, 3]
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "users": [...]
+    }
+    """
+    data = request.get_json()
+    user_ids = data.get('user_ids', [])
+    
+    if not user_ids:
+        return jsonify({
+            'success': False,
+            'error': 'user_ids required'
+        }), 400
+    
+    user_service = get_user_service()
+    users = []
+    
+    for user_id in user_ids:
+        try:
+            uid = int(user_id) if isinstance(user_id, str) else user_id
+            result = user_service.get_user(uid)
+            
+            if result['success']:
+                user = result['data']
+                users.append({
+                    'id': user['id'],
+                    'username': user.get('username', f'User {user["id"]}'),
+                    'email': user.get('email', ''),
+                    'avatar_url': user.get('avatar_url'),
+                    'avatar_emoji': user.get('avatar_emoji'),
+                    'avatar_background_color': user.get('avatar_background_color'),
+                })
+            else:
+                # User not found - add placeholder
+                users.append({
+                    'id': uid,
+                    'username': f'User {uid}',
+                    'email': '',
+                    'avatar_url': None,
+                })
+        except Exception as e:
+            logger.error(f"Error fetching user {user_id}: {str(e)}")
+            users.append({
+                'id': user_id,
+                'username': f'User {user_id}',
+                'email': '',
+                'avatar_url': None,
+            })
+    
+    logger.info(f"✅ Fetched batch of {len(users)} users")
+    
+    return jsonify({
+        'success': True,
+        'users': users
+    }), 200
