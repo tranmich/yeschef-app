@@ -362,7 +362,37 @@ export const whiteboardAPI = {
   },
 
   // =====================================================
-  // MEAL PLANS
+  // HOUSEHOLD DATA SHARING (Whiteboard Context)
+  // =====================================================
+
+  /**
+   * Get recipe in whiteboard context (household-aware)
+   * Allows viewing recipes created by other household members
+   * @param {number} whiteboardId - Whiteboard ID
+   * @param {number} recipeId - Recipe ID
+   * @returns {Promise} Recipe data
+   */
+  async getWhiteboardRecipe(whiteboardId, recipeId) {
+    return apiCall(`/api/v2/whiteboard/${whiteboardId}/recipes/${recipeId}`, {
+      method: 'GET'
+    });
+  },
+
+  /**
+   * Get meal plan in whiteboard context (household-aware)
+   * Allows viewing meal plans created by other household members
+   * @param {number} whiteboardId - Whiteboard ID
+   * @param {number} mealPlanId - Meal plan ID
+   * @returns {Promise} Meal plan data
+   */
+  async getWhiteboardMealPlan(whiteboardId, mealPlanId) {
+    return apiCall(`/api/v2/whiteboard/${whiteboardId}/meal-plans/${mealPlanId}`, {
+      method: 'GET'
+    });
+  },
+
+  // =====================================================
+  // MEAL PLANS (Legacy)
   // =====================================================
 
   /**

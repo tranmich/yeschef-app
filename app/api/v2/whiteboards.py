@@ -2365,3 +2365,75 @@ def get_grocery_list_whiteboard_object(grocery_list_id):
     finally:
         cursor.close()
         return_db_connection(conn)
+
+
+# =====================================================
+# HOUSEHOLD DATA SHARING ENDPOINTS
+# =====================================================
+# These endpoints allow household members to access
+# recipes and meal plans created by other members
+# when viewing them in a shared whiteboard context
+
+@whiteboard_bp.route('/<int:wid>/recipes/<int:recipe_id>', methods=['GET'])
+@jwt_required_v2
+@handle_errors
+def get_whiteboard_recipe(wid, recipe_id):
+    """Get recipe in context of whiteboard (household-aware)"""
+    user_id = request.user_id
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cursor.execute("""
+            SELECT wb.hid as household_id FROM wb
+            JOIN household_members hm ON wb.hid = hm.household_id
+            WHERE wb.id = %s AND hm.user_id = %s AND wb.deleted_at IS NULL
+        """, (wid, user_id))
+        whiteboard = cursor.fetchone()
+        if not whiteboard:
+            return jsonify({'success': False, 'error': 'Whiteboard not found'}), 403
+        household_id = whiteboard['household_id']
+        cursor.execute("""
+            SELECT r.*, u.name as author_name FROM recipes r
+            JOIN users u ON r.user_id = u.id
+            JOIN household_members hm ON r.user_id = hm.user_id
+            WHERE r.id = %s AND hm.household_id = %s
+        """, (recipe_id, household_id))
+        recipe = cursor.fetchone()
+        if not recipe:
+            return jsonify({'success': False, 'error': 'Recipe not found'}), 404
+        return jsonify({'success': True, 'data': dict(recipe)}), 200
+    finally:
+        cursor.close()
+        return_db_connection(conn)
+
+@whiteboard_bp.route('/<int:wid>/meal-plans/<int:meal_plan_id>', methods=['GET'])
+@jwt_required_v2
+@handle_errors
+def get_whiteboard_meal_plan(wid, meal_plan_id):
+    """Get meal plan in context of whiteboard (household-aware)"""
+    user_id = request.user_id
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cursor.execute("""
+            SELECT wb.hid as household_id FROM wb
+            JOIN household_members hm ON wb.hid = hm.household_id
+            WHERE wb.id = %s AND hm.user_id = %s AND wb.deleted_at IS NULL
+        """, (wid, user_id))
+        whiteboard = cursor.fetchone()
+        if not whiteboard:
+            return jsonify({'success': False, 'error': 'Whiteboard not found'}), 403
+        household_id = whiteboard['household_id']
+        cursor.execute("""
+            SELECT mp.*, u.name as author_name FROM meal_plans mp
+            JOIN users u ON mp.user_id = u.id
+            JOIN household_members hm ON mp.user_id = hm.user_id
+            WHERE mp.id = %s AND hm.household_id = %s
+        """, (meal_plan_id, household_id))
+        meal_plan = cursor.fetchone()
+        if not meal_plan:
+            return jsonify({'success': False, 'error': 'Meal plan not found'}), 404
+        return jsonify({'success': True, 'data': dict(meal_plan)}), 200
+    finally:
+        cursor.close()
+        return_db_connection(conn)
