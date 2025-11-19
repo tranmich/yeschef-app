@@ -7434,11 +7434,13 @@ if __name__ == "__main__":
     # Register v2 API routes (new architecture)
     try:
         from scripts.setup.register_v2_routes import register_v2_routes
+        logger.info("🔧 Attempting to register v2 routes...")
         register_v2_routes(app)
         logger.info("✅ V2 API routes registered successfully!")
     except Exception as e:
-        logger.warning(f"⚠️ Could not register v2 routes: {e}")
-        logger.warning("Old API routes will continue to work")
+        logger.error(f"❌ CRITICAL: Could not register v2 routes: {e}")
+        logger.exception("Full v2 registration error:")
+        logger.error("⚠️ V2 endpoints will NOT be available!")
 
     # Production hosting configuration (Railway/Heroku compatible)
     port = int(os.environ.get("PORT", 5000))

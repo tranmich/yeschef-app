@@ -450,13 +450,13 @@ class AuthenticationSystem:
             placeholder = '%s' if database_url else '?'
 
             if user_id:
-                # Wipe specific user
-                tables = ['saved_meal_plans', 'saved_recipes', 'user_pantry',
-                         'user_preferences', 'users']
-                for table in tables:
+                # Wipe specific user - delete from related tables first, then users table
+                related_tables = ['saved_meal_plans', 'saved_recipes', 'user_pantry', 'user_preferences']
+                for table in related_tables:
                     cursor.execute(f'DELETE FROM {table} WHERE user_id = {placeholder}', (user_id,))
-                    if table == 'users':
-                        cursor.execute(f'DELETE FROM {table} WHERE id = {placeholder}', (user_id,))
+                
+                # Delete the user record itself (uses 'id' column, not 'user_id')
+                cursor.execute(f'DELETE FROM users WHERE id = {placeholder}', (user_id,))
             else:
                 # Wipe all user data
                 tables = ['saved_meal_plans', 'saved_recipes', 'user_pantry',

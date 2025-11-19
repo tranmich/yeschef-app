@@ -215,8 +215,18 @@ class GroceryListService(BaseService):
             
             # Add stats to each list
             for grocery_list in grocery_lists:
-                stats = self.grocery_list_repo.get_list_stats(grocery_list['id'], user_id)
-                grocery_list['stats'] = stats
+                try:
+                    stats = self.grocery_list_repo.get_list_stats(grocery_list['id'], user_id)
+                    grocery_list['stats'] = stats
+                except Exception as e:
+                    logger.error(f"Error getting stats for list {grocery_list.get('id')}: {e}")
+                    # Provide default stats if there's an error
+                    grocery_list['stats'] = {
+                        'total_items': 0,
+                        'purchased_items': 0,
+                        'remaining_items': 0,
+                        'completion_percentage': 0
+                    }
             
             # Get total count
             total = self.grocery_list_repo.count_user_grocery_lists(user_id)
