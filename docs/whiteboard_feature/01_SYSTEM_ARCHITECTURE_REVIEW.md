@@ -245,46 +245,297 @@ TagSystem.js:
 
 ### **Current Structure:**
 ```
-YesChefMobile/src/
-├── screens/
-│   ├── HomeScreen.js                     # Feed/dashboard
-│   ├── RecipeCollectionScreen.js         # Browse by category
-│   ├── RecipeViewScreen.js               # Full recipe + cooking mode
-│   ├── GroceryListScreen.js              # Shopping companion ⭐
-│   ├── MealPlanScreen.js                 # Weekly planning
-│   ├── ProfileScreen.js                  # User settings
-│   ├── FriendsScreen.js                  # Social features ⭐
-│   ├── CommunityRecipeDetailScreen.js    # Shared recipes
-│   └── [15+ more screens]
-├── services/
-│   ├── YesChefAPI.js                     # V2 endpoint client ⭐
-│   ├── MobileMealPlanAdapter.js          # Data transformation
-│   └── MobileGroceryAdapter.js           # Format conversion
-├── components/
-│   └── DragSystem.js                     # Google Keep-style drag ⭐
-└── utils/
+YesChefMobile/
+├── App.js                                # Navigation + Auth wrapper
+├── app.json                              # Expo config
+├── eas.json                              # Expo Application Services
+├── src/
+│   ├── screens/                          # 19 screens total
+│   │   ├── HomeScreen.js                 # Dashboard/feed
+│   │   ├── RecipeCollectionScreen.js    # Browse by category ⭐
+│   │   ├── RecipeViewScreen.js          # Full recipe + cooking mode
+│   │   ├── RecipeImportReviewScreen.js  # Import preview/edit
+│   │   ├── GroceryListScreen.js         # Shopping companion ⭐
+│   │   ├── MealPlanScreen.js            # Weekly planning ⭐
+│   │   ├── FriendsScreen.js             # Social features
+│   │   ├── ProfileScreen.js             # User settings
+│   │   ├── LoginScreen.js               # Authentication
+│   │   ├── VoiceRecipeRecorder.js       # 🎤 Voice input (Phase 2)
+│   │   ├── TranscriptApprovalScreen.js  # 🎤 Voice transcript editing
+│   │   ├── CameraRecipeScanner.js       # 📷 OCR scanning (Phase 3)
+│   │   ├── AddRecipeScreen.js           # Add recipe hub
+│   │   ├── CommunityRecipeDetailScreen.js # Shared recipes
+│   │   ├── UserCommunityPostsScreen.js  # User's shared content
+│   │   ├── PaywallScreen.js             # Premium features
+│   │   ├── ProfileIconCreatorScreen.js  # Avatar customization
+│   │   ├── V2ApiTestScreen.js           # API testing (debug)
+│   │   └── DragTestScreen.js            # Drag system testing
+│   │
+│   ├── services/                         # API integration layer
+│   │   ├── YesChefAPI.js                # Main API client (1911 lines) ⭐
+│   │   │   # Auto-detects Railway vs local backend
+│   │   │   # Handles authentication, JWT tokens
+│   │   │   # Full v2 API integration
+│   │   ├── apiServiceV2.js              # V2 endpoint wrappers
+│   │   ├── FriendsAPI.js                # Friends/social features
+│   │   ├── MealPlanAPI.js               # Meal planning operations
+│   │   ├── WhiteboardAPI.js             # 🆕 Whiteboard integration
+│   │   ├── MobileMealPlanAdapter.js     # Data transformation ⭐
+│   │   ├── MobileGroceryAdapter.js      # Format conversion ⭐
+│   │   ├── LocalDataManager.js          # Local storage management
+│   │   └── OfflineSyncManager.js        # Offline-first sync
+│   │
+│   ├── components/                       # Reusable UI components
+│   │   ├── collaboration/               # Real-time collab components
+│   │   ├── LightweightDragSystem.js     # Google Keep-style drag ⭐
+│   │   ├── DayOptionsModal.js           # Meal plan day actions
+│   │   ├── DaySelectionModal.js         # Multi-day selection
+│   │   ├── HouseholdOptionsModal.js     # Household management
+│   │   ├── RecipeOptionsModal.js        # Recipe actions menu
+│   │   ├── RecipeSharingModal.js        # Share to community
+│   │   ├── FullScreenEditor.js          # Rich text editing
+│   │   ├── IconLibrary.js               # Icon system
+│   │   ├── LanguageSelector.js          # i18n support
+│   │   ├── LocalDataStatus.js           # Offline indicator
+│   │   ├── PremiumStatus.js             # Premium features badge
+│   │   ├── ProfileAvatar.js             # User avatars
+│   │   ├── SimpleErrorBoundary.js       # Error handling
+│   │   ├── SimpleToast.js               # Toast notifications
+│   │   ├── TabIcons.js                  # Bottom tab icons
+│   │   └── Typography.js                # Text styles/fonts
+│   │
+│   ├── contexts/                         # React Context providers
+│   │   └── PremiumContext.js            # Premium features state
+│   │
+│   ├── hooks/                            # Custom React hooks
+│   │   ├── useLocalData.js              # Local data management
+│   │   └── usePremiumFeature.js         # Premium feature checks
+│   │
+│   ├── config/                           # Configuration files
+│   │   └── apiConfig.js                 # API endpoints config
+│   │
+│   └── utils/                            # Helper utilities
+│       └── [utility functions]
+│
+└── docs/                                 # Mobile-specific docs
+    ├── V2_MIGRATION_STATUS.md           # V2 migration tracking
+    ├── V2_MIGRATION_MASTER_CHECKLIST.md # Migration checklist
+    ├── MOBILE_V2_INTEGRATION.md         # V2 integration guide
+    ├── MOBILE_CLEANUP_AUDIT.md          # Code cleanup audit
+    └── [various feature docs]
 ```
 
-### **Mobile Capabilities Already Built:**
-1. ✅ **Real-time sync** - Grocery lists, meal plans
-2. ✅ **Drag & drop** - Google Keep smoothness
-3. ✅ **Offline-first** - AsyncStorage caching
-4. ✅ **Data adapters** - Web ↔ Mobile format conversion
-5. ✅ **Authentication** - Expo SecureStore, JWT
+### **Navigation Architecture:**
+```javascript
+// App.js - React Navigation structure
+NavigationContainer
+├── AuthStack (if not logged in)
+│   └── LoginScreen
+│
+└── MainTabs (if logged in)
+    ├── HomeTab → HomeScreen
+    ├── RecipesTab → RecipeStack
+    │   ├── RecipeCollection
+    │   ├── RecipeDetail
+    │   └── RecipeImportReview
+    ├── AddRecipeTab → AddRecipeStack
+    │   ├── AddRecipeHub
+    │   ├── VoiceRecipeRecorder
+    │   ├── TranscriptApproval
+    │   └── CameraRecipeScanner
+    ├── MealPlanTab → MealPlanScreen
+    ├── GroceryTab → GroceryListScreen
+    ├── FriendsTab → FriendsScreen
+    └── ProfileTab → ProfileScreen
+
+// Custom Horizontal Scrolling Tab Bar
+// - Swipeable tabs (Google Keep style)
+// - Smooth scroll (no snap-back)
+// - Context-aware navigation
+```
+
+### **Mobile Capabilities Built:**
+
+**1. V2 API Integration (Complete)**
+```javascript
+// YesChefAPI.js - Full v2 support
+✅ Authentication (v2) - JWT tokens, SecureStore
+✅ Recipes (v2) - Browse, view, import, voice, OCR
+✅ Meal Plans (v2) - Create, edit, share
+✅ Grocery Lists (v2) - Live sync, check-off
+✅ Friends (v2) - Social features, sharing
+✅ Profile (v2) - User settings, stats
+✅ Community (v2) - Share recipes publicly
+✅ Households (v2) - Multi-user collaboration
+✅ Whiteboard (v2) - Canvas view (read-only)
+
+// Auto-detection:
+- Production: Railway backend
+- Development: Local backend (192.168.x.x)
+```
+
+**2. Data Adapters (Web ↔ Mobile)**
+```javascript
+// MobileMealPlanAdapter.js
+- Transforms backend format → mobile-friendly
+- Handles day structures, recipes
+- Optimized for mobile display
+
+// MobileGroceryAdapter.js  
+- Transforms grocery list data
+- Category grouping for mobile UI
+- Check-off state management
+```
+
+**3. Offline-First Architecture**
+```javascript
+// OfflineSyncManager.js + LocalDataManager.js
+✅ AsyncStorage caching
+✅ Queue failed requests
+✅ Auto-retry on reconnect
+✅ Optimistic UI updates
+✅ Conflict resolution (last-write-wins)
+✅ Local-first editing
+```
+
+**4. Voice & OCR Features**
+```javascript
+// VoiceRecipeRecorder.js (Phase 2)
+✅ Audio recording
+✅ Speech-to-text
+✅ AI recipe parsing
+✅ Transcript editing
+✅ Multi-language support
+
+// CameraRecipeScanner.js (Phase 3)
+✅ Camera capture
+✅ OCR text extraction
+✅ Recipe recognition
+✅ Smart field mapping
+```
+
+**5. Real-Time Sync**
+```javascript
+// GroceryListScreen.js
+✅ Auto-save every 2 seconds
+✅ Optimistic UI updates
+✅ Live sync with backend
+✅ Conflict resolution
+✅ Check-off persistence
+
+// MealPlanScreen.js
+✅ Shared plan loading
+✅ Multi-user editing support
+✅ Real-time updates foundation
+```
+
+**6. UI/UX Polish**
+```javascript
+// LightweightDragSystem.js
+✅ Google Keep-style drag & drop
+✅ Smooth animations
+✅ 6-dot handle pattern
+✅ ScrollView integration
+✅ Haptic feedback
+
+// CustomTabBar (App.js)
+✅ Horizontal scrolling tabs
+✅ No snap-back behavior
+✅ Context-aware icons
+✅ Smooth transitions
+```
+
+**7. Premium Features System**
+```javascript
+// PremiumContext + Hooks
+✅ Feature gating
+✅ PaywallScreen integration
+✅ Premium status checks
+✅ Upgrade prompts
+```
+
+### **Mobile-Specific Optimizations:**
+
+**Performance:**
+- ✅ Lazy loading for recipe lists
+- ✅ Image optimization (cached thumbnails)
+- ✅ Debounced search inputs
+- ✅ Virtual scrolling for long lists
+- ✅ Minimal re-renders (React.memo)
+
+**Storage:**
+- ✅ SecureStore for JWT tokens
+- ✅ AsyncStorage for cached data
+- ✅ LocalDataManager for organized storage
+- ✅ Automatic cleanup (old data)
+
+**Network:**
+- ✅ Auto-detect backend (dev vs prod)
+- ✅ Request timeout handling (10s)
+- ✅ Retry logic with exponential backoff
+- ✅ Connection status monitoring
+- ✅ Offline queue management
 
 ### **Mobile Whiteboard Strategy:**
+
+**Current State (View Mode):**
+```javascript
+// WhiteboardAPI.js - Read-only access
+✅ Fetch whiteboard data
+✅ View recipes, notes, lists
+✅ Tap object → quick view modal
+✅ Comment/react capabilities
+✅ "Open in browser" for editing
+```
+
+**Future Enhancement (Edit Mode):**
 ```
 Phone (Small Screen):
-→ Read-only whiteboard view
-→ Tap object → quick actions modal
-→ Comment/react capabilities
-→ "Open in full view" for editing
+→ View mode (current)
+→ Quick actions modal
+→ Comments + reactions
+→ Share whiteboard link
 
 Tablet (iPad/Android):
 → Full canvas editing
 → Desktop-like experience
+→ Touch gestures (pinch zoom, drag)
 → Apple Pencil support for notes
+→ Real-time collaboration
 ```
+
+### **Testing & Debug Tools:**
+```
+✅ V2ApiTestScreen.js - Test all v2 endpoints
+✅ DragTestScreen.js - Test drag interactions
+✅ SimpleErrorBoundary - Crash reporting
+✅ DevConsole - Debug logging (dev only)
+✅ Debug mode in YesChefAPI.js
+```
+
+### **Deployment:**
+```
+Platform: Expo (EAS Build)
+- iOS: App Store Connect
+- Android: Google Play Console
+- OTA Updates: Expo over-the-air
+- Build Profiles: development, preview, production
+```
+
+---
+
+### **Key Mobile Achievements:**
+
+1. ✅ **100% v2 API Migration** - All endpoints using v2
+2. ✅ **Offline-First** - Works without internet
+3. ✅ **Voice Input** - Record recipes by speaking
+4. ✅ **OCR Scanning** - Import from photos
+5. ✅ **Real-Time Sync** - Grocery lists, meal plans
+6. ✅ **Google Keep UX** - Smooth drag & drop
+7. ✅ **Social Features** - Friends, sharing, community
+8. ✅ **Premium System** - Feature gating ready
+9. ✅ **Multi-Language** - i18n foundation
+10. ✅ **Production Ready** - Deployed to app stores
 
 ---
 
