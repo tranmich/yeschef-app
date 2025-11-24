@@ -18,6 +18,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import TagSystem from '../TagSystem';
+import { useRecipeCache } from '../../../contexts/RecipeCacheContext';
 import './RecipeCardNode.css';
 
 // 12 Pastel color options for recipe cards
@@ -37,9 +38,12 @@ const COLOR_OPTIONS = [
 ];
 
 const RecipeCardNode = ({ data, id, selected }) => {
-  // Extract recipe object and other properties
-  const recipe = data.recipe || {};
+  // 🆕 USE RECIPE CACHE - Single source of truth!
+  const { getRecipe } = useRecipeCache();
+  
+  // Extract node-specific data
   const {
+    recipe_id,
     object_id,
     onClick,
     onDelete,
@@ -52,14 +56,16 @@ const RecipeCardNode = ({ data, id, selected }) => {
     backgroundColor
   } = data;
   
-  // Extract recipe properties from recipe object
-  const recipe_id = recipe.id || data.recipe_id;
-  const name = recipe.title || recipe.name || data.name || 'Untitled Recipe';
-  const image_url = recipe.image_url || data.image_url;
-  const prep_time = recipe.prep_time || recipe.prep_time_minutes || data.prep_time;
-  const cook_time = recipe.cook_time || recipe.cook_time_minutes || data.cook_time;
-  const total_time = recipe.total_time || data.total_time;
-  const category = recipe.category || data.category;
+  // 🆕 GET RECIPE FROM CACHE (not from node data!)
+  const recipe = getRecipe(recipe_id) || {};
+  
+  // Extract recipe properties from cached recipe
+  const name = recipe.title || 'Untitled Recipe';
+  const image_url = recipe.image_url;
+  const prep_time = recipe.prep_time;
+  const cook_time = recipe.cook_time;
+  const total_time = recipe.total_time;
+  const category = recipe.category;
 
   // Tag editor state
   const [isEditingTags, setIsEditingTags] = useState(false);

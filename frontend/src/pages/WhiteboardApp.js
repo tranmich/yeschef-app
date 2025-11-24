@@ -15,7 +15,9 @@ import { useMediaQuery } from 'react-responsive';
 import { ReactFlow, Controls, Background, useReactFlow, Panel, applyNodeChanges } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useAuth } from '../contexts/AuthContext';
+import { RecipeCacheProvider, useRecipeCache } from '../contexts/RecipeCacheContext';
 import whiteboardAPI from '../services/whiteboardAPI';
+import { createRecipeNode, normalizeRecipe } from '../utils/recipeNodeFactory';
 import RecipeCardNode from '../components/whiteboard/nodes/RecipeCardNode';
 import RecipePickerPanel from '../components/RecipePickerPanel';
 import MealPlanFloatingWidget from '../components/MealPlanFloatingWidget';
@@ -58,6 +60,9 @@ const nodeTypes = {
 
 const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   const { user } = useAuth();
+  
+  // 🆕 Recipe Cache - Single source of truth for all recipe data!
+  const { addRecipes, getRecipe, getCacheStats } = useRecipeCache();
   
   // Responsive detection
   const isMobile = useMediaQuery({ maxWidth: 768 });
@@ -731,18 +736,18 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
           });
           
           if (result.success && result.data?.recipes) {
-            // Store all recipes in map
-            result.data.recipes.forEach(recipe => {
-              const recipeData = {
-                ...recipe,
-                id: recipe.id,
-                recipe: recipe  // RecipeCardNode expects data.recipe
-              };
-              recipeMap[recipe.id] = recipeData;
+            // 🆕 ADD RECIPES TO CACHE (single source of truth!)
+            const normalizedRecipes = result.data.recipes.map(normalizeRecipe);
+            addRecipes(normalizedRecipes);
+            
+            // Store in map for node creation
+            normalizedRecipes.forEach(recipe => {
+              recipeMap[recipe.id] = recipe;
             });
             
             console.log(`✅ Batch loaded ${result.data.found_count}/${result.data.requested_count} recipes`);
             console.log(`   Authors: ${[...new Set(result.data.recipes.map(r => r.created_by_name || 'unknown'))].join(', ')}`);
+            console.log(`📦 Recipe cache now contains ${getCacheStats().size} recipes`);
           } else {
             console.warn('⚠️ Batch recipe fetch returned no data');
           }
@@ -855,12 +860,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
             return null;
           }
           
-          // Fix image URLs
-          let imageUrl = recipe.image_url;
-          if (imageUrl && imageUrl.startsWith('/api')) {
-            imageUrl = `${process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000'}${imageUrl}`;
-          }
-          
           // Handle position (array or object)
           let posX = 200, posY = 150;
           if (Array.isArray(obj.position)) {
@@ -871,37 +870,21 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
             posY = obj.position.y || 150;
           }
           
-          return {
-            id: `recipe-${recipe.id}`,
-            type: 'recipeCard',
-            position: {
-              x: posX,
-              y: posY
-            },
-            data: {
-              recipe: {
-                ...recipe,
-                image_url: imageUrl
-              },
-              object_id: obj.id, // Database object ID for deletion
-              recipe_id: recipe.id,
-              name: recipe.title || recipe.name || 'Untitled Recipe',
-              image_url: imageUrl,
-              prep_time: recipe.prep_time,
-              cook_time: recipe.cook_time,
-              total_time: recipe.total_time,
-              category: recipe.category,
-              tags: obj.tags || [], // Load tags from database
-              backgroundColor: obj.background_color || '#FFFFFF',
-              commentCount: getCommentCount('recipe', recipe.id),
-              hasNewComments: false,
-              onClick: handleRecipeClick,
-              onDelete: handleDeleteRecipe,
-              onTagsChange: handleTagsChange,
-              onTagFilterClick: handleTagFilterClick,
-              onColorChange: handleRecipeColorChange
-            }
-          };
+          // 🆕 USE FACTORY - Creates lean node with recipe_id only!
+          return createRecipeNode({
+            recipeId: recipe.id,
+            objectId: obj.id,
+            position: { x: posX, y: posY },
+            tags: obj.tags || [],
+            backgroundColor: obj.background_color || '#FFFFFF',
+            commentCount: getCommentCount('recipe', recipe.id),
+            hasNewComments: false,
+            onClick: handleRecipeClick,
+            onDelete: handleDeleteRecipe,
+            onTagsChange: handleTagsChange,
+            onTagFilterClick: handleTagFilterClick,
+            onColorChange: handleRecipeColorChange
+          });
         })
         .filter(node => node !== null); // Remove null nodes
       
@@ -3143,11 +3126,13 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   );
 };
 
-// Wrap with ToastProvider
+// Wrap with ToastProvider and RecipeCacheProvider
 const WhiteboardAppWithToast = (props) => {
   return (
     <ToastProvider>
-      <WhiteboardApp {...props} />
+      <RecipeCacheProvider>
+        <WhiteboardApp {...props} />
+      </RecipeCacheProvider>
     </ToastProvider>
   );
 };
