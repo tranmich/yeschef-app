@@ -917,10 +917,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
             total_time: recipe.total_time,
             category: recipe.category,
             tags: [], // Empty tags for new recipes
-            onClick: (id) => {
-              console.log('🍕 Clicked recipe:', id);
-              // Future: Open recipe detail modal
-            },
+            onClick: handleRecipeClick,
             onDelete: handleDeleteRecipe,
             onTagsChange: handleTagsChange,
             onTagFilterClick: handleTagFilterClick
