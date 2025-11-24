@@ -1104,22 +1104,22 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   // SELECTION HANDLERS (Canva-style)
   // ====================================
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     setNodes(nodes.map(node => ({ ...node, selected: true })));
     toast.info(`Selected ${nodes.length} cards`);
-  };
+  }, [nodes, toast]);
 
-  const handleClearSelection = () => {
+  const handleClearSelection = useCallback(() => {
     setNodes(nodes.map(node => ({ ...node, selected: false })));
-  };
+  }, []);
 
-  const handleToggleSelection = (nodeId) => {
+  const handleToggleSelection = useCallback((nodeId) => {
     setNodes(nodes.map(node =>
       node.id === nodeId
         ? { ...node, selected: !node.selected }
         : node
     ));
-  };
+  }, [nodes]);
 
   // ====================================
   // GROCERY LIST WIDGET HANDLERS
@@ -2220,7 +2220,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   };
 
   // Handle recipe color change
-  const handleRecipeColorChange = async (nodeId, color, objectId) => {
+  const handleRecipeColorChange = useCallback(async (nodeId, color, objectId) => {
     console.log('🎨 Changing recipe color:', { nodeId, color, objectId });
     
     // Update node color immediately
@@ -2243,9 +2243,9 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
         console.error('❌ Error saving recipe color:', error);
       }
     }
-  };
+  }, [whiteboardId]);
 
-  const handleDeleteRecipe = async (nodeId, recipeId, objectId) => {
+  const handleDeleteRecipe = useCallback(async (nodeId, recipeId, objectId) => {
     console.log('🗑️ Deleting recipe from canvas:', { nodeId, recipeId, objectId, whiteboardId, hasWhiteboard: !!whiteboard });
 
     // Remove node from canvas immediately (optimistic update)
@@ -2274,9 +2274,9 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
 
     console.log('✅ Recipe removed from canvas!');
-  };
+  }, [whiteboardId, whiteboard, toast]);
 
-  const handleDeleteNote = async (nodeId, objectId) => {
+  const handleDeleteNote = useCallback(async (nodeId, objectId) => {
     console.log('🗑️ Deleting note from canvas:', { nodeId, objectId, whiteboardId });
 
     // Remove node from canvas immediately (optimistic update)
@@ -2306,7 +2306,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
 
     console.log('✅ Note removed from canvas!');
-  };
+  }, [whiteboardId, toast]);
 
   // Handler functions for new React Flow nodes
   const handleMealPlanNodeNameChange = async (nodeId, newName) => {
