@@ -67,6 +67,9 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   // Toast notifications
   const toast = useToast();
 
+  // 🆕 AbortController for request cancellation
+  const abortControllerRef = useRef(null);
+
   // Whiteboard state
   const [whiteboard, setWhiteboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -118,6 +121,16 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
+
+  // 🆕 Cleanup: Cancel any in-flight requests on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        console.log('🧹 Component unmounting - cancelling any in-flight requests');
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
   
   // Fetch comment counts for all objects
   const fetchCommentCounts = async (whiteboardId) => {
@@ -334,6 +347,16 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   }, [nodes, isPickerOpen, whiteboardId, isCommentsSidebarOpen, isTagSidebarOpen]);
 
   const loadWhiteboard = async () => {
+    // 🆕 Cancel any previous in-flight request
+    if (abortControllerRef.current) {
+      console.log('🛑 Cancelling previous whiteboard load request');
+      abortControllerRef.current.abort();
+    }
+
+    // 🆕 Create new AbortController for this request
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       setLoading(true);
       setError(null);
@@ -412,11 +435,20 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
         setError(response.message || 'Failed to load whiteboard');
       }
     } catch (err) {
+      // 🆕 Don't show error if request was cancelled
+      if (err.name === 'AbortError' || signal.aborted) {
+        console.log('✋ Whiteboard load cancelled (newer request started)');
+        return; // Exit silently
+      }
+      
       console.error('Error loading whiteboard:', err);
       setError('Failed to load whiteboard');
       toast.error('Failed to load whiteboard: ' + err.message);
     } finally {
-      setLoading(false);
+      // 🆕 Only set loading false if this request wasn't cancelled
+      if (!signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
