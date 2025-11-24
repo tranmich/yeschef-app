@@ -1658,43 +1658,25 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
           commentCount: 0,  // Initial count
           createdBy: user?.name || user?.email || 'Unknown', // Add creator name
           onDelete: handleDeleteNote, // Add delete handler to data
-          onSave: async (noteContent) => {
-            // Auto-save handler
-            try {
-              // Update the node's data in React Flow first (optimistic update)
-              setNodes(prevNodes => prevNodes.map(n =>
-                n.id === `note-${objectId}`
-                  ? {
-                      ...n,
-                      data: {
-                        ...n.data,
-                        name: noteContent.name,
-                        content: noteContent.content,
-                        backgroundColor: noteContent.backgroundColor,
-                        fontSize: noteContent.fontSize
-                      }
+          onSave: (noteContent) => {
+            // 🆕 Optimistic update (immediate UI feedback)
+            setNodes(prevNodes => prevNodes.map(n =>
+              n.id === `note-${objectId}`
+                ? {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      name: noteContent.name,
+                      content: noteContent.content,
+                      backgroundColor: noteContent.backgroundColor,
+                      fontSize: noteContent.fontSize
                     }
-                  : n
-              ));
-
-              // Then save to backend - include name in content
-              await apiCall(`/api/v2/whiteboard/${whiteboardId}/o/${objectId}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                  content: {
-                    type: 'note',
-                    name: noteContent.name,  // Include name in content
-                    html: noteContent.content,
-                    backgroundColor: noteContent.backgroundColor,
-                    fontSize: noteContent.fontSize
                   }
-                })
-              });
-              console.log('✅ Note auto-saved');
-            } catch (error) {
-              console.error('❌ Failed to save note:', error);
-              toast.error('Failed to save note');
-            }
+                : n
+            ));
+
+            // 🆕 Debounced save to backend (2 seconds after last change)
+            debouncedNoteSave(whiteboardId, objectId, noteContent);
           }
         },
         style: {
