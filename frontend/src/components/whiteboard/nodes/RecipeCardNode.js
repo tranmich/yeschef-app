@@ -17,7 +17,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import TagSystem from './whiteboard/TagSystem';
+import TagSystem from '../TagSystem';
 import './RecipeCardNode.css';
 
 // 12 Pastel color options for recipe cards
