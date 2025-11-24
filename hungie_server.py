@@ -47,8 +47,9 @@ except ImportError as e:
     logger.warning(f"⚠️ Admin system not available: {e}")
 
 # Database migrations module not available - using fallback functions for admin endpoints
+# Note: This is expected - admin migration tools are optional and not required for normal operation
 DATABASE_MIGRATIONS_AVAILABLE = False
-logger.info("ℹ️ Database migrations module not available - using fallback functions")
+logger.info("ℹ️ Admin migration tools disabled (optional - not required for normal operation)")
 
 # Import spaCy ingredient normalizer
 try:

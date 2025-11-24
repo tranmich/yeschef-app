@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V1 Deprecation Header Checker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .status.good { background: #10b981; color: white; }
+        .status.warning { background: #f59e0b; color: white; }
+        .status.bad { background: #ef4444; color: white; }
+        
+        .checker-box {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .endpoint-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .result.show {
+            display: block;
+        }
+        
+        .result.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+        
+        .result.deprecated {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+        
+        .header-list {
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        .header-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: #f9fafb;
+            border-left: 3px solid #667eea;
+            border-radius: 4px;
+        }
+        
+        .header-item.deprecated-header {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        
+        .live-monitor {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .log-output {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .log-line {
+            margin: 3px 0;
+        }
+        
+        .log-line.warning {
+            color: #fbbf24;
+        }
+        
+        .log-line.error {
+            color: #ef4444;
+        }
+        
+        .log-line.success {
+            color: #10b981;
+        }
+        
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 V1 Deprecation Header Checker</h1>
+            <p>Check if API endpoints return deprecation headers</p>
+            <div style="margin-top: 15px;">
+                <span style="font-weight: 600;">Expected Result:</span>
+                <span class="status good">No V1 endpoints called</span>
+            </div>
+        </div>
+
+        <div class="checker-box">
+            <h2>Test an Endpoint</h2>
+            <p>Enter an API endpoint to check for deprecation headers:</p>
+            
+            <select id="endpoint-select" class="endpoint-input">
+                <option value="">-- Select a V1 endpoint to test --</option>
+                <option value="/api/recipes">GET /api/recipes (should be deprecated)</option>
+                <option value="/api/community/recipes">GET /api/community/recipes (should be deprecated)</option>
+                <option value="/api/pantry">GET /api/pantry (should be deprecated)</option>
+                <option value="/api/ingredients">GET /api/ingredients (should be deprecated)</option>
+                <option value="/api/v2/recipes/user/13">GET /api/v2/recipes/user/13 (should NOT be deprecated)</option>
+            </select>
+            
+            <button class="btn" onclick="checkEndpoint()">Check Headers</button>
+            
+            <div class="result" id="result"></div>
+        </div>
+
+        <div class="live-monitor">
+            <h2>Live API Call Monitor</h2>
+            <p>This shows what API calls your browser is making:</p>
+            
+            <div style="margin-top: 15px;">
+                <button class="btn" onclick="startMonitoring()">Start Monitoring</button>
+                <button class="btn" onclick="clearLog()" style="background: #6b7280;">Clear Log</button>
+            </div>
+            
+            <div class="log-output" id="log-output">
+                <div class="log-line success">Waiting for API calls...</div>
+                <div class="log-line" style="color: #9ca3af;">Try loading recipes or browsing the app while this is open.</div>
+            </div>
+        </div>
+
+        <div class="checker-box">
+            <h2>How to Check V1 Usage</h2>
+            <div style="margin-top: 15px; line-height: 1.8;">
+                <h3 style="margin-top: 15px;">Method 1: Browser DevTools (Easiest)</h3>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li>Press <code>F12</code> to open Chrome DevTools</li>
+                    <li>Go to <strong>Network</strong> tab</li>
+                    <li>Use your app (load recipes, browse, etc.)</li>
+                    <li>Look for requests starting with <code>/api/</code> (but NOT <code>/api/v2/</code>)</li>
+                    <li>Click on any request and check <strong>Headers</strong> tab</li>
+                    <li>Look for <code>X-API-Deprecated: true</code></li>
+                </ol>
+
+                <h3 style="margin-top: 20px;">Method 2: Server Logs</h3>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li>Look at your Python terminal where the server is running</li>
+                    <li>Watch for yellow warning messages like:</li>
+                    <li style="list-style: none; margin-top: 10px;">
+                        <div style="background: #fef2f2; padding: 10px; border-radius: 5px; border-left: 3px solid #ef4444;">
+                            <code style="color: #ef4444;">⚠️ DEPRECATED V1 ENDPOINT CALLED: /api/recipes -> Use /api/v2/recipes/user/{user_id} instead</code>
+                        </div>
+                    </li>
+                </ol>
+
+                <h3 style="margin-top: 20px;">Method 3: PowerShell Script</h3>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li>Open PowerShell</li>
+                    <li>Run: <code>.\monitor-v1-usage.ps1</code></li>
+                    <li>Follow the on-screen instructions</li>
+                </ol>
+
+                <h3 style="margin-top: 20px;">Expected Result</h3>
+                <div style="background: #d1fae5; padding: 15px; border-radius: 8px; margin-top: 10px; border: 1px solid #10b981;">
+                    <strong style="color: #065f46;">✅ No V1 deprecation warnings should appear!</strong>
+                    <p style="color: #065f46; margin-top: 5px;">
+                        Since we migrated all frontend code to V2, you should see:
+                    </p>
+                    <ul style="margin-left: 20px; color: #065f46; margin-top: 10px;">
+                        <li>All API calls use <code>/api/v2/</code></li>
+                        <li>No deprecation headers in responses</li>
+                        <li>No deprecation warnings in server logs</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000';
+        let monitoring = false;
+        const observedCalls = new Set();
+
+        async function checkEndpoint() {
+            const select = document.getElementById('endpoint-select');
+            const endpoint = select.value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!endpoint) {
+                alert('Please select an endpoint to test');
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Checking...';
+            resultDiv.className = 'result show';
+            
+            try {
+                const response = await fetch(API_BASE_URL + endpoint, {
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+                    }
+                });
+                
+                const headers = {};
+                for (let [key, value] of response.headers.entries()) {
+                    headers[key] = value;
+                }
+                
+                const isDeprecated = headers['x-api-deprecated'] === 'true';
+                
+                let html = `<h3>${isDeprecated ? '⚠️ DEPRECATED ENDPOINT' : '✅ CURRENT ENDPOINT'}</h3>`;
+                html += `<p><strong>Endpoint:</strong> <code>${endpoint}</code></p>`;
+                html += `<p><strong>Status:</strong> ${response.status} ${response.statusText}</p>`;
+                
+                if (isDeprecated) {
+                    html += '<div class="header-list"><strong>Deprecation Headers:</strong>';
+                    html += `<div class="header-item deprecated-header">X-API-Deprecated: ${headers['x-api-deprecated']}</div>`;
+                    html += `<div class="header-item deprecated-header">X-API-Deprecation-Date: ${headers['x-api-deprecation-date']}</div>`;
+                    html += `<div class="header-item deprecated-header">X-API-Sunset-Date: ${headers['x-api-sunset-date']}</div>`;
+                    html += `<div class="header-item deprecated-header">X-API-Replacement: ${headers['x-api-replacement']}</div>`;
+                    html += `<div class="header-item deprecated-header">Warning: ${headers['warning']}</div>`;
+                    html += '</div>';
+                    
+                    resultDiv.className = 'result show deprecated';
+                } else {
+                    html += '<p style="margin-top: 10px; color: #065f46;">✅ This endpoint is up-to-date (V2)</p>';
+                    resultDiv.className = 'result show success';
+                }
+                
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<h3>❌ Error</h3><p>${error.message}</p>`;
+                resultDiv.className = 'result show deprecated';
+            }
+        }
+
+        function startMonitoring() {
+            monitoring = true;
+            const logOutput = document.getElementById('log-output');
+            logOutput.innerHTML = '<div class="log-line success">✅ Monitoring started. Use the app and API calls will appear here...</div>';
+            
+            // Intercept fetch calls
+            const originalFetch = window.fetch;
+            window.fetch = function(...args) {
+                const url = args[0];
+                const now = new Date().toLocaleTimeString();
+                
+                if (url.includes('/api/')) {
+                    const isV1 = !url.includes('/api/v2/');
+                    const endpoint = url.replace(API_BASE_URL, '');
+                    
+                    let logClass = isV1 ? 'warning' : 'success';
+                    let icon = isV1 ? '⚠️' : '✅';
+                    let message = `${icon} [${now}] ${endpoint}`;
+                    
+                    if (isV1) {
+                        message += ' (DEPRECATED V1)';
+                    } else {
+                        message += ' (V2)';
+                    }
+                    
+                    const logLine = document.createElement('div');
+                    logLine.className = `log-line ${logClass}`;
+                    logLine.textContent = message;
+                    logOutput.appendChild(logLine);
+                    logOutput.scrollTop = logOutput.scrollHeight;
+                }
+                
+                return originalFetch.apply(this, args);
+            };
+        }
+
+        function clearLog() {
+            const logOutput = document.getElementById('log-output');
+            logOutput.innerHTML = '<div class="log-line success">Log cleared. API calls will appear here...</div>';
+        }
+
+        // Auto-start monitoring
+        window.addEventListener('load', () => {
+            console.log('V1 Deprecation Header Checker loaded');
+            console.log('Use the buttons to test endpoints and monitor API calls');
+        });
+    </script>
+</body>
+</html>

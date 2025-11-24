@@ -147,7 +147,10 @@ class MealPlanningSystem:
         try:
             # Validate meal data structure
             if not self._validate_meal_data(meal_data):
+                self.logger.error(f"❌ VALIDATION FAILED for meal_data: {json.dumps(meal_data, indent=2)}")
                 raise ValueError("Invalid meal data structure")
+            
+            self.logger.info(f"✅ Validation passed for meal_data: {json.dumps(meal_data, indent=2)}")
             
             # Update meal plan
             cursor.execute('''
@@ -450,6 +453,7 @@ class MealPlanningSystem:
     def _validate_meal_data(self, meal_data: Dict) -> bool:
         """
         Validate meal data structure.
+        Accepts web format: {days: {day1: {name: "...", recipes: [...]}}}
         
         Args:
             meal_data: Meal data to validate
@@ -460,44 +464,26 @@ class MealPlanningSystem:
         if not isinstance(meal_data, dict):
             return False
         
-        # Expected structure: { day: { meal_type: [recipe_ids] } }
-        days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-        meal_types = ['breakfast', 'lunch', 'dinner', 'snacks']
-        
-        for day_name, day_data in meal_data.items():
-            if day_name.lower() not in days:
-                continue  # Allow flexible day naming
-                
-            if not isinstance(day_data, dict):
+        # New web format: {days: {day1: {name: "...", recipes: [...]}}}
+        if 'days' in meal_data:
+            days_data = meal_data.get('days', {})
+            if not isinstance(days_data, dict):
                 return False
-                
-            for meal_type, recipes in day_data.items():
-                if meal_type.lower() not in meal_types:
-                    continue  # Allow flexible meal type naming
-                    
-                if not isinstance(recipes, list):
+            # Accept any day keys (day1, day2, etc.) with name and recipes
+            for day_key, day_data in days_data.items():
+                if not isinstance(day_data, dict):
                     return False
+                # Web format can have 'name' and 'recipes' properties
+            return True
         
-        return True
+        # Accept empty dict for new meal plans
+        if len(meal_data) == 0:
+            return True
+        
+        # Otherwise invalid
+        return False
     
-    def create_template_meal_plan(self) -> Dict:
-        """
-        Create an empty meal plan template.
-        
-        Returns:
-            Dict: Empty meal plan structure
-        """
-        return {
-            'monday': {'breakfast': [], 'lunch': [], 'dinner': [], 'snacks': []},
-            'tuesday': {'breakfast': [], 'lunch': [], 'dinner': [], 'snacks': []},
-            'wednesday': {'breakfast': [], 'lunch': [], 'dinner': [], 'snacks': []},
-            'thursday': {'breakfast': [], 'lunch': [], 'dinner': [], 'snacks': []},
-            'friday': {'breakfast': [], 'lunch': [], 'dinner': [], 'snacks': []},
-            'saturday': {'breakfast': [], 'lunch': [], 'dinner': [], 'snacks': []},
-            'sunday': {'breakfast': [], 'lunch': [], 'dinner': [], 'snacks': []}
-        }
-
-
+    
 # Convenience function for quick access
 def get_meal_planning_system(db_path: str = 'hungie.db') -> MealPlanningSystem:
     """Get initialized meal planning system instance."""
@@ -515,15 +501,24 @@ if __name__ == "__main__":
         # Initialize system
         meal_planner = MealPlanningSystem()
         
-        # Create test meal plan
-        template = meal_planner.create_template_meal_plan()
-        template['monday']['breakfast'] = [1, 2]  # Add some test recipe IDs
-        template['monday']['lunch'] = [3]
+        # Create test meal plan with NEW format
+        test_data = {
+            'days': {
+                'day1': {
+                    'name': 'Test Day 1',
+                    'recipes': [{'id': 1, 'title': 'Test Recipe 1'}]
+                },
+                'day2': {
+                    'name': 'Test Day 2',
+                    'recipes': [{'id': 2, 'title': 'Test Recipe 2'}]
+                }
+            }
+        }
         
         plan_id = meal_planner.create_meal_plan(
             "Test Meal Plan",
             "2025-08-11",
-            template
+            test_data
         )
         
         print(f"✅ Created test meal plan with ID: {plan_id}")
