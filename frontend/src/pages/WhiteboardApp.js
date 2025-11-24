@@ -469,18 +469,21 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       // Group by meal_plan_id to fetch unique meal plans
       const uniqueMealPlanIds = [...new Set(mealPlanObjects.map(obj => obj.entity_id || obj.mid))];
       
-      // Fetch meal plan data for each unique ID
+      // HOUSEHOLD-AWARE: Fetch meal plan data using whiteboard context
       const mealPlanDataMap = {};
       for (const planId of uniqueMealPlanIds) {
         try {
-          const response = await whiteboardAPI.getMealPlan(planId);
+          // Use household-aware endpoint to allow viewing meal plans from other members
+          const response = await whiteboardAPI.getWhiteboardMealPlan(whiteboardId, planId);
           console.log(`📅 Fetched meal plan ${planId}:`, response);
           if (response.success) {
-            // V1 API returns {success: true, meal_plan: {...}}
-            mealPlanDataMap[planId] = response.meal_plan;
+            // V2 household-aware API returns {success: true, data: {...}}
+            const mealPlan = response.data;
+            mealPlanDataMap[planId] = mealPlan;
+            console.log(`✅ Loaded meal plan ${planId} (author: ${mealPlan.author_name || 'unknown'})`);
           }
         } catch (err) {
-          console.warn(`Failed to load meal plan ${planId}:`, err);
+          console.warn(`⚠️ Failed to load meal plan ${planId} in household context:`, err.message);
         }
       }
       
@@ -618,15 +621,35 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       const noteObjects = savedObjects.filter(obj => obj.type === 'nt' || obj.object_type === 'note');
       console.log('📝 Found note objects:', noteObjects);
       
-      // Fetch all user recipes to get full recipe data
-      const data = await apiCall('/api/user/recipes?category=all');
-      const recipes = data.data || data.recipes || [];
-      
-      // Create a map of recipe_id -> recipe for quick lookup
+      // HOUSEHOLD-AWARE: Fetch recipes individually using whiteboard context
+      // This allows viewing recipes created by other household members
       const recipeMap = {};
-      recipes.forEach(recipe => {
-        recipeMap[recipe.id] = recipe;
-      });
+      
+      // Get unique recipe IDs from saved objects
+      const recipeIds = [...new Set(
+        savedObjects
+          .filter(obj => obj.entity_type === 'recipe' && obj.entity_id)
+          .map(obj => obj.entity_id)
+      )];
+      
+      console.log(`🏠 Fetching ${recipeIds.length} recipes in household context...`);
+      
+      // Fetch each recipe using household-aware endpoint
+      for (const recipeId of recipeIds) {
+        try {
+          const result = await whiteboardAPI.getWhiteboardRecipe(whiteboardId, recipeId);
+          if (result.success && result.data) {
+            recipeMap[recipeId] = result.data;
+            console.log(`✅ Loaded recipe ${recipeId} (author: ${result.data.author_name || 'unknown'})`);
+          } else {
+            console.warn(`⚠️ Recipe ${recipeId} not found in household`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to load recipe ${recipeId}:`, error.message);
+        }
+      }
+      
+      console.log(`📚 Loaded ${Object.keys(recipeMap).length} recipes from household members`);
       
       // Load ALL recipe objects (don't skip any!)
       // Meal plan relationships will be set later in loadSavedMealPlanDays

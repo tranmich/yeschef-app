@@ -288,15 +288,27 @@ class GroceryListRepository(BaseRepository):
         return []
     
     def get_grocery_lists_by_whiteboard(self, whiteboard_id: int, user_id: int) -> List[Dict[str, Any]]:
-        """Get all grocery lists for a specific whiteboard (Phase 2: clean schema)"""
+        """
+        Get all grocery lists for a specific whiteboard (household-aware)
+        Returns lists created by ANY household member, not just the current user
+        """
         query = """
-            SELECT id, user_id, name, list_data as items, meal_plan_id, hid, wid, wp, lr,
-                   created_at, updated_at
-            FROM grocery_lists
-            WHERE wid = %s AND user_id = %s AND deleted_at IS NULL
-            ORDER BY updated_at DESC
+            SELECT DISTINCT gl.id, gl.user_id, gl.name, gl.list_data as items, 
+                   gl.meal_plan_id, gl.hid, gl.wid, gl.wp, gl.lr,
+                   gl.created_at, gl.updated_at,
+                   u.name as creator_name, u.email as creator_email
+            FROM grocery_lists gl
+            JOIN wb ON gl.wid = wb.id
+            JOIN household_members hm ON wb.hid = hm.household_id
+            LEFT JOIN users u ON gl.user_id = u.id
+            WHERE gl.wid = %s 
+              AND hm.user_id = %s
+              AND gl.deleted_at IS NULL
+              AND wb.deleted_at IS NULL
+            ORDER BY gl.updated_at DESC
         """
         
+        logger.info(f"🛒 Fetching grocery lists for whiteboard {whiteboard_id} (household-aware, user {user_id})")
         result = self._execute_query(query, (whiteboard_id, user_id))
         
         if result:
@@ -321,8 +333,13 @@ class GroceryListRepository(BaseRepository):
                 if 'wid' in grocery_list:
                     grocery_list['whiteboard_id'] = grocery_list['wid']
                     del grocery_list['wid']
+                # Keep creator info for UI display
+                creator = grocery_list.get('creator_name') or grocery_list.get('creator_email') or 'Unknown'
+                logger.info(f"  ✅ List '{grocery_list.get('name')}' (id={grocery_list.get('id')}) by {creator}")
                 grocery_lists.append(grocery_list)
+            logger.info(f"✅ Loaded {len(grocery_lists)} grocery lists from household")
             return grocery_lists
+        logger.info(f"  ℹ️ No grocery lists found for whiteboard {whiteboard_id}")
         return []
     
     # UPDATE

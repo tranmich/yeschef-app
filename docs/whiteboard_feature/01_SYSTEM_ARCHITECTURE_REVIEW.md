@@ -65,6 +65,28 @@
   - Automatic v2 API save with validation
   - Mobile sync confirmed working
 
+**Whiteboard Guest User Fix (November 24, 2025):**
+- ✅ **Household-Aware Recipe Loading** - Fixed guest access
+  - Changed from `/api/user/recipes` (user-only) to `/api/v2/whiteboard/<wid>/recipes/<rid>` (household-aware)
+  - Guest users can now view recipes created by other household members
+  - Individual recipe fetching replaces bulk fetch for proper permissions
+- ✅ **Household-Aware Meal Plan Loading** - Fixed guest access
+  - Changed from `/api/meal-plans/<id>` to `/api/v2/whiteboard/<wid>/meal-plans/<id>` (household-aware)
+  - Guest users can now view meal plans created by other household members
+  - Backend verifies household membership before returning data
+- ✅ **Household-Aware Grocery List Loading** - Fixed guest access
+  - Updated `GroceryListRepository.get_grocery_lists_by_whiteboard()` to check household membership
+  - Changed from `WHERE wid = %s AND user_id = %s` to `JOIN household_members` verification
+  - Guest users can now view grocery lists created by other household members
+  - Added creator name/email to response for proper attribution
+- ✅ **WhiteboardApp.js** - Updated data loading
+  - `loadSavedObjects()` - Now fetches recipes individually with household context
+  - `loadSavedMealPlanDays()` - Now uses household-aware endpoint
+  - Logs author names for better debugging
+- ✅ **Security** - All changes maintain proper household boundary enforcement
+  - Backend verifies user is household member before returning any data
+  - No risk of cross-household data leakage
+
 **Previous Bug Fixes (November 9-10, 2025):**
 - ✅ **Recipe Tags Persistence** - Fixed: Tags now load from database correctly
 - ✅ **Note Title Persistence** - Fixed: Note names stored in JSONB content
