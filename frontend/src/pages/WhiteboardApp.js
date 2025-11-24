@@ -16,7 +16,7 @@ import { ReactFlow, Controls, Background, useReactFlow, Panel, applyNodeChanges 
 import '@xyflow/react/dist/style.css';
 import { useAuth } from '../contexts/AuthContext';
 import whiteboardAPI from '../services/whiteboardAPI';
-import RecipeCardNode from '../components/RecipeCardNode';
+import RecipeCardNode from '../components/whiteboard/nodes/RecipeCardNode';
 import RecipePickerPanel from '../components/RecipePickerPanel';
 import MealPlanFloatingWidget from '../components/MealPlanFloatingWidget';
 // ConnectionLinesOverlay removed - feature not needed
