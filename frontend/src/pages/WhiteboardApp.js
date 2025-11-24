@@ -34,6 +34,19 @@ import { apiCall } from '../utils/api';
 import { consolidateIngredients } from '../utils/groceryListUtils';
 import './WhiteboardApp.css';
 
+// Debounce utility function (no external dependencies needed!)
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 // Define custom node types
 const nodeTypes = {
   recipeCard: RecipeCardNode, // Recipe card with tag support
@@ -123,6 +136,29 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   const getCommentCount = useCallback((objectType, objectId) => {
     return commentCounts[objectType]?.[objectId] || 0;
   }, [commentCounts]);
+
+  // 🆕 Debounced note save function (saves after 2 seconds of inactivity)
+  const debouncedNoteSave = useRef(
+    debounce(async (whiteboardId, noteId, noteData) => {
+      try {
+        await apiCall(`/api/v2/whiteboard/${whiteboardId}/o/${noteId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            content: {
+              type: 'note',
+              name: noteData.name,
+              html: noteData.content,
+              backgroundColor: noteData.backgroundColor,
+              fontSize: noteData.fontSize
+            }
+          })
+        });
+        console.log('✅ Note auto-saved (debounced)');
+      } catch (error) {
+        console.error('❌ Failed to save note:', error);
+      }
+    }, 2000) // Wait 2 seconds after last change
+  ).current;
 
   // Helper function to enforce z-index for recipes in meal plans
   const enforceZIndex = useCallback((nodes) => {
@@ -720,42 +756,25 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
                 commentCount: getCommentCount('note', obj.id),  // Get comment count
                 createdBy: obj.created_by_name || obj.created_by_email || 'Unknown', // Add creator name from backend
                 onDelete: handleDeleteNote, // Add delete handler to data
-                onSave: async (noteData) => {
-                  // Auto-save handler
-                  try {
-                    // Update the node's data in React Flow first (optimistic update)
-                    setNodes(prevNodes => prevNodes.map(n =>
-                      n.id === `note-${obj.id}`
-                        ? {
-                            ...n,
-                            data: {
-                              ...n.data,
-                              name: noteData.name,
-                              content: noteData.content,
-                              backgroundColor: noteData.backgroundColor,
-                              fontSize: noteData.fontSize
-                            }
+                onSave: (noteData) => {
+                  // 🆕 Optimistic update (immediate UI feedback)
+                  setNodes(prevNodes => prevNodes.map(n =>
+                    n.id === `note-${obj.id}`
+                      ? {
+                          ...n,
+                          data: {
+                            ...n.data,
+                            name: noteData.name,
+                            content: noteData.content,
+                            backgroundColor: noteData.backgroundColor,
+                            fontSize: noteData.fontSize
                           }
-                        : n
-                    ));
-
-                    // Then save to backend - include name inside content
-                    await apiCall(`/api/v2/whiteboard/${whiteboardId}/o/${obj.id}`, {
-                      method: 'PATCH',
-                      body: JSON.stringify({
-                        content: {
-                          type: 'note',
-                          name: noteData.name,  // Include name in content
-                          html: noteData.content,
-                          backgroundColor: noteData.backgroundColor,
-                          fontSize: noteData.fontSize
                         }
-                      })
-                    });
-                    console.log('✅ Note auto-saved');
-                  } catch (error) {
-                    console.error('❌ Failed to save note:', error);
-                  }
+                      : n
+                  ));
+
+                  // 🆕 Debounced save to backend (2 seconds after last change)
+                  debouncedNoteSave(whiteboardId, obj.id, noteData);
                 }
               },
               style: {
