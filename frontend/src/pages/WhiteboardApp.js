@@ -905,6 +905,10 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
             y: 150 + (row * 350) 
           },
           data: {
+            recipe: {
+              ...recipe,
+              image_url: imageUrl
+            },
             recipe_id: recipe.id,
             name: recipe.title || recipe.name || 'Untitled Recipe', // Use title field!
             image_url: imageUrl, // Use fixed URL
@@ -944,7 +948,15 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
             id: 'recipe-1',
             type: 'recipeCard',
             position: { x: 200, y: 150 },
-            data: { 
+            data: {
+              recipe: {
+                id: 1,
+                name: 'Classic Margherita Pizza',
+                image_url: 'https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=400',
+                prep_time: 20,
+                cook_time: 15,
+                category: 'dinner'
+              },
               recipe_id: 1,
               name: 'Classic Margherita Pizza',
               image_url: 'https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=400',
@@ -958,7 +970,15 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
             id: 'recipe-2',
             type: 'recipeCard',
             position: { x: 600, y: 150 },
-            data: { 
+            data: {
+              recipe: {
+                id: 2,
+                name: 'Chocolate Chip Cookies',
+                image_url: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=400',
+                prep_time: 15,
+                cook_time: 12,
+                category: 'dessert'
+              },
               recipe_id: 2,
               name: 'Chocolate Chip Cookies',
               image_url: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=400',
@@ -972,7 +992,15 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
             id: 'recipe-3',
             type: 'recipeCard',
             position: { x: 1000, y: 150 },
-            data: { 
+            data: {
+              recipe: {
+                id: 3,
+                name: 'Caesar Salad with Grilled Chicken',
+                image_url: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400',
+                prep_time: 10,
+                cook_time: 20,
+                category: 'salad'
+              },
               recipe_id: 3,
               name: 'Caesar Salad with Grilled Chicken',
               image_url: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400',
@@ -986,7 +1014,15 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
             id: 'recipe-4',
             type: 'recipeCard',
             position: { x: 400, y: 500 },
-            data: { 
+            data: {
+              recipe: {
+                id: 4,
+                name: 'Blueberry Pancakes',
+                image_url: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=400',
+                prep_time: 10,
+                cook_time: 15,
+                category: 'breakfast'
+              },
               recipe_id: 4,
               name: 'Blueberry Pancakes',
               image_url: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=400',
