@@ -717,26 +717,54 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
           .map(obj => obj.entity_id)
       )];
       
-      console.log(`🏠 Fetching ${recipeIds.length} recipes in household context...`);
+      console.log(`🏠 Fetching ${recipeIds.length} recipes in household context (BATCH MODE)...`);
       
-      // Fetch each recipe using household-aware endpoint
-      for (const recipeId of recipeIds) {
+      // 🆕 BATCH FETCH: Get all recipes in ONE request instead of N requests!
+      if (recipeIds.length > 0) {
         try {
-          const result = await whiteboardAPI.getWhiteboardRecipe(whiteboardId, recipeId);
-          if (result.success && result.data) {
-            // Store recipe data with both id and recipe properties for compatibility
-            const recipeData = {
-              ...result.data,
-              id: result.data.id,
-              recipe: result.data  // RecipeCardNode expects data.recipe
-            };
-            recipeMap[recipeId] = recipeData;
-            console.log(`✅ Loaded recipe ${recipeId} (author: ${result.data.author_name || 'unknown'})`);
+          const result = await apiCall('/api/v2/recipes/batch', {
+            method: 'POST',
+            body: JSON.stringify({
+              recipe_ids: recipeIds,
+              user_id: user?.id
+            })
+          });
+          
+          if (result.success && result.data?.recipes) {
+            // Store all recipes in map
+            result.data.recipes.forEach(recipe => {
+              const recipeData = {
+                ...recipe,
+                id: recipe.id,
+                recipe: recipe  // RecipeCardNode expects data.recipe
+              };
+              recipeMap[recipe.id] = recipeData;
+            });
+            
+            console.log(`✅ Batch loaded ${result.data.found_count}/${result.data.requested_count} recipes`);
+            console.log(`   Authors: ${[...new Set(result.data.recipes.map(r => r.created_by_name || 'unknown'))].join(', ')}`);
           } else {
-            console.warn(`⚠️ Recipe ${recipeId} not found in household`);
+            console.warn('⚠️ Batch recipe fetch returned no data');
           }
         } catch (error) {
-          console.warn(`⚠️ Failed to load recipe ${recipeId}:`, error.message);
+          console.error('❌ Batch recipe fetch failed:', error);
+          // Fallback to individual fetches if batch fails
+          console.log('🔄 Falling back to individual recipe fetches...');
+          for (const recipeId of recipeIds) {
+            try {
+              const result = await whiteboardAPI.getWhiteboardRecipe(whiteboardId, recipeId);
+              if (result.success && result.data) {
+                const recipeData = {
+                  ...result.data,
+                  id: result.data.id,
+                  recipe: result.data
+                };
+                recipeMap[recipeId] = recipeData;
+              }
+            } catch (err) {
+              console.warn(`⚠️ Failed to load recipe ${recipeId}:`, err.message);
+            }
+          }
         }
       }
       

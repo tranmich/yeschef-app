@@ -356,6 +356,28 @@ class RecipeRepository(BaseRepository):
         results = self._execute_query(query, (user_id,))
         return [row['flavor_profile'] for row in results]
     
+    def find_by_ids(self, recipe_ids: List[int]) -> List[Dict[str, Any]]:
+        """
+        Find multiple recipes by IDs in a single query (batch fetch)
+        Solves N+1 query problem
+        
+        Args:
+            recipe_ids: List of recipe IDs
+        
+        Returns:
+            List of recipe dictionaries
+        """
+        if not recipe_ids:
+            return []
+        
+        # Use ANY to match multiple IDs efficiently
+        query = f"""
+            SELECT * FROM {self.table_name}
+            WHERE id = ANY(%s)
+            ORDER BY created_at DESC
+        """
+        return self._execute_query(query, (recipe_ids,))
+    
     # Duplicate detection (for Phase 6 performance optimization)
     
     def find_recent_similar(self, user_id: int, title: str, within_minutes: int = 5) -> Optional[Dict[str, Any]]:

@@ -417,6 +417,50 @@ class RecipeService(BaseService):
             self.log_error("Error getting community recipes", exception=e)
             return self.error_response('Failed to get community recipes')
     
+    def get_recipes_batch(self, recipe_ids: List[int], user_id: int = None) -> Dict[str, Any]:
+        """
+        Get multiple recipes by IDs in a single batch request (solves N+1 query problem)
+        
+        Args:
+            recipe_ids: List of recipe IDs to fetch
+            user_id: Optional user ID for authorization check
+        
+        Returns:
+            Success response with list of recipes
+        """
+        try:
+            if not recipe_ids:
+                return self.success_response({
+                    'recipes': [],
+                    'found_count': 0,
+                    'requested_count': 0
+                })
+            
+            # Fetch all recipes in single query
+            recipes = self.recipe_repo.find_by_ids(recipe_ids)
+            
+            # Filter by authorization if user_id provided
+            if user_id:
+                authorized_recipes = []
+                for recipe in recipes:
+                    # User owns recipe OR recipe is community-shared
+                    if recipe['user_id'] == user_id or recipe.get('is_community_shared'):
+                        authorized_recipes.append(recipe)
+                recipes = authorized_recipes
+            
+            # Parse JSON fields for all recipes
+            recipes = [self._parse_recipe_json(r) for r in recipes]
+            
+            return self.success_response({
+                'recipes': recipes,
+                'found_count': len(recipes),
+                'requested_count': len(recipe_ids)
+            })
+            
+        except Exception as e:
+            self.log_error(f"Error getting recipes batch (count: {len(recipe_ids)})", exception=e)
+            return self.error_response('Failed to get recipes batch')
+    
     # Helper methods
     
     def _parse_recipe_json(self, recipe: Dict[str, Any]) -> Dict[str, Any]:

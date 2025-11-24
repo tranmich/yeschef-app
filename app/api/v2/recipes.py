@@ -463,3 +463,67 @@ def get_community_recipes():
     result = recipe_service.get_community_recipes(page, per_page)
     
     return jsonify(result), 200
+
+
+# POST /api/v2/recipes/batch
+@recipe_bp.route('/batch', methods=['POST'])
+@handle_errors
+def get_recipes_batch():
+    """
+    Get multiple recipes by IDs in a single request (solves N+1 query problem)
+    
+    Example:
+        POST /api/v2/recipes/batch
+        Body: {
+            "recipe_ids": [123, 456, 789],
+            "user_id": 11
+        }
+        
+    Response:
+        {
+            "success": true,
+            "data": {
+                "recipes": [
+                    {"id": 123, "title": "Chicken Soup", ...},
+                    {"id": 456, "title": "Beef Stew", ...},
+                    {"id": 789, "title": "Caesar Salad", ...}
+                ],
+                "found_count": 3,
+                "requested_count": 3
+            }
+        }
+    """
+    recipe_service = get_recipe_service()
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({
+            'success': False,
+            'error': 'Request body required'
+        }), 400
+    
+    recipe_ids = data.get('recipe_ids', [])
+    user_id = data.get('user_id', type=int)
+    
+    if not recipe_ids:
+        return jsonify({
+            'success': False,
+            'error': 'recipe_ids array is required'
+        }), 400
+    
+    if not isinstance(recipe_ids, list):
+        return jsonify({
+            'success': False,
+            'error': 'recipe_ids must be an array'
+        }), 400
+    
+    # Limit batch size to prevent abuse
+    if len(recipe_ids) > 200:
+        return jsonify({
+            'success': False,
+            'error': 'Maximum 200 recipes per batch request'
+        }), 400
+    
+    result = recipe_service.get_recipes_batch(recipe_ids, user_id)
+    
+    return jsonify(result), 200
