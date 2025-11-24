@@ -639,7 +639,13 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
         try {
           const result = await whiteboardAPI.getWhiteboardRecipe(whiteboardId, recipeId);
           if (result.success && result.data) {
-            recipeMap[recipeId] = result.data;
+            // Store recipe data with both id and recipe properties for compatibility
+            const recipeData = {
+              ...result.data,
+              id: result.data.id,
+              recipe: result.data  // RecipeCardNode expects data.recipe
+            };
+            recipeMap[recipeId] = recipeData;
             console.log(`✅ Loaded recipe ${recipeId} (author: ${result.data.author_name || 'unknown'})`);
           } else {
             console.warn(`⚠️ Recipe ${recipeId} not found in household`);
@@ -777,6 +783,10 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
               y: posY
             },
             data: {
+              recipe: {
+                ...recipe,
+                image_url: imageUrl
+              },
               object_id: obj.id, // Database object ID for deletion
               recipe_id: recipe.id,
               name: recipe.title || recipe.name || 'Untitled Recipe',
