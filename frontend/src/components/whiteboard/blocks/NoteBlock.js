@@ -117,23 +117,23 @@ const NoteBlock = ({ id, data, selected }) => {
       const newContent = editor.getHTML();
       setContent(newContent);
       
-      // Auto-save after content changes (including image resizes)
-      // Debounced via the onBlur handler, but we'll also trigger a delayed save
+      // 🆕 REMOVED: Local setTimeout debouncing
+      // Auto-save is now handled by parent component's debouncedNoteSave (2 seconds)
+      // This eliminates double-debouncing and ensures consistent behavior
       if (data.onSave) {
-        const saveTimeout = setTimeout(() => {
-          data.onSave({
-            id,
-            content: newContent,
-            backgroundColor,
-            fontSize,
-          });
-        }, 1000); // Save 1 second after last change
-        
-        return () => clearTimeout(saveTimeout);
+        data.onSave({
+          id,
+          name,
+          content: newContent,
+          backgroundColor,
+          fontSize,
+        });
       }
     },
     onBlur: () => {
-      handleAutoSave();
+      // 🆕 REMOVED: Auto-save on blur
+      // Parent component handles all saves with proper debouncing
+      // This prevents duplicate API calls when user clicks away
     },
   });
 
@@ -182,8 +182,15 @@ const NoteBlock = ({ id, data, selected }) => {
 
   const handleNameBlur = () => {
     setIsEditingName(false);
-    if (name !== data.name) {
-      handleAutoSave();
+    // 🆕 Trigger save through onSave if name changed
+    if (name !== data.name && data.onSave) {
+      data.onSave({
+        id,
+        name,
+        content,
+        backgroundColor,
+        fontSize,
+      });
     }
   };
 
@@ -192,7 +199,16 @@ const NoteBlock = ({ id, data, selected }) => {
     
     if (e.key === 'Enter') {
       setIsEditingName(false);
-      handleAutoSave();
+      // 🆕 Trigger save through onSave
+      if (data.onSave) {
+        data.onSave({
+          id,
+          name,
+          content,
+          backgroundColor,
+          fontSize,
+        });
+      }
     } else if (e.key === 'Escape') {
       setName(data.name || 'Note');
       setIsEditingName(false);
