@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { validateNode, normalizeNode } from '../utils/nodeValidation';
 
 /**
  * Whiteboard Context
@@ -66,18 +67,43 @@ export function WhiteboardProvider({ children, whiteboardId, householdId }) {
   
   /**
    * Add a single node to the canvas
+   * Validates and normalizes node structure
    */
   const addNode = useCallback((node) => {
-    setNodes(prev => [...prev, node]);
-    console.log(`➕ Node added: ${node.id} (${node.type})`);
+    try {
+      // 🔍 VALIDATE: Ensure node structure is correct
+      validateNode(node);
+      
+      // 🔧 NORMALIZE: Handle v1/v2 differences
+      const normalizedNode = normalizeNode(node);
+      
+      setNodes(prev => [...prev, normalizedNode]);
+      console.log(`✅ Node added: ${normalizedNode.id} (${normalizedNode.type})`);
+    } catch (error) {
+      console.error('❌ Failed to add node:', error.message);
+      console.error('Invalid node:', node);
+      throw error;
+    }
   }, []);
   
   /**
    * Add multiple nodes at once
+   * Validates and normalizes all nodes
    */
   const addNodes = useCallback((newNodes) => {
-    setNodes(prev => [...prev, ...newNodes]);
-    console.log(`➕ ${newNodes.length} nodes added`);
+    try {
+      // 🔍 VALIDATE & NORMALIZE: Process all nodes
+      const normalizedNodes = newNodes.map(node => {
+        validateNode(node);
+        return normalizeNode(node);
+      });
+      
+      setNodes(prev => [...prev, ...normalizedNodes]);
+      console.log(`✅ ${normalizedNodes.length} nodes added`);
+    } catch (error) {
+      console.error('❌ Failed to add nodes:', error.message);
+      throw error;
+    }
   }, []);
   
   /**
