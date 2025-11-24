@@ -2751,6 +2751,12 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       })
     : nodes; // Show all nodes if no tags selected
 
+  // DEBUG: Log filtered nodes
+  console.log('🔍 RENDER DEBUG:');
+  console.log(`   selectedTags:`, selectedTags);
+  console.log(`   nodes.length: ${nodes.length}`);
+  console.log(`   filteredNodes.length: ${filteredNodes.length}`);
+  
   // Desktop view (React Flow canvas)
   return (
     <div className="whiteboard-app desktop embedded">
