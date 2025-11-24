@@ -1631,7 +1631,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   // NOTE CREATION HANDLER
   // ====================================
 
-  const handleCreateNote = async () => {
+  const handleCreateNote = useCallback(async () => {
     try {
       console.log('📝 Creating new note block...');
       
@@ -1724,10 +1724,10 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       console.error('❌ Error creating note:', error);
       toast.error('Failed to create note: ' + error.message);
     }
-  };
+  }, [nodes, whiteboardId, user, handleDeleteNote, debouncedNoteSave, toast]);
 
   // Create Activity Feed Widget (no backend storage needed - just reads from activity_feed table)
-  const handleCreateActivityFeed = () => {
+  const handleCreateActivityFeed = useCallback(() => {
     try {
       console.log('🔔 Creating new activity feed widget...');
       
@@ -1771,7 +1771,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       console.error('❌ Error creating activity feed:', error);
       toast.error('Failed to create activity feed');
     }
-  };
+  }, [nodes, householdId, setNodesWithZIndex, toast]);
 
   const handleCreateDayBox = async () => {
     try {
@@ -2142,7 +2142,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
   };
 
-  const handleAddRecipe = (recipe) => {
+  const handleAddRecipe = useCallback((recipe) => {
     console.log('➕ Adding recipe to canvas:', recipe.title || recipe.name);
 
     // Check if recipe already exists on canvas
@@ -2196,10 +2196,10 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }, 100);
 
     console.log('✅ Recipe added to canvas!');
-  };
+  }, [nodes, handleRecipeClick, handleDeleteRecipe, handleRecipeColorChange, handleSave]);
 
   // Handle recipe card click to show detail modal
-  const handleRecipeClick = async (recipeId) => {
+  const handleRecipeClick = useCallback(async (recipeId) => {
     try {
       console.log('👁️ Opening recipe detail for:', recipeId);
       
@@ -2217,7 +2217,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       console.error('❌ Error loading recipe:', error);
       toast.error('Failed to load recipe');
     }
-  };
+  }, [toast]);
 
   // Handle recipe color change
   const handleRecipeColorChange = useCallback(async (nodeId, color, objectId) => {
