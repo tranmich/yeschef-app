@@ -810,6 +810,13 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
         .filter(node => node !== null); // Remove null nodes
       
       console.log(`✅ Restored ${restoredNodes.length} recipe cards from saved positions`);
+      console.log('📊 Recipe nodes structure:', restoredNodes.filter(n => n.type === 'recipeCard').map(n => ({
+        id: n.id,
+        type: n.type,
+        hasRecipe: !!n.data?.recipe,
+        recipeName: n.data?.recipe?.title || n.data?.recipe?.name,
+        position: n.position
+      })));
       setNodes(restoredNodes);
       // Edges removed - connection lines not needed
       
