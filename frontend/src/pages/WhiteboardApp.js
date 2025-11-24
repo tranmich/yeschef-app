@@ -16,6 +16,7 @@ import { ReactFlow, Controls, Background, useReactFlow, Panel, applyNodeChanges 
 import '@xyflow/react/dist/style.css';
 import { useAuth } from '../contexts/AuthContext';
 import { RecipeCacheProvider, useRecipeCache } from '../contexts/RecipeCacheContext';
+import { WhiteboardProvider } from '../contexts/WhiteboardContext';
 import whiteboardAPI from '../services/whiteboardAPI';
 import { createRecipeNode, normalizeRecipe } from '../utils/recipeNodeFactory';
 import RecipeCardNode from '../components/whiteboard/nodes/RecipeCardNode';
@@ -3147,15 +3148,20 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   );
 };
 
-// Wrap with ToastProvider and RecipeCacheProvider
-const WhiteboardAppWithToast = (props) => {
+// Wrap with ToastProvider, RecipeCacheProvider, and WhiteboardProvider
+const WhiteboardAppWithProviders = (props) => {
   return (
     <ToastProvider>
       <RecipeCacheProvider>
-        <WhiteboardApp {...props} />
+        <WhiteboardProvider 
+          whiteboardId={props.whiteboardId} 
+          householdId={props.householdId}
+        >
+          <WhiteboardApp {...props} />
+        </WhiteboardProvider>
       </RecipeCacheProvider>
     </ToastProvider>
   );
 };
 
-export default WhiteboardAppWithToast;
+export default WhiteboardAppWithProviders;
