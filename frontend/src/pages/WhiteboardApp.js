@@ -607,6 +607,23 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       
       console.log('✅ Linked existing recipe nodes to meal plans');
       
+      // FINAL DEBUG: Check what nodes we have after all loading
+      setNodes(prevNodes => {
+        console.log('🎯 FINAL NODES STATE:');
+        console.log(`   Total nodes: ${prevNodes.length}`);
+        console.log(`   Recipe cards: ${prevNodes.filter(n => n.type === 'recipeCard').length}`);
+        console.log(`   Meal plans: ${prevNodes.filter(n => n.type === 'mealPlanContainer').length}`);
+        console.log(`   Grocery lists: ${prevNodes.filter(n => n.type === 'groceryListNode').length}`);
+        console.log(`   Notes: ${prevNodes.filter(n => n.type === 'note').length}`);
+        console.log('   Recipe card details:', prevNodes.filter(n => n.type === 'recipeCard').map(n => ({
+          id: n.id,
+          hasRecipe: !!n.data?.recipe,
+          position: n.position,
+          visible: n.hidden !== true
+        })));
+        return prevNodes; // Return unchanged
+      });
+      
     } catch (error) {
       console.error('❌ Error loading meal plan day boxes:', error);
     }
