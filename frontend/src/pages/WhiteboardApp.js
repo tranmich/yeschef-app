@@ -2786,12 +2786,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
         return selectedTags.every(tag => nodeTags.includes(tag));
       })
     : nodes; // Show all nodes if no tags selected
-
-  // DEBUG: Log filtered nodes
-  console.log('🔍 RENDER DEBUG:');
-  console.log(`   selectedTags:`, selectedTags);
-  console.log(`   nodes.length: ${nodes.length}`);
-  console.log(`   filteredNodes.length: ${filteredNodes.length}`);
   
   // Desktop view (React Flow canvas)
   return (
