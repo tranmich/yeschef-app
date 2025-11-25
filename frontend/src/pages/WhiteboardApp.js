@@ -17,6 +17,8 @@ import '@xyflow/react/dist/style.css';
 import { useAuth } from '../contexts/AuthContext';
 import { RecipeCacheProvider, useRecipeCache } from '../contexts/RecipeCacheContext';
 import { WhiteboardProvider } from '../contexts/WhiteboardContext';
+import { useWhiteboardData } from '../hooks/useWhiteboardData';
+import { useRecipeNodes } from '../hooks/useRecipeNodes';
 import whiteboardAPI from '../services/whiteboardAPI';
 import { createRecipeNode, normalizeRecipe } from '../utils/recipeNodeFactory';
 import RecipeCardNode from '../components/whiteboard/nodes/RecipeCardNode';
@@ -64,6 +66,22 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   
   // 🆕 Recipe Cache - Single source of truth for all recipe data!
   const { addRecipes, getRecipe, getCacheStats } = useRecipeCache();
+  
+  // 🆕 Week 2: Whiteboard Data Hook - handles loading, validation, batch fetch!
+  const { 
+    loadWhiteboard: loadWhiteboardData,
+    isLoading: dataLoading,
+    error: dataError 
+  } = useWhiteboardData();
+  
+  // 🆕 Week 2: Recipe Operations Hook - handles add/delete/update recipe nodes!
+  const {
+    addRecipe: addRecipeToCanvas,
+    deleteRecipe: deleteRecipeFromCanvas,
+    updateRecipeTags,
+    updateRecipeColor,
+    handleRecipeClick: openRecipeDetail
+  } = useRecipeNodes();
   
   // Responsive detection
   const isMobile = useMediaQuery({ maxWidth: 768 });
@@ -373,114 +391,43 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [nodes, isPickerOpen, whiteboardId, isCommentsSidebarOpen, isTagSidebarOpen]);
 
+  // 🆕 WEEK 2: Simplified loadWhiteboard using useWhiteboardData hook!
   const loadWhiteboard = async () => {
-    // 🆕 Cancel any previous in-flight request
-    if (abortControllerRef.current) {
-      console.log('🛑 Cancelling previous whiteboard load request');
-      abortControllerRef.current.abort();
-    }
-
-    // 🆕 Create new AbortController for this request
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
     try {
       setLoading(true);
       setError(null);
 
-      // Handle 'default' whiteboard - get or create default whiteboard for household
-      let actualWhiteboardId = whiteboardId;
+      console.log('📥 Loading whiteboard with useWhiteboardData hook...');
       
-      if (whiteboardId === 'default' && householdId) {
-        console.log('🏠 Getting/creating default whiteboard for household:', householdId);
+      // 🎯 THE MAGIC: One hook call replaces 150+ lines of old code!
+      const result = await loadWhiteboardData();
+      
+      if (result.success) {
+        setWhiteboard(result.whiteboard);
+        console.log('✅ Whiteboard loaded successfully!');
+        console.log(`   📦 Loaded ${result.stats.recipes} recipes, ${result.stats.notes} notes`);
         
-        // Fetch whiteboards for this household
-        const whiteboardsResponse = await whiteboardAPI.getHouseholdWhiteboards(householdId);
-        
-        if (whiteboardsResponse.success && whiteboardsResponse.data?.length > 0) {
-          // Use first whiteboard
-          actualWhiteboardId = whiteboardsResponse.data[0].id;
-          console.log('✅ Using existing whiteboard:', actualWhiteboardId);
-        } else {
-          // Create default whiteboard
-          console.log('➕ Creating default whiteboard...');
-          const createResponse = await whiteboardAPI.createWhiteboard({
-            household_id: householdId,
-            name: 'Main Planning Board',
-            description: 'Your household meal planning and recipe board'
-          });
-          
-          console.log('📥 Create response:', createResponse);
-          
-          if (createResponse.success) {
-            // Backend returns data.whiteboard.id, not data.id
-            actualWhiteboardId = createResponse.data?.whiteboard?.id || createResponse.data?.id;
-            console.log('✅ Created whiteboard:', actualWhiteboardId);
-            
-            if (!actualWhiteboardId) {
-              console.error('❌ No whiteboard ID in response:', createResponse);
-              throw new Error('Created whiteboard but no ID returned');
-            }
-            
-            toast.success('Created your planning board!');
-          } else {
-            throw new Error('Failed to create whiteboard');
-          }
+        // Load additional whiteboard features (grocery lists, meal plans, comments)
+        if (result.whiteboard?.id) {
+          await loadSavedGroceryLists(result.whiteboard.id);
+          await loadSavedMealPlanDays(result.whiteboard);
+          await fetchCommentCounts(result.whiteboard.id);
         }
-      }
-
-      console.log('📥 Fetching whiteboard:', actualWhiteboardId);
-      const response = await whiteboardAPI.getWhiteboard(actualWhiteboardId);
-      console.log('📥 Get whiteboard response:', response);
-
-      if (response.success) {
-        const whiteboardData = response.data.whiteboard;
-        setWhiteboard(whiteboardData);
-        
-        console.log('📋 Whiteboard loaded:', whiteboardData.name);
-        console.log('📦 Saved objects:', whiteboardData.objects?.length || 0);
-        
-        // Check if whiteboard has saved objects
-        if (whiteboardData.objects && whiteboardData.objects.length > 0) {
-          // TODO (Week 2): Restore saved layout using useWhiteboardData hook
-          // For now, fallback to loading user recipes
-          console.log('⚡ Saved objects exist but loadSavedObjects removed (Week 1 refactor)');
-          console.log('   Will use useWhiteboardData hook in Week 2 migration');
-          await loadUserRecipes();
-        } else {
-          // No saved objects - load newest recipes as starting point
-          console.log('⚡ No saved objects, loading newest recipes...');
-          await loadUserRecipes();
-        }
-        
-        // Load saved grocery lists for this whiteboard
-        await loadSavedGroceryLists(actualWhiteboardId);
-        
-        // Load saved meal plan day boxes from whiteboard data
-        await loadSavedMealPlanDays(whiteboardData);
-        
-        // Fetch comment counts
-        await fetchCommentCounts(actualWhiteboardId);
       } else {
-        setError(response.message || 'Failed to load whiteboard');
+        setError(result.error || 'Failed to load whiteboard');
+        toast.error('Failed to load whiteboard');
       }
     } catch (err) {
-      // 🆕 Don't show error if request was cancelled
-      if (err.name === 'AbortError' || signal.aborted) {
-        console.log('✋ Whiteboard load cancelled (newer request started)');
-        return; // Exit silently
-      }
-      
       console.error('Error loading whiteboard:', err);
       setError('Failed to load whiteboard');
       toast.error('Failed to load whiteboard: ' + err.message);
     } finally {
-      // 🆕 Only set loading false if this request wasn't cancelled
-      if (!signal.aborted) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
+
+  // OLD loadWhiteboard code removed - replaced by useWhiteboardData hook above!
+  // Week 2 Migration Complete: ~150 lines → 25 lines
 
   const loadSavedGroceryLists = async (whiteboardId) => {
     try {
@@ -1987,9 +1934,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       return;
     }
 
-    // 🆕 ADD RECIPE TO CACHE (so RecipeCardNode can access it!)
-    addRecipes([recipe]);
-
     // Fix image URL
     let imageUrl = recipe.image_url;
     if (imageUrl && imageUrl.startsWith('/api')) {
@@ -2030,7 +1974,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }, 100);
 
     console.log('✅ Recipe added to canvas!');
-  }, [nodes, handleSave, handleTagsChange, handleTagFilterClick, addRecipes]);
+  }, [nodes, handleSave, handleTagsChange, handleTagFilterClick]);
 
   // Handle recipe card click to show detail modal
   const handleRecipeClick = useCallback(async (recipeId) => {
