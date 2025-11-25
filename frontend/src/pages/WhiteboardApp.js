@@ -433,9 +433,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
   };
 
-  // OLD loadWhiteboard code removed - replaced by useWhiteboardData hook above!
-  // Week 2 Migration Complete: ~150 lines → 25 lines
-
   const loadSavedGroceryLists = async (whiteboardId) => {
     try {
       console.log('🛒 Loading saved grocery lists for whiteboard:', whiteboardId);
@@ -680,10 +677,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       console.error('❌ Error loading meal plan day boxes:', error);
     }
   };
-
-  // Note: loadSavedObjects AND loadUserRecipes moved to useWhiteboardData hook (Week 1, Day 3)
-  // The hook handles batch recipe fetching, validation, and node creation
-  // loadMockRecipes also REMOVED - useWhiteboardData hook provides proper data loading (Week 2)
 
   // ====================================
   // SELECTION HANDLERS (Canva-style)
@@ -1727,40 +1720,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
   };
 
-  // handleAddRecipe REMOVED - replaced by addRecipeToCanvas from useRecipeNodes hook (Phase 2, Day 1)
-  // Old function was 55 lines, hook provides same functionality with better architecture
-
-  // handleRecipeClick REMOVED - replaced by openRecipeDetail from useRecipeNodes hook (Phase 2, Day 1)
-
-  // Handle recipe color change
-  const handleRecipeColorChange = useCallback(async (nodeId, color, objectId) => {
-    console.log('🎨 Changing recipe color:', { nodeId, color, objectId });
-    
-    // Update node color immediately
-    setNodes(prevNodes =>
-      prevNodes.map(node =>
-        node.id === nodeId
-          ? { ...node, data: { ...node.data, backgroundColor: color } }
-          : node
-      )
-    );
-    
-    // Save to database if object exists
-    if (objectId && whiteboardId) {
-      try {
-        await whiteboardAPI.updateObject(whiteboardId, objectId, {
-          background_color: color
-        });
-        console.log('✅ Recipe color saved to database');
-      } catch (error) {
-        console.error('❌ Error saving recipe color:', error);
-      }
-    }
-  }, [whiteboardId]);
-
-  // handleDeleteRecipe REMOVED - replaced by deleteRecipeFromCanvas from useRecipeNodes hook (Phase 2, Day 1)
-  // Old function was ~35 lines, hook provides same functionality
-
   const handleDeleteNote = useCallback(async (nodeId, objectId) => {
     console.log('🗑️ Deleting note from canvas:', { nodeId, objectId, whiteboardId });
 
@@ -1953,16 +1912,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       console.error('Error generating grocery list from meal plan:', error);
       toast.error('Failed to generate list: ' + error.message);
     }
-  };
-
-  const handleRecipeCardClick = (nodeId, recipe) => {
-    console.log('🍕 Recipe card clicked:', nodeId, recipe);
-    // TODO: Open recipe detail modal
-  };
-
-  const handleTagClick = (tag) => {
-    console.log('🏷️ Tag clicked:', tag);
-    // TODO: Filter by tag
   };
 
   // Save meal plan changes to database
@@ -2512,31 +2461,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
               </div>
             )}
 
-            {/* Connection Lines Overlay removed - feature not needed */}
-
-            {/* Meal Plan Day Box Widgets - OLD SYSTEM (Being replaced by React Flow nodes) */}
-            {/* TODO: Remove after confirming new system works */}
-            {/*
-            <div style={{ pointerEvents: 'auto' }}>
-              {mealPlanWidgets.map(widget => {
-                return (
-                  <MealPlanFloatingWidget
-                    key={widget.id}
-                    mealPlanDay={widget}
-                    householdId={householdId}
-                    whiteboardId={whiteboard?.id || whiteboardId}
-                    linkedRecipes={widget.linkedRecipes}
-                    initialPosition={widget.position}
-                    viewport={canvasViewport}
-                    onPositionChange={(pos) => handleMealPlanPositionChange(widget.id, pos)}
-                    onClose={() => handleCloseMealPlanDay(widget.id)}
-                    onNameChange={(newName) => handleMealPlanNameChange(widget.id, newName)}
-                    onGenerateGroceryList={handleGenerateGroceryListFromMealPlan}
-                  />
-                );
-              })}
-            </div>
-            */}
           </Panel>
         </ReactFlow>
         
