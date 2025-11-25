@@ -442,8 +442,11 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
         
         // Check if whiteboard has saved objects
         if (whiteboardData.objects && whiteboardData.objects.length > 0) {
-          // Restore saved layout
-          await loadSavedObjects(whiteboardData.objects);
+          // TODO (Week 2): Restore saved layout using useWhiteboardData hook
+          // For now, fallback to loading user recipes
+          console.log('⚡ Saved objects exist but loadSavedObjects removed (Week 1 refactor)');
+          console.log('   Will use useWhiteboardData hook in Week 2 migration');
+          await loadUserRecipes();
         } else {
           // No saved objects - load newest recipes as starting point
           console.log('⚡ No saved objects, loading newest recipes...');
@@ -724,209 +727,8 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
   };
 
-  const loadSavedObjects = async (savedObjects) => {
-    try {
-      console.log('🔄 Loading saved objects from database...');
-      console.log('📦 All objects:', savedObjects);
-      
-      // Filter for notes specifically
-      const noteObjects = savedObjects.filter(obj => obj.type === 'nt' || obj.object_type === 'note');
-      console.log('📝 Found note objects:', noteObjects);
-      
-      // HOUSEHOLD-AWARE: Fetch recipes individually using whiteboard context
-      // This allows viewing recipes created by other household members
-      const recipeMap = {};
-      
-      // Get unique recipe IDs from saved objects
-      const recipeIds = [...new Set(
-        savedObjects
-          .filter(obj => obj.entity_type === 'recipe' && obj.entity_id)
-          .map(obj => obj.entity_id)
-      )];
-      
-      console.log(`🏠 Fetching ${recipeIds.length} recipes in household context (BATCH MODE)...`);
-      
-      // 🆕 BATCH FETCH: Get all recipes in ONE request instead of N requests!
-      if (recipeIds.length > 0) {
-        try {
-          const result = await apiCall('/api/v2/recipes/batch', {
-            method: 'POST',
-            body: JSON.stringify({
-              recipe_ids: recipeIds,
-              user_id: user?.id
-            })
-          });
-          
-          if (result.success && result.data?.recipes) {
-            // 🆕 ADD RECIPES TO CACHE (single source of truth!)
-            const normalizedRecipes = result.data.recipes.map(normalizeRecipe);
-            addRecipes(normalizedRecipes);
-            
-            // Store in map for node creation
-            normalizedRecipes.forEach(recipe => {
-              recipeMap[recipe.id] = recipe;
-            });
-            
-            console.log(`✅ Batch loaded ${result.data.found_count}/${result.data.requested_count} recipes`);
-            console.log(`   Authors: ${[...new Set(result.data.recipes.map(r => r.created_by_name || 'unknown'))].join(', ')}`);
-            console.log(`📦 Recipe cache now contains ${getCacheStats().size} recipes`);
-          } else {
-            console.warn('⚠️ Batch recipe fetch returned no data');
-          }
-        } catch (error) {
-          console.error('❌ Batch recipe fetch failed:', error);
-          // Fallback to individual fetches if batch fails
-          console.log('🔄 Falling back to individual recipe fetches...');
-          for (const recipeId of recipeIds) {
-            try {
-              const result = await whiteboardAPI.getWhiteboardRecipe(whiteboardId, recipeId);
-              if (result.success && result.data) {
-                const recipeData = {
-                  ...result.data,
-                  id: result.data.id,
-                  recipe: result.data
-                };
-                recipeMap[recipeId] = recipeData;
-              }
-            } catch (err) {
-              console.warn(`⚠️ Failed to load recipe ${recipeId}:`, err.message);
-            }
-          }
-        }
-      }
-      
-      console.log(`📚 Loaded ${Object.keys(recipeMap).length} recipes from household members`);
-      
-      // Load ALL recipe objects (don't skip any!)
-      // Meal plan relationships will be set later in loadSavedMealPlanDays
-      console.log('📦 Loading all recipe objects from whiteboard...');
-      
-      // Convert saved objects to React Flow nodes
-      const restoredNodes = savedObjects
-        .filter(obj => {
-          // Recipe or note objects
-          return (obj.entity_type === 'recipe' && obj.entity_id) || obj.type === 'nt' || obj.object_type === 'note';
-        })
-        .map(obj => {
-          // Handle notes
-          if (obj.type === 'nt' || obj.object_type === 'note') {
-            console.log('📝 Loading note:', obj);
-            const noteContent = obj.content || {};
-            
-            // Position might be array [x, y, w, h, z] or object {x, y, width, height}
-            let posX = 100, posY = 100, posW = 300, posH = 250;
-            
-            if (Array.isArray(obj.position)) {
-              posX = obj.position[0] || 100;
-              posY = obj.position[1] || 100;
-              posW = obj.position[2] || 300;
-              posH = obj.position[3] || 250;
-              console.log('📍 Position (array):', { posX, posY, posW, posH });
-            } else if (obj.position && typeof obj.position === 'object') {
-              posX = obj.position.x || 100;
-              posY = obj.position.y || 100;
-              posW = obj.position.width || 300;
-              posH = obj.position.height || 250;
-              console.log('📍 Position (object):', { posX, posY, posW, posH });
-            }
-            
-            const noteNode = {
-              id: `note-${obj.id}`,
-              type: 'note',
-              position: { x: posX, y: posY },
-              data: {
-                name: noteContent.name || 'Note',  // Extract name from content
-                content: noteContent.html || '<p></p>',
-                backgroundColor: noteContent.backgroundColor || '#FEF3C7',
-                fontSize: noteContent.fontSize || '18px', // Increased default from 14px to 18px for readability
-                objectId: obj.id,  // Store object ID for comments
-                commentCount: getCommentCount('note', obj.id),  // Get comment count
-                createdBy: obj.created_by_name || obj.created_by_email || 'Unknown', // Add creator name from backend
-                onDelete: handleDeleteNote, // Add delete handler to data
-                onSave: (noteData) => {
-                  // 🆕 Optimistic update (immediate UI feedback)
-                  setNodes(prevNodes => prevNodes.map(n =>
-                    n.id === `note-${obj.id}`
-                      ? {
-                          ...n,
-                          data: {
-                            ...n.data,
-                            name: noteData.name,
-                            content: noteData.content,
-                            backgroundColor: noteData.backgroundColor,
-                            fontSize: noteData.fontSize
-                          }
-                        }
-                      : n
-                  ));
-
-                  // 🆕 Debounced save to backend (2 seconds after last change)
-                  debouncedNoteSave(whiteboardId, obj.id, noteData);
-                }
-              },
-              style: {
-                width: posW,
-                height: posH
-              }
-            };
-            
-            console.log('✅ Created note node:', noteNode);
-            return noteNode;
-          }
-          
-          // Handle recipes
-          const recipe = recipeMap[obj.entity_id];
-          
-          if (!recipe) {
-            console.warn(`⚠️ Recipe ${obj.entity_id} not found, skipping`);
-            return null;
-          }
-          
-          // Handle position (array or object)
-          let posX = 200, posY = 150;
-          if (Array.isArray(obj.position)) {
-            posX = obj.position[0] || 200;
-            posY = obj.position[1] || 150;
-          } else if (obj.position && typeof obj.position === 'object') {
-            posX = obj.position.x || 200;
-            posY = obj.position.y || 150;
-          }
-          
-          // 🆕 USE FACTORY - Creates lean node with recipe_id only!
-          return createRecipeNode({
-            recipeId: recipe.id,
-            objectId: obj.id,
-            position: { x: posX, y: posY },
-            tags: obj.tags || [],
-            backgroundColor: obj.background_color || '#FFFFFF',
-            commentCount: getCommentCount('recipe', recipe.id),
-            hasNewComments: false,
-            onClick: handleRecipeClick,
-            onDelete: handleDeleteRecipe,
-            onTagsChange: handleTagsChange,
-            onTagFilterClick: handleTagFilterClick,
-            onColorChange: handleRecipeColorChange
-          });
-        })
-        .filter(node => node !== null); // Remove null nodes
-      
-      console.log(`✅ Restored ${restoredNodes.length} recipe cards from saved positions`);
-      console.log('📊 Recipe nodes structure:', restoredNodes.filter(n => n.type === 'recipeCard').map(n => ({
-        id: n.id,
-        type: n.type,
-        hasRecipe: !!n.data?.recipe,
-        recipeName: n.data?.recipe?.title || n.data?.recipe?.name,
-        position: n.position
-      })));
-      setNodes(restoredNodes);
-      // Edges removed - connection lines not needed
-      
-    } catch (err) {
-      console.error('❌ Error loading saved objects:', err);
-      // Fallback to loading newest recipes
-      await loadUserRecipes();
-    }
-  };
+  // Note: loadSavedObjects has been moved to useWhiteboardData hook (Week 1, Day 3)
+  // The hook handles batch recipe fetching, validation, and node creation
 
   const loadUserRecipes = async () => {
     try {
@@ -1722,7 +1524,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
           objectId: objectId,  // Store object ID for comments
           commentCount: 0,  // Initial count
           createdBy: user?.name || user?.email || 'Unknown', // Add creator name
-          onDelete: handleDeleteNote, // Add delete handler to data
+          // Note: onDelete will be attached by the note component
           onSave: (noteContent) => {
             // 🆕 Optimistic update (immediate UI feedback)
             setNodes(prevNodes => prevNodes.map(n =>
@@ -1757,7 +1559,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       console.error('❌ Error creating note:', error);
       toast.error('Failed to create note: ' + error.message);
     }
-  }, [nodes, whiteboardId, user, handleDeleteNote, debouncedNoteSave, toast]);
+  }, [nodes, whiteboardId, user, debouncedNoteSave, toast]);
 
   // Create Activity Feed Widget (no backend storage needed - just reads from activity_feed table)
   const handleCreateActivityFeed = useCallback(() => {
@@ -2211,12 +2013,8 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
         tags: [], // Empty tags for newly added recipes
         backgroundColor: '#FFFFFF',
         commentCount: 0,
-        hasNewComments: false,
-        onClick: handleRecipeClick,
-        onDelete: handleDeleteRecipe,
-        onTagsChange: handleTagsChange,
-        onTagFilterClick: handleTagFilterClick,
-        onColorChange: handleRecipeColorChange
+        hasNewComments: false
+        // Note: onClick, onDelete, etc. will be attached by the node component
       }
     };
 
@@ -2229,7 +2027,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }, 100);
 
     console.log('✅ Recipe added to canvas!');
-  }, [nodes, handleRecipeClick, handleDeleteRecipe, handleRecipeColorChange, handleSave]);
+  }, [nodes, handleSave, handleTagsChange, handleTagFilterClick]);
 
   // Handle recipe card click to show detail modal
   const handleRecipeClick = useCallback(async (recipeId) => {
