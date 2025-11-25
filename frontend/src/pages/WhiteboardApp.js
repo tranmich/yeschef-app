@@ -956,10 +956,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
   };
 
-  // ====================================
-  // NOTE CREATION HANDLER
-  // ====================================
-
+  // Note creation
   const handleCreateNote = useCallback(async () => {
     try {
       console.log('📝 Creating new note block...');
@@ -1186,10 +1183,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     setIsTagSidebarOpen(!isTagSidebarOpen);
   };
 
-  // ====================================
-  // SAVE HANDLER
-  // ====================================
-
+  // Save handler
   const handleSave = async () => {
     if (!whiteboard && !whiteboardId) {
       console.error('❌ No whiteboard loaded');
