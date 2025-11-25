@@ -1987,6 +1987,9 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       return;
     }
 
+    // 🆕 ADD RECIPE TO CACHE (so RecipeCardNode can access it!)
+    addRecipes([recipe]);
+
     // Fix image URL
     let imageUrl = recipe.image_url;
     if (imageUrl && imageUrl.startsWith('/api')) {
@@ -2027,7 +2030,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }, 100);
 
     console.log('✅ Recipe added to canvas!');
-  }, [nodes, handleSave, handleTagsChange, handleTagFilterClick]);
+  }, [nodes, handleSave, handleTagsChange, handleTagFilterClick, addRecipes]);
 
   // Handle recipe card click to show detail modal
   const handleRecipeClick = useCallback(async (recipeId) => {
