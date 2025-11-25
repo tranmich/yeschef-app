@@ -404,6 +404,13 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       
       if (result.success) {
         setWhiteboard(result.whiteboard);
+        
+        // 🎯 SET THE NODES! This is what actually displays recipes/notes on canvas
+        if (result.nodes && result.nodes.length > 0) {
+          setNodes(result.nodes);
+          console.log(`✅ Loaded ${result.nodes.length} nodes onto canvas`);
+        }
+        
         console.log('✅ Whiteboard loaded successfully!');
         console.log(`   📦 Loaded ${result.stats.recipes} recipes, ${result.stats.notes} notes`);
         
