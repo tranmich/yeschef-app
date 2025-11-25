@@ -20,6 +20,7 @@ import { WhiteboardProvider } from '../contexts/WhiteboardContext';
 import { useWhiteboardData } from '../hooks/useWhiteboardData';
 import { useRecipeNodes } from '../hooks/useRecipeNodes';
 import whiteboardAPI from '../services/whiteboardAPI';
+import { saveAllWhiteboardNodes } from '../utils/whiteboardSave';
 import { createRecipeNode, normalizeRecipe } from '../utils/recipeNodeFactory';
 import RecipeCardNode from '../components/whiteboard/nodes/RecipeCardNode';
 import RecipePickerPanel from '../components/RecipePickerPanel';
@@ -1441,7 +1442,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
 
   const handleSave = async () => {
     if (!whiteboard && !whiteboardId) {
-      console.error('❌ No whiteboard loaded - whiteboard:', whiteboard, 'whiteboardId:', whiteboardId);
+      console.error('❌ No whiteboard loaded');
       return;
     }
 
@@ -1452,192 +1453,29 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
 
     try {
-      console.log('💾 Saving whiteboard (recipes + grocery lists)...', 'ID:', saveWhiteboardId);
+      console.log('💾 Saving whiteboard...', 'ID:', saveWhiteboardId);
       
       // Use nodesRef.current to get the latest state
       const currentNodes = nodesRef.current;
-      
-      // 1. Save recipe card positions and tags (only if there are recipes)
-      const objects = currentNodes
-        .filter(node => node.type === 'recipeCard' && node.data.recipe_id)
-        .map(node => ({
-          recipe_id: node.data.recipe_id,
-          tags: node.data.tags || [], // Include tags
-          position: {
-            x: node.position.x,
-            y: node.position.y,
-            width: 300,  // Fixed width for now
-            height: 400, // Fixed height for now
-            z: 0         // z-index
-          }
-        }));
 
-      console.log(`📦 Saving ${objects.length} recipe cards:`, objects);
+      // Callback to update node with new dbId after creating grocery list
+      const updateNodeWithDbId = (nodeId, dbId) => {
+        setNodes(prevNodes => prevNodes.map(n =>
+          n.id === nodeId ? { ...n, data: { ...n.data, dbId } } : n
+        ));
+      };
 
-      // Only call bulk save API if there are recipes to save
-      let recipeResponse = { success: true, data: { updated_count: 0, created_count: 0, total_processed: 0 } };
-      
-      if (objects.length > 0) {
-        recipeResponse = await whiteboardAPI.bulkUpdateObjects(saveWhiteboardId, objects);
-
-        if (!recipeResponse.success) {
-          console.error('❌ Recipe save failed:', recipeResponse);
-          toast.error('Failed to save recipes: ' + (recipeResponse.message || 'Unknown error'));
-          return;
-        }
-
-        console.log('✅ Recipes saved:', recipeResponse.data);
-      }
-      
-      // 2. Save all grocery list nodes
-      const groceryListNodes = currentNodes.filter(n => n.type === 'groceryListNode');
-      console.log(`🛒 Saving ${groceryListNodes.length} grocery lists...`);
-      
-      let savedListsCount = 0;
-      let createdListsCount = 0;
-      let updatedListsCount = 0;
-      
-      for (const node of groceryListNodes) {
-        console.log(`🛒 Processing grocery list node:`, {
-          id: node.id,
-          dbId: node.data.dbId,
-          name: node.data.name,
-          itemCount: node.data.items?.length || 0,
-          items: node.data.items
-        });
-        
-        const saveData = {
-          name: node.data.name,
-          items: node.data.items || [],
-          household_id: householdId,
-          widget_position: {
-            x: node.position.x,
-            y: node.position.y,
-            width: node.width || node.style?.width || 350,
-            height: node.height || node.style?.height || 500
-          },
-          linked_recipe_ids: node.data.linkedRecipeIds || []
-        };
-        
-        console.log(`💾 Saving grocery list data:`, saveData);
-        
-        try {
-          let result;
-          
-          if (node.data.dbId) {
-            // Update existing list
-            console.log(`📝 Updating existing list ID ${node.data.dbId}...`);
-            result = await whiteboardAPI.updateWhiteboardGroceryList(
-              saveWhiteboardId,
-              node.data.dbId,
-              saveData
-            );
-            if (result.success) {
-              console.log(`✅ Updated grocery list ${node.data.dbId}`);
-              updatedListsCount++;
-            } else {
-              console.error(`❌ Failed to update grocery list ${node.data.dbId}:`, result);
-            }
-          } else {
-            // Create new list
-            console.log(`➕ Creating new grocery list...`);
-            result = await whiteboardAPI.createWhiteboardGroceryList(
-              saveWhiteboardId,
-              saveData
-            );
-            if (result.success) {
-              console.log(`✅ Created grocery list with ID ${result.data.id}`);
-              createdListsCount++;
-              // Update node with new dbId
-              setNodes(prevNodes => prevNodes.map(n =>
-                n.id === node.id ? { ...n, data: { ...n.data, dbId: result.data.id } } : n
-              ));
-            } else {
-              console.error(`❌ Failed to create grocery list:`, result);
-            }
-          }
-          
-          if (result.success) {
-            savedListsCount++;
-          }
-        } catch (err) {
-          console.error('❌ Error saving grocery list:', node.data.name, err);
-        }
-      }
-      
-      console.log(`✅ Grocery lists saved: ${savedListsCount}/${groceryListNodes.length}`);
-
-      // 3. Save all meal plan containers (React Flow nodes)
-      const mealPlanNodes = currentNodes.filter(n => n.type === 'mealPlanContainer');
-      console.log(`📅 Saving ${mealPlanNodes.length} meal plan containers...`);
-      
-      let savedMealPlansCount = 0;
-      
-      for (const node of mealPlanNodes) {
-        try {
-          // Update whiteboard object position/size
-          if (node.data.objectId && whiteboardId) {
-            await whiteboardAPI.updateObject(whiteboardId, node.data.objectId, {
-              position: {
-                x: node.position.x,
-                y: node.position.y,
-                width: node.width || node.style?.width || 600,
-                height: node.height || node.style?.height || 800
-              }
-            });
-            savedMealPlansCount++;
-            console.log(`✅ Saved meal plan "${node.data.name}" position/size`);
-          }
-        } catch (error) {
-          console.error(`❌ Error saving meal plan "${node.data.name}":`, error);
-        }
-      }
-      
-      console.log(`✅ Meal plans saved: ${savedMealPlansCount}/${mealPlanNodes.length}`);
-
-      // 4. Save all note blocks
-      const noteNodes = currentNodes.filter(n => n.type === 'note');
-      console.log(`📝 Saving ${noteNodes.length} notes...`);
-      
-      let savedNotesCount = 0;
-      
-      for (const node of noteNodes) {
-        try {
-          // Extract object ID from node.id (format: "note-{objectId}")
-          const objectId = parseInt(node.id.replace('note-', ''));
-          
-          if (objectId && whiteboardId) {
-            // Update position and dimensions
-            await apiCall(`/api/v2/whiteboard/${whiteboardId}/o/${objectId}`, {
-              method: 'PATCH',
-              body: JSON.stringify({
-                position: [
-                  node.position.x,
-                  node.position.y,
-                  node.width || node.style?.width || 300,
-                  node.height || node.style?.height || 250,
-                  0 // z-index
-                ],
-                content: {
-                  type: 'note',
-                  html: node.data.content,
-                  backgroundColor: node.data.backgroundColor,
-                  fontSize: node.data.fontSize
-                }
-              })
-            });
-            savedNotesCount++;
-          }
-        } catch (error) {
-          console.error(`❌ Error saving note:`, error);
-        }
-      }
-      
-      console.log(`✅ Notes saved: ${savedNotesCount}/${noteNodes.length}`);
+      // Use utility to save all nodes
+      const results = await saveAllWhiteboardNodes(
+        currentNodes,
+        saveWhiteboardId,
+        householdId,
+        updateNodeWithDbId
+      );
 
       // Show success message
       toast.success(
-        `✅ Saved! ${recipeResponse.data.updated_count} recipes, ${savedListsCount} grocery lists, ${savedMealPlansCount} meal plans, ${savedNotesCount} notes`
+        `✅ Saved! ${results.recipes} recipes, ${results.groceryLists} grocery lists, ${results.mealPlans} meal plans, ${results.notes} notes`
       );
 
     } catch (error) {
@@ -1645,7 +1483,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       toast.error('Error saving: ' + error.message);
     }
   };
-
   const handleDeleteNote = useCallback(async (nodeId, objectId) => {
     console.log('🗑️ Deleting note from canvas:', { nodeId, objectId, whiteboardId });
 
