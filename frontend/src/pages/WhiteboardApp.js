@@ -18,7 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { RecipeCacheProvider, useRecipeCache } from '../contexts/RecipeCacheContext';
 import { WhiteboardProvider } from '../contexts/WhiteboardContext';
 import { useWhiteboardData } from '../hooks/useWhiteboardData';
-import { useRecipeNodes } from '../hooks/useRecipeNodes';
+// import { useRecipeNodes } from '../hooks/useRecipeNodes'; // Week 2 Day 2 - will integrate after testing
 import whiteboardAPI from '../services/whiteboardAPI';
 import { createRecipeNode, normalizeRecipe } from '../utils/recipeNodeFactory';
 import RecipeCardNode from '../components/whiteboard/nodes/RecipeCardNode';
