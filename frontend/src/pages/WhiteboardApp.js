@@ -975,68 +975,9 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
   };
 
-  const handleCloseGroceryList = (widgetId) => {
-    setGroceryListWidgets(groceryListWidgets.filter(w => w.id !== widgetId));
-  };
-
-  const handleGroceryListPositionChange = (widgetId, newPosition) => {
-    setGroceryListWidgets(groceryListWidgets.map(w =>
-      w.id === widgetId ? { ...w, position: newPosition } : w
-    ));
-  };
-
-  const handleGroceryListSizeChange = (widgetId, newSize) => {
-    setGroceryListWidgets(groceryListWidgets.map(w =>
-      w.id === widgetId ? { ...w, size: newSize } : w
-    ));
-  };
-
-  const handleGroceryListSaved = (widgetId, savedData) => {
-    console.log('🎉 Grocery list saved, updating widget state:', savedData);
-    setGroceryListWidgets(groceryListWidgets.map(w =>
-      w.id === widgetId ? { ...w, dbId: savedData.dbId, ...savedData } : w
-    ));
-  };
-
-  // ====================================
-  // MEAL PLAN WIDGET HANDLERS
-  // ====================================
-
-  const handleCloseMealPlanDay = async (widgetId) => {
-    // Find the widget to get its objectId
-    const widget = mealPlanWidgets.find(w => w.id === widgetId);
-    
-    // Remove from state immediately for responsive UI
-    setMealPlanWidgets(mealPlanWidgets.filter(w => w.id !== widgetId));
-    
-    // If widget has an objectId, delete it from the database
-    if (widget && widget.objectId) {
-      try {
-        console.log(`🗑️ Deleting meal plan whiteboard object ${widget.objectId}`);
-        await whiteboardAPI.deleteObject(whiteboardId, widget.objectId);
-        console.log(`✅ Meal plan object ${widget.objectId} deleted from database`);
-      } catch (error) {
-        console.error('❌ Error deleting meal plan object:', error);
-        toast.error('Failed to delete meal plan');
-        // Re-add widget on error
-        setMealPlanWidgets(prev => [...prev, widget]);
-      }
-    }
-  };
-
-  const handleMealPlanPositionChange = (widgetId, data) => {
-    // data can be {position, dimensions} or just position (backwards compat)
-    const newPosition = data.position || data;
-    const newDimensions = data.dimensions;
-    
-    setMealPlanWidgets(mealPlanWidgets.map(w =>
-      w.id === widgetId ? {
-        ...w,
-        position: newPosition,
-        ...(newDimensions && { dimensions: newDimensions })
-      } : w
-    ));
-  };
+  // OLD FLOATING WIDGET HANDLERS REMOVED - Now using React Flow nodes instead
+  // These handlers were for GroceryListFloatingWidget and MealPlanFloatingWidget
+  // which have been replaced by GroceryListNode and MealPlanContainerNode
 
   const handleMealPlanNameChange = async (widgetId, newName) => {
     // Update local state immediately (optimistic update)
