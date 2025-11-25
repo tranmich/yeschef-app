@@ -21,6 +21,8 @@ import { useWhiteboardData } from '../hooks/useWhiteboardData';
 import { useRecipeNodes } from '../hooks/useRecipeNodes';
 import whiteboardAPI from '../services/whiteboardAPI';
 import { saveAllWhiteboardNodes } from '../utils/whiteboardSave';
+import { generateGroceryListFromRecipes } from '../utils/groceryListGenerator';
+import { createGroceryListNode } from '../utils/nodeCreators';
 import { createRecipeNode, normalizeRecipe } from '../utils/recipeNodeFactory';
 import RecipeCardNode from '../components/whiteboard/nodes/RecipeCardNode';
 import RecipePickerPanel from '../components/RecipePickerPanel';
@@ -713,164 +715,37 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       return;
     }
 
-    console.log('🎯 Selected nodes full data:', selected.map(n => ({
-      id: n.id,
-      recipe_id: n.data?.recipe_id,
-      title: n.data?.title,
-      hasIngredients: !!n.data?.ingredients,
-      data: n.data
-    })));
-
     try {
       toast.info('Generating shopping list...', 2000);
 
-      // Fetch full recipe details for each selected card
-      const recipePromises = selected.map(async (node) => {
-        try {
-          const response = await apiCall(`/api/recipes/${node.data.recipe_id}`);
-          console.log(`📋 Recipe ${node.data.recipe_id} API response:`, response);
-          
-          // Handle different response formats
-          const recipe = response.success 
-            ? (response.recipe || response.data) 
-            : null;
-          
-          if (recipe) {
-            console.log(`✅ Recipe "${recipe.title}" structure:`, {
-              hasIngredients: !!recipe.ingredients,
-              ingredientsType: typeof recipe.ingredients,
-              ingredientsLength: Array.isArray(recipe.ingredients) ? recipe.ingredients.length : 'N/A',
-              sample: Array.isArray(recipe.ingredients) ? recipe.ingredients.slice(0, 2) : recipe.ingredients
-            });
-          }
-            
-          return recipe;
-        } catch (err) {
-          console.error(`Failed to fetch recipe ${node.data.recipe_id}:`, err);
-          // Fallback: use node data if API fails
-          console.warn(`⚠️ Using fallback data for recipe ${node.data.recipe_id}`);
-          return {
-            id: node.data.recipe_id,
-            title: node.data.title || node.data.name,
-            ingredients: node.data.ingredients || []
-          };
-        }
-      });
+      // Use utility to generate grocery list from recipes
+      const groceryData = await generateGroceryListFromRecipes(selected);
 
-      const recipes = (await Promise.all(recipePromises)).filter(r => r !== null);
-
-      if (recipes.length === 0) {
-        toast.error('Failed to load recipe details');
-        return;
-      }
-
-      console.log('📋 Fetched recipes for grocery list:', recipes);
-
-      // Extract and merge ingredients
-      const allIngredients = [];
-      recipes.forEach(recipe => {
-        let ingredients = recipe.ingredients || [];
-        
-        // Parse if it's a JSON string
-        if (typeof ingredients === 'string') {
-          try {
-            // Try parsing as JSON array
-            ingredients = JSON.parse(ingredients);
-          } catch (e) {
-            // Not JSON - split by newlines or semicolons (plain text format)
-            console.log(`📝 Recipe "${recipe.title}" has plain text ingredients, splitting...`);
-            ingredients = ingredients
-              .split(/[\n;]/) // Split by newline or semicolon
-              .map(line => line.trim())
-              .filter(line => line.length > 0)
-              .map(line => ({
-                ingredient: line,
-                name: line
-              }));
-          }
-        }
-
-        // Convert to array if it's an object
-        if (typeof ingredients === 'object' && !Array.isArray(ingredients)) {
-          ingredients = Object.values(ingredients);
-        }
-
-        console.log(`🥕 Recipe "${recipe.title || recipe.name}" has ${ingredients?.length || 0} ingredients:`, ingredients);
-
-        // Add each ingredient
-        if (Array.isArray(ingredients) && ingredients.length > 0) {
-          ingredients.forEach(ing => {
-            // Handle both string and object formats
-            const ingredientData = typeof ing === 'string' 
-              ? { ingredient: ing, name: ing }
-              : ing;
-              
-            allIngredients.push({
-              ...ingredientData,
-              source_recipe_id: recipe.id,
-              source_recipe_name: recipe.title || recipe.name
-            });
-          });
-        } else {
-          console.warn(`⚠️ Recipe "${recipe.title}" has no ingredients array`);
-        }
-      });
-
-      console.log('🥕 All ingredients before merge:', allIngredients);
-
-      // Check if we got any ingredients
-      if (allIngredients.length === 0) {
-        toast.warning('No ingredients found in selected recipes. Try adding recipes with ingredient lists!');
-        return;
-      }
-
-      // Use the smart consolidation logic from groceryListUtils
-      const mergedItems = consolidateIngredients(allIngredients);
-
-      console.log('✅ Merged items:', mergedItems);
-
-      // Create new grocery list React Flow node
-      const newGroceryListNode = {
-        id: `grocery-list-${Date.now()}`,
-        type: 'groceryListNode',
-        position: { x: 800, y: 100 }, // Position on canvas
-        draggable: true,
-        width: 350,
-        height: 500,
-        data: {
-          name: `Shopping List (${selected.length} recipes)`,
-          items: mergedItems,
-          linkedRecipeIds: selected.map(node => node.data.recipe_id),
-          dbId: null, // Will be set after saving
-          backgroundColor: '#D1FAE5',
-          commentCount: 0,
-          hasNewComments: false,
-          onNameChange: handleGroceryListNameChange,
-          onColorChange: handleGroceryListColorChange,
-          onItemChecked: handleGroceryListItemChecked,
-          onItemAdded: handleGroceryListItemAdded,
-          onItemRemoved: handleGroceryListItemRemoved,
-          onItemsReordered: handleGroceryListItemsReordered,
-          onDelete: handleGroceryListDelete
-        },
-        style: {
-          width: 350,
-          height: 500,
-          zIndex: 5 // Slightly above recipe cards but below modal
-        }
+      // Create grocery list node with handlers
+      const handlers = {
+        onNameChange: handleGroceryListNameChange,
+        onColorChange: handleGroceryListColorChange,
+        onItemChecked: handleGroceryListItemChecked,
+        onItemAdded: handleGroceryListItemAdded,
+        onItemRemoved: handleGroceryListItemRemoved,
+        onItemsReordered: handleGroceryListItemsReordered,
+        onDelete: handleGroceryListDelete
       };
 
-      // Add to React Flow nodes
-      setNodes(prevNodes => [...prevNodes, newGroceryListNode]);
+      const newNode = createGroceryListNode(groceryData, handlers);
 
-      toast.success(`Created list with ${mergedItems.length} items from ${selected.length} recipes!`);
-
+      // Add to canvas
+      setNodes(prevNodes => [...prevNodes, newNode]);
+      
+      // Auto-save
+      setTimeout(() => handleSave(), 500);
+      
+      toast.success(`Created shopping list with ${groceryData.items.length} items!`);
     } catch (error) {
-      console.error('Error generating grocery list:', error);
-      toast.error('Failed to generate list: ' + error.message);
+      console.error('❌ Error generating grocery list:', error);
+      toast.error(error.message || 'Failed to generate grocery list');
     }
   };
-
   const handleGroceryListNameChange = (nodeId, newName) => {
     // Update node data
     setNodes(prevNodes => prevNodes.map(n =>
