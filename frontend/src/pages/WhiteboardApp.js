@@ -374,7 +374,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
         if (selectedNodes.length > 0) {
           e.preventDefault();
           selectedNodes.forEach(node => {
-            handleDeleteRecipe(node.id, node.data.recipe_id, node.data.object_id);
+            deleteRecipeFromCanvas(node.id, node.data.recipe_id, node.data.object_id);
           });
         }
       }
@@ -1727,81 +1727,10 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
   };
 
-  const handleAddRecipe = useCallback((recipe) => {
-    console.log('➕ Adding recipe to canvas:', recipe.title || recipe.name);
+  // handleAddRecipe REMOVED - replaced by addRecipeToCanvas from useRecipeNodes hook (Phase 2, Day 1)
+  // Old function was 55 lines, hook provides same functionality with better architecture
 
-    // Check if recipe already exists on canvas
-    const existingNode = nodes.find(node => node.data.recipe_id === recipe.id);
-    if (existingNode) {
-      alert('This recipe is already on the canvas!');
-      return;
-    }
-
-    // 🆕 ADD RECIPE TO CACHE (so RecipeCardNode can access it!)
-    addRecipes([recipe]);
-
-    // Fix image URL
-    let imageUrl = recipe.image_url;
-    if (imageUrl && imageUrl.startsWith('/api')) {
-      imageUrl = `${process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000'}${imageUrl}`;
-    }
-
-    // Create new node at center of viewport
-    // Note: We'll need to get viewport center, for now use a reasonable default
-    const newNode = {
-      id: `recipe-${recipe.id}`,
-      type: 'recipeCard',
-      position: {
-        x: 400 + (nodes.length * 50), // Stagger slightly
-        y: 200 + (nodes.length * 50)
-      },
-      data: {
-        recipe_id: recipe.id,
-        name: recipe.title || recipe.name || 'Untitled Recipe',
-        image_url: imageUrl,
-        prep_time: recipe.prep_time,
-        cook_time: recipe.cook_time,
-        total_time: recipe.total_time,
-        category: recipe.category,
-        tags: [], // Empty tags for newly added recipes
-        backgroundColor: '#FFFFFF',
-        commentCount: 0,
-        hasNewComments: false
-        // Note: onClick, onDelete, etc. will be attached by the node component
-      }
-    };
-
-    // Add to canvas
-    setNodes(prevNodes => [...prevNodes, newNode]);
-
-    // Auto-save after adding
-    setTimeout(() => {
-      handleSave();
-    }, 100);
-
-    console.log('✅ Recipe added to canvas!');
-  }, [nodes, handleSave, handleTagsChange, handleTagFilterClick, addRecipes]);
-
-  // Handle recipe card click to show detail modal
-  const handleRecipeClick = useCallback(async (recipeId) => {
-    try {
-      console.log('👁️ Opening recipe detail for:', recipeId);
-      
-      // Fetch full recipe data
-      const response = await apiCall(`/api/recipes/${recipeId}`);
-      const recipe = response.recipe || response.data;
-      
-      if (recipe) {
-        setSelectedRecipeForDetail(recipe);
-        setIsRecipeDetailOpen(true);
-      } else {
-        toast.error('Recipe not found');
-      }
-    } catch (error) {
-      console.error('❌ Error loading recipe:', error);
-      toast.error('Failed to load recipe');
-    }
-  }, [toast]);
+  // handleRecipeClick REMOVED - replaced by openRecipeDetail from useRecipeNodes hook (Phase 2, Day 1)
 
   // Handle recipe color change
   const handleRecipeColorChange = useCallback(async (nodeId, color, objectId) => {
@@ -1829,36 +1758,8 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
   }, [whiteboardId]);
 
-  const handleDeleteRecipe = useCallback(async (nodeId, recipeId, objectId) => {
-    console.log('🗑️ Deleting recipe from canvas:', { nodeId, recipeId, objectId, whiteboardId, hasWhiteboard: !!whiteboard });
-
-    // Remove node from canvas immediately (optimistic update)
-    setNodes(prevNodes => prevNodes.filter(node => node.id !== nodeId));
-    toast.success('Recipe removed from canvas');
-    
-    // If we have an object_id and whiteboardId, delete from database
-    if (objectId && whiteboardId) {
-      try {
-        console.log(`🔥 Calling delete API for object ${objectId} on whiteboard ${whiteboardId}`);
-        const response = await whiteboardAPI.deleteObject(whiteboardId, objectId);
-        
-        if (response.success) {
-          console.log('✅ Recipe removed from database!');
-        } else {
-          console.error('❌ Failed to delete from database:', response);
-          toast.error('Failed to delete from database');
-        }
-      } catch (error) {
-        console.error('❌ Error deleting from database:', error);
-        toast.error('Error deleting: ' + error.message);
-      }
-    } else {
-      // New object not yet saved - no need to delete from database
-      console.log('ℹ️ Object not yet saved to database (objectId:', objectId, 'whiteboardId:', whiteboardId, '), only removed from canvas');
-    }
-
-    console.log('✅ Recipe removed from canvas!');
-  }, [whiteboardId, whiteboard, toast]);
+  // handleDeleteRecipe REMOVED - replaced by deleteRecipeFromCanvas from useRecipeNodes hook (Phase 2, Day 1)
+  // Old function was ~35 lines, hook provides same functionality
 
   const handleDeleteNote = useCallback(async (nodeId, objectId) => {
     console.log('🗑️ Deleting note from canvas:', { nodeId, objectId, whiteboardId });
@@ -2513,7 +2414,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       <RecipePickerPanel
         isOpen={isPickerOpen}
         onClose={() => setIsPickerOpen(false)}
-        onAddRecipe={handleAddRecipe}
+        onAddRecipe={addRecipeToCanvas}
       />
 
       {/* React Flow Canvas */}
