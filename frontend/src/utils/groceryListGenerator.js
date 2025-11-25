@@ -119,6 +119,39 @@ export function extractAllIngredients(recipes) {
 }
 
 /**
+ * Fetch recipes by IDs (for meal plan generation)
+ * @param {Array} recipeIds - Array of recipe IDs
+ * @returns {Promise<Array>} Full recipe objects
+ */
+export async function fetchRecipesByIds(recipeIds) {
+  const recipePromises = recipeIds.map(id => apiCall(`/api/recipes/${id}`));
+  const responses = await Promise.all(recipePromises);
+  return responses.map(r => r.recipe || r.data).filter(Boolean);
+}
+
+/**
+ * Fetch recipes from an array of recipe objects with IDs
+ * @param {Array} recipeArray - Array of recipe objects with {id}
+ * @returns {Promise<Array>} Full recipe objects
+ */
+export async function fetchRecipesByIds(recipeArray) {
+  const recipePromises = recipeArray.map(async (recipe) => {
+    try {
+      const response = await apiCall(`/api/recipes/${recipe.id}`);
+      return response.recipe || response.data || null;
+    } catch (err) {
+      console.error(`Failed to fetch recipe ${recipe.id}:`, err);
+      return null;
+    }
+  });
+
+  const recipes = (await Promise.all(recipePromises)).filter(r => r !== null);
+  console.log(`📋 Fetched ${recipes.length} recipes`);
+  
+  return recipes;
+}
+
+/**
  * Main function: Generate grocery list from selected recipe nodes
  * @param {Array} selectedNodes - Selected recipe nodes from canvas
  * @returns {Promise<Object>} Object with { items, linkedRecipeIds, recipeTitles }
@@ -153,5 +186,82 @@ export async function generateGroceryListFromRecipes(selectedNodes) {
     items: mergedItems,
     linkedRecipeIds: selectedNodes.map(node => node.data.recipe_id),
     recipeCount: selectedNodes.length
+  };
+}
+
+/**
+ * Generate grocery list from an array of recipe objects (for meal plans)
+ * @param {Array} recipes - Array of recipe objects with {id}
+ * @param {string} listName - Name for the grocery list
+ * @returns {Promise<Object>} Object with { items, linkedRecipeIds }
+ */
+export async function generateGroceryListFromRecipeArray(recipes, listName = 'Shopping List') {
+  if (!recipes || recipes.length === 0) {
+    throw new Error('No recipes provided');
+  }
+
+  console.log(`🎯 Generating "${listName}" from ${recipes.length} recipes`);
+
+  // 1. Fetch full recipe details
+  const fullRecipes = await fetchRecipesByIds(recipes);
+  
+  if (fullRecipes.length === 0) {
+    throw new Error('Failed to load recipe details');
+  }
+
+  // 2. Extract all ingredients
+  const allIngredients = extractAllIngredients(fullRecipes);
+  
+  if (allIngredients.length === 0) {
+    throw new Error('No ingredients found in recipes');
+  }
+
+  // 3. Consolidate/merge duplicate ingredients
+  const mergedItems = consolidateIngredients(allIngredients);
+  
+  console.log(`✅ Generated grocery list with ${mergedItems.length} items`);
+
+  return {
+    items: mergedItems,
+    linkedRecipeIds: recipes.map(r => r.id),
+    recipeCount: recipes.length
+  };
+}
+
+/**
+ * Generate grocery list from recipe IDs (for meal plans)
+ * @param {Array} recipeIds - Array of recipe IDs
+ * @param {string} listName - Name for the grocery list
+ * @returns {Promise<Object>} Object with { items, linkedRecipeIds, recipeCount }
+ */
+export async function generateGroceryListFromRecipeIds(recipeIds, listName = 'Shopping List') {
+  if (!recipeIds || recipeIds.length === 0) {
+    throw new Error('No recipes provided');
+  }
+
+  console.log(`🛒 Generating "${listName}" from ${recipeIds.length} recipes`);
+
+  // Fetch full recipes
+  const recipes = await fetchRecipesByIds(recipeIds);
+  
+  if (recipes.length === 0) {
+    throw new Error('Failed to load recipe details');
+  }
+
+  // Extract and consolidate ingredients
+  const allIngredients = extractAllIngredients(recipes);
+  
+  if (allIngredients.length === 0) {
+    throw new Error('No ingredients found');
+  }
+
+  const mergedItems = consolidateIngredients(allIngredients);
+  
+  console.log(`✅ Generated ${listName} with ${mergedItems.length} items`);
+
+  return {
+    items: mergedItems,
+    linkedRecipeIds: recipeIds,
+    recipeCount: recipes.length
   };
 }
