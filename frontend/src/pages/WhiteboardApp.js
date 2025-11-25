@@ -18,7 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { RecipeCacheProvider, useRecipeCache } from '../contexts/RecipeCacheContext';
 import { WhiteboardProvider } from '../contexts/WhiteboardContext';
 import { useWhiteboardData } from '../hooks/useWhiteboardData';
-// import { useRecipeNodes } from '../hooks/useRecipeNodes'; // Week 2 Day 2 - will integrate after testing
+import { useRecipeNodes } from '../hooks/useRecipeNodes';
 import whiteboardAPI from '../services/whiteboardAPI';
 import { createRecipeNode, normalizeRecipe } from '../utils/recipeNodeFactory';
 import RecipeCardNode from '../components/whiteboard/nodes/RecipeCardNode';
@@ -75,14 +75,13 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   } = useWhiteboardData();
   
   // 🆕 Week 2: Recipe Operations Hook - handles add/delete/update recipe nodes!
-  // COMMENTED OUT: Causing initialization error, will integrate after migration complete
-  // const {
-  //   addRecipe: addRecipeToCanvas,
-  //   deleteRecipe: deleteRecipeFromCanvas,
-  //   updateRecipeTags,
-  //   updateRecipeColor,
-  //   handleRecipeClick: openRecipeDetail
-  // } = useRecipeNodes();
+  const {
+    addRecipe: addRecipeToCanvas,
+    deleteRecipe: deleteRecipeFromCanvas,
+    updateRecipeTags,
+    updateRecipeColor,
+    handleRecipeClick: openRecipeDetail
+  } = useRecipeNodes();
   
   // Responsive detection
   const isMobile = useMediaQuery({ maxWidth: 768 });
