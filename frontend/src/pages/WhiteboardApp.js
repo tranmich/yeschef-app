@@ -21,7 +21,7 @@ import { useWhiteboardData } from '../hooks/useWhiteboardData';
 import { useRecipeNodes } from '../hooks/useRecipeNodes';
 import whiteboardAPI from '../services/whiteboardAPI';
 import { saveAllWhiteboardNodes } from '../utils/whiteboardSave';
-import { generateGroceryListFromRecipes } from '../utils/groceryListGenerator';
+import { generateGroceryListFromRecipes, generateGroceryListFromRecipeArray } from '../utils/groceryListGenerator';
 import { createGroceryListNode, createActivityFeedNode, createMealPlanNode } from '../utils/nodeCreators';
 import { createRecipeNode, normalizeRecipe } from '../utils/recipeNodeFactory';
 import RecipeCardNode from '../components/whiteboard/nodes/RecipeCardNode';
@@ -908,101 +908,50 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
 
   const handleGenerateGroceryListFromMealPlan = async (recipes, dayName) => {
     try {
-      console.log(`🛒 Generating grocery list from "${dayName}" with ${recipes.length} recipes`);
+      console.log(`🛒 Generating grocery list from "${dayName}"`);
       
-      // Fetch full recipe data for selected recipes
-      const recipeDataPromises = recipes.map(recipe =>
-        apiCall(`/api/recipes/${recipe.id}`)
-      );
-      
-      const responses = await Promise.all(recipeDataPromises);
-      const fullRecipes = responses.map(r => r.recipe || r.data).filter(Boolean);
-      
-      // Consolidate ingredients
-      const allIngredients = [];
-      fullRecipes.forEach(recipe => {
-        const ingredients = Array.isArray(recipe.ingredients)
-          ? recipe.ingredients
-          : (typeof recipe.ingredients === 'string' 
-              ? recipe.ingredients.split('\n').filter(Boolean).map(text => ({ ingredient: text }))
-              : []);
-        
-        ingredients.forEach((ing, idx) => {
-          allIngredients.push({
-            id: `${recipe.id}-${idx}`,
-            ingredient: ing.ingredient || ing,
-            quantity: ing.quantity || '',
-            checked: false,
-            source_recipe_id: recipe.id,
-            source_recipe_name: recipe.title || recipe.name
-          });
-        });
-      });
-      
-      const mergedItems = consolidateIngredients(allIngredients);
-      
-      // FIXED: Save to backend FIRST to get database ID
+      // Use utility to generate grocery list
+      const groceryData = await generateGroceryListFromRecipeArray(recipes, `${dayName} Shopping List`);
+
+      // Save to backend first
       const groceryListData = {
         name: `${dayName} Shopping List`,
-        items: mergedItems,
+        items: groceryData.items,
         household_id: householdId,
-        widget_position: {
-          x: 1000,
-          y: 400,
-          width: 350,
-          height: 500
-        },
-        linked_recipe_ids: recipes.map(r => r.id)
+        widget_position: { x: 1000, y: 400, width: 350, height: 500 },
+        linked_recipe_ids: groceryData.linkedRecipeIds
       };
       
-      console.log('💾 Saving grocery list to backend...');
       const createResponse = await whiteboardAPI.createWhiteboardGroceryList(whiteboardId, groceryListData);
       
       if (!createResponse.success) {
-        throw new Error('Failed to create grocery list in database');
+        throw new Error('Failed to create grocery list');
       }
       
       const dbId = createResponse.data.id;
-      console.log('✅ Grocery list created in backend with ID:', dbId);
+      console.log('✅ Grocery list created with ID:', dbId);
       
-      // Create new grocery list React Flow NODE with REAL database ID
-      const newGroceryListNode = {
-        id: `grocery-list-${dbId}`,  // Use real DB ID, not timestamp!
-        type: 'groceryListNode',
-        position: { x: 1000, y: 400 },
-        draggable: true,
-        width: 350,
-        height: 500,
-        data: {
-          name: `${dayName} Shopping List`,
-          items: mergedItems,
-          linkedRecipeIds: recipes.map(r => r.id),
-          dbId: dbId,  // Store the real database ID
-          backgroundColor: '#D1FAE5',
-          commentCount: 0,
-          hasNewComments: false,
-          onNameChange: handleGroceryListNameChange,
-          onColorChange: handleGroceryListColorChange,
-          onItemChecked: handleGroceryListItemChecked,
-          onItemAdded: handleGroceryListItemAdded,
-          onItemRemoved: handleGroceryListItemRemoved,
-          onItemsReordered: handleGroceryListItemsReordered,
-          onDelete: handleGroceryListDelete
-        },
-        style: {
-          width: 350,
-          height: 500,
-          zIndex: 5
-        }
+      // Create node with handlers
+      const handlers = {
+        onNameChange: handleGroceryListNameChange,
+        onColorChange: handleGroceryListColorChange,
+        onItemChecked: handleGroceryListItemChecked,
+        onItemAdded: handleGroceryListItemAdded,
+        onItemRemoved: handleGroceryListItemRemoved,
+        onItemsReordered: handleGroceryListItemsReordered,
+        onDelete: handleGroceryListDelete
       };
-      
-      // Add to React Flow nodes
-      setNodes(prevNodes => [...prevNodes, newGroceryListNode]);
-      
-      toast.success(`Created list with ${mergedItems.length} items from ${dayName}!`);
+
+      const newNode = createGroceryListNode(groceryData, handlers, { x: 1000, y: 400 });
+      newNode.id = `grocery-list-${dbId}`;
+      newNode.data.name = `${dayName} Shopping List`;
+      newNode.data.dbId = dbId;
+
+      setNodes(prevNodes => [...prevNodes, newNode]);
+      toast.success(`Created list with ${groceryData.items.length} items!`);
       
     } catch (error) {
-      console.error('Error generating grocery list from meal plan:', error);
+      console.error('Error generating grocery list:', error);
       toast.error('Failed to generate list: ' + error.message);
     }
   };
@@ -1407,64 +1356,34 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   };
 
   const handleGenerateGroceryListFromMealPlanNode = async (nodeId) => {
-    console.log('📋 Generating grocery list from meal plan:', nodeId);
-    
-    // Get the meal plan container node
-    const containerNode = nodes.find(n => n.id === nodeId);
-    if (!containerNode || !containerNode.data.mealPlanDbId) {
-      toast.error('Meal plan not found');
-      return;
-    }
-    
-    // Get all recipe nodes that belong to this meal plan
-    const recipeNodes = nodes.filter(n => n.data.mealPlanId === containerNode.data.mealPlanDbId);
-    
-    if (recipeNodes.length === 0) {
-      toast.error('No recipes in this meal plan');
-      return;
-    }
-    
-    console.log('📝 Recipes for grocery list:', recipeNodes.map(n => n.data.name));
-    
-    // Fetch full recipe data and generate grocery list
     try {
-      const recipeDataPromises = recipeNodes.map(node =>
-        apiCall(`/api/recipes/${node.data.recipe_id}`)
-      );
+      console.log('📋 Generating grocery list from meal plan:', nodeId);
       
-      const responses = await Promise.all(recipeDataPromises);
-      const fullRecipes = responses.map(r => r.recipe || r.data).filter(Boolean);
+      // Get meal plan container
+      const containerNode = nodes.find(n => n.id === nodeId);
+      if (!containerNode || !containerNode.data.mealPlanDbId) {
+        toast.error('Meal plan not found');
+        return;
+      }
       
-      // Consolidate ingredients
-      const allIngredients = [];
-      fullRecipes.forEach(recipe => {
-        const ingredients = Array.isArray(recipe.ingredients)
-          ? recipe.ingredients
-          : (typeof recipe.ingredients === 'string' 
-              ? recipe.ingredients.split('\n').filter(Boolean).map(text => ({ ingredient: text }))
-              : []);
-        
-        ingredients.forEach((ing, idx) => {
-          allIngredients.push({
-            id: `${recipe.id}-${idx}`,
-            ingredient: ing.ingredient || ing,
-            quantity: ing.quantity || '',
-            checked: false,
-            source_recipe_id: recipe.id,
-            source_recipe_name: recipe.title || recipe.name
-          });
-        });
-      });
+      // Get recipe nodes
+      const recipeNodes = nodes.filter(n => n.data.mealPlanId === containerNode.data.mealPlanDbId);
       
-      const mergedItems = consolidateIngredients(allIngredients);
+      if (recipeNodes.length === 0) {
+        toast.error('No recipes in this meal plan');
+        return;
+      }
       
-      // Create new grocery list widget
+      // Convert to recipe array and use utility
+      const recipes = recipeNodes.map(n => ({ id: n.data.recipe_id }));
+      const groceryData = await generateGroceryListFromRecipeArray(recipes, `${containerNode.data.name} Shopping List`);
+
+      // Create grocery list widget
       const newWidget = {
         id: `grocery-list-temp-${Date.now()}`,
         name: `${containerNode.data.name} Shopping List`,
-        items: mergedItems,
-        linkedRecipeIds: recipeNodes.map(n => n.data.recipe_id),
-        linkedRecipes: fullRecipes,
+        items: groceryData.items,
+        linkedRecipeIds: groceryData.linkedRecipeIds,
         position: { x: containerNode.position.x + 650, y: containerNode.position.y },
         size: 'medium'
       };
@@ -1473,7 +1392,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       toast.success(`Created grocery list from ${containerNode.data.name}!`);
       
     } catch (error) {
-      console.error('Error generating grocery list from meal plan:', error);
+      console.error('Error generating grocery list:', error);
       toast.error('Failed to generate list: ' + error.message);
     }
   };
