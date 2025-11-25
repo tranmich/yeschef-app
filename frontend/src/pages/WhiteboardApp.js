@@ -75,13 +75,14 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   } = useWhiteboardData();
   
   // 🆕 Week 2: Recipe Operations Hook - handles add/delete/update recipe nodes!
-  const {
-    addRecipe: addRecipeToCanvas,
-    deleteRecipe: deleteRecipeFromCanvas,
-    updateRecipeTags,
-    updateRecipeColor,
-    handleRecipeClick: openRecipeDetail
-  } = useRecipeNodes();
+  // COMMENTED OUT: Causing initialization error, will integrate after migration complete
+  // const {
+  //   addRecipe: addRecipeToCanvas,
+  //   deleteRecipe: deleteRecipeFromCanvas,
+  //   updateRecipeTags,
+  //   updateRecipeColor,
+  //   handleRecipeClick: openRecipeDetail
+  // } = useRecipeNodes();
   
   // Responsive detection
   const isMobile = useMediaQuery({ maxWidth: 768 });
@@ -706,8 +707,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       })));
 
       if (recipes.length === 0) {
-        console.log('⚠️ No recipes found, loading mock data');
-        loadMockRecipes();
+        console.log('⚠️ No recipes found');
         return;
       }
 
@@ -771,123 +771,10 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
 
     } catch (err) {
       console.error('Error loading recipes:', err);
-      // Fall back to mock data if recipes fail to load
-      loadMockRecipes();
     }
   };
 
-  const loadMockRecipes = () => {
-    console.log('⚠️ Loading mock recipes as fallback');
-    
-    // Phase 1: Add some test RECIPE CARD nodes with realistic data
-    const testNodes = [
-          {
-            id: 'recipe-1',
-            type: 'recipeCard',
-            position: { x: 200, y: 150 },
-            data: {
-              recipe: {
-                id: 1,
-                name: 'Classic Margherita Pizza',
-                image_url: 'https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=400',
-                prep_time: 20,
-                cook_time: 15,
-                category: 'dinner'
-              },
-              recipe_id: 1,
-              name: 'Classic Margherita Pizza',
-              image_url: 'https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=400',
-              prep_time: 20,
-              cook_time: 15,
-              category: 'dinner',
-              onClick: handleRecipeClick
-            }
-          },
-          {
-            id: 'recipe-2',
-            type: 'recipeCard',
-            position: { x: 600, y: 150 },
-            data: {
-              recipe: {
-                id: 2,
-                name: 'Chocolate Chip Cookies',
-                image_url: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=400',
-                prep_time: 15,
-                cook_time: 12,
-                category: 'dessert'
-              },
-              recipe_id: 2,
-              name: 'Chocolate Chip Cookies',
-              image_url: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?w=400',
-              prep_time: 15,
-              cook_time: 12,
-              category: 'dessert',
-              onClick: handleRecipeClick
-            }
-          },
-          {
-            id: 'recipe-3',
-            type: 'recipeCard',
-            position: { x: 1000, y: 150 },
-            data: {
-              recipe: {
-                id: 3,
-                name: 'Caesar Salad with Grilled Chicken',
-                image_url: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400',
-                prep_time: 10,
-                cook_time: 20,
-                category: 'salad'
-              },
-              recipe_id: 3,
-              name: 'Caesar Salad with Grilled Chicken',
-              image_url: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=400',
-              prep_time: 10,
-              cook_time: 20,
-              category: 'salad',
-              onClick: handleRecipeClick
-            }
-          },
-          {
-            id: 'recipe-4',
-            type: 'recipeCard',
-            position: { x: 400, y: 500 },
-            data: {
-              recipe: {
-                id: 4,
-                name: 'Blueberry Pancakes',
-                image_url: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=400',
-                prep_time: 10,
-                cook_time: 15,
-                category: 'breakfast'
-              },
-              recipe_id: 4,
-              name: 'Blueberry Pancakes',
-              image_url: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=400',
-              prep_time: 10,
-              cook_time: 15,
-              category: 'breakfast',
-              onClick: handleRecipeClick
-            }
-          },
-          {
-            id: 'recipe-5',
-            type: 'recipeCard',
-            position: { x: 800, y: 500 },
-            data: { 
-              recipe_id: 5,
-              name: 'Creamy Tomato Soup',
-              image_url: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400',
-              prep_time: 10,
-              cook_time: 30,
-              category: 'soup',
-              onClick: handleRecipeClick
-            }
-          }
-        ];
-        
-        setNodes(testNodes);
-        // Edges removed - connection lines not needed
-  };
+  // loadMockRecipes REMOVED - useWhiteboardData hook provides proper data loading (Week 2)
 
   // ====================================
   // SELECTION HANDLERS (Canva-style)
