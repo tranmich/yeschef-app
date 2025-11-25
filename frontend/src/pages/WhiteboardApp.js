@@ -22,7 +22,7 @@ import { useRecipeNodes } from '../hooks/useRecipeNodes';
 import whiteboardAPI from '../services/whiteboardAPI';
 import { saveAllWhiteboardNodes } from '../utils/whiteboardSave';
 import { generateGroceryListFromRecipes } from '../utils/groceryListGenerator';
-import { createGroceryListNode } from '../utils/nodeCreators';
+import { createGroceryListNode, createActivityFeedNode, createMealPlanNode } from '../utils/nodeCreators';
 import { createRecipeNode, normalizeRecipe } from '../utils/recipeNodeFactory';
 import RecipeCardNode from '../components/whiteboard/nodes/RecipeCardNode';
 import RecipePickerPanel from '../components/RecipePickerPanel';
@@ -1015,32 +1015,22 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     try {
       console.log('📝 Creating new note block...');
       
-      // Generate unique temp ID
-      const tempId = `note-${Date.now()}`;
-      
-      // Calculate center position or offset from last note
+      // Calculate position with offset
       const existingNotes = nodes.filter(n => n.type === 'note');
-      const offsetX = existingNotes.length * 50;
-      const offsetY = existingNotes.length * 50;
+      const offset = existingNotes.length * 50;
+      const position = { x: 100 + offset, y: 100 + offset };
       
-      const position = {
-        x: 100 + offsetX,
-        y: 100 + offsetY,
-        width: 300,
-        height: 250,
-      };
-      
-      // Create note in backend first
+      // Create note in backend
       const noteData = {
-        type: 'nt',  // Note type (compact schema: nt)
-        object_type: 'note', // For backward compatibility
-        position: [position.x, position.y, position.width, position.height, 0], // [x, y, w, h, z]
+        type: 'nt',
+        object_type: 'note',
+        position: [position.x, position.y, 300, 250, 0],
         content: {
           type: 'note',
-          name: 'Note',  // Include default name in content
-          html: '<p></p>', // Empty note
-          backgroundColor: '#fef3c7', // Default yellow
-          fontSize: '18px' // Increased from 14px to 18px for better readability
+          name: 'Note',
+          html: '<p></p>',
+          backgroundColor: '#fef3c7',
+          fontSize: '18px'
         }
       };
       
@@ -1054,47 +1044,33 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       }
       
       const objectId = response.data.id;
-      console.log('✅ Note created in backend with ID:', objectId);
+      console.log('✅ Note created with ID:', objectId);
       
-      // Create React Flow node
+      // Create React Flow node with save handler
       const newNoteNode = {
         id: `note-${objectId}`,
         type: 'note',
-        position: { x: position.x, y: position.y },
+        position,
         data: {
           name: 'Note',
           content: noteData.content.html,
           backgroundColor: noteData.content.backgroundColor,
           fontSize: noteData.content.fontSize,
-          objectId: objectId,  // Store object ID for comments
-          commentCount: 0,  // Initial count
-          createdBy: user?.name || user?.email || 'Unknown', // Add creator name
-          // Note: onDelete will be attached by the note component
+          objectId,
+          commentCount: 0,
+          createdBy: user?.name || user?.email || 'Unknown',
           onSave: (noteContent) => {
-            // 🆕 Optimistic update (immediate UI feedback)
+            // Optimistic update
             setNodes(prevNodes => prevNodes.map(n =>
-              n.id === `note-${objectId}`
-                ? {
-                    ...n,
-                    data: {
-                      ...n.data,
-                      name: noteContent.name,
-                      content: noteContent.content,
-                      backgroundColor: noteContent.backgroundColor,
-                      fontSize: noteContent.fontSize
-                    }
-                  }
+              n.id === `note-${objectId}` 
+                ? { ...n, data: { ...n.data, ...noteContent } }
                 : n
             ));
-
-            // 🆕 Debounced save to backend (2 seconds after last change)
+            // Debounced backend save
             debouncedNoteSave(whiteboardId, objectId, noteContent);
           }
         },
-        style: {
-          width: position.width,
-          height: position.height
-        }
+        style: { width: 300, height: 250 }
       };
       
       setNodes(prevNodes => [...prevNodes, newNoteNode]);
@@ -1105,70 +1081,37 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       toast.error('Failed to create note: ' + error.message);
     }
   }, [nodes, whiteboardId, user, debouncedNoteSave, toast]);
-
-  // Create Activity Feed Widget (no backend storage needed - just reads from activity_feed table)
   const handleCreateActivityFeed = useCallback(() => {
     try {
-      console.log('🔔 Creating new activity feed widget...');
+      console.log('🔔 Creating activity feed widget...');
       
-      // Calculate position (offset if there are existing widgets)
-      const existingActivityFeeds = nodes.filter(n => n.type === 'activityFeed');
-      const offsetX = existingActivityFeeds.length * 50;
-      const offsetY = existingActivityFeeds.length * 50;
+      // Calculate position with offset
+      const existingFeeds = nodes.filter(n => n.type === 'activityFeed');
+      const offset = existingFeeds.length * 50;
+      const position = { x: 800 + offset, y: 100 + offset };
       
-      const position = {
-        x: 800 + offsetX,
-        y: 100 + offsetY,
-        width: 400,
-        height: 600,
-      };
+      // Use node creator utility
+      const newNode = createActivityFeedNode(householdId, position);
       
-      // Create a unique ID for this widget
-      const widgetId = `activityFeed-${Date.now()}`;
-      
-      // Create React Flow node (no backend storage - it's just a view of existing data)
-      const newActivityNode = {
-        id: widgetId,
-        type: 'activityFeed',
-        position: { x: position.x, y: position.y },
-        style: {
-          width: position.width,
-          height: position.height,
-        },
-        data: {
-          householdId: householdId,
-        },
-      };
-      
-      setNodesWithZIndex(prevNodes => [...prevNodes, newActivityNode]);
-      
-      toast.success('� Activity feed added!');
-      
-      // Save whiteboard state (stores position in local storage or whiteboard metadata)
-      // setTimeout(() => saveWhiteboard(), 500); // Commented out - not needed for activity feed
+      setNodesWithZIndex(prevNodes => [...prevNodes, newNode]);
+      toast.success('📊 Activity feed added!');
       
     } catch (error) {
       console.error('❌ Error creating activity feed:', error);
       toast.error('Failed to create activity feed');
     }
   }, [nodes, householdId, setNodesWithZIndex, toast]);
-
   const handleCreateDayBox = async () => {
     try {
       const dayNumber = mealPlanWidgets.length + 1;
       const dayName = `Day ${dayNumber}`;
       
-      // Create meal plan in database immediately
+      // Create meal plan in database
       const mealData = {
-        days: {
-          [`day${dayNumber}`]: {
-            name: dayName,
-            recipes: []
-          }
-        }
+        days: { [`day${dayNumber}`]: { name: dayName, recipes: [] } }
       };
       
-      console.log('📅 Creating meal plan in database...', mealData);
+      console.log('📅 Creating meal plan in database...');
       
       const response = await apiCall('/api/meal-plans', {
         method: 'POST',
@@ -1186,12 +1129,12 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       
       console.log(`✅ Meal plan created with ID: ${response.plan_id}`);
       
-      // Create whiteboard object linking to meal plan
+      // Create whiteboard object
       const position = { 
         x: 400 + (mealPlanWidgets.length * 60), 
         y: 100 + (mealPlanWidgets.length * 60),
-        width: 600,  // Larger for new container
-        height: 800, // Larger for new container
+        width: 600,
+        height: 800,
         z_index: 0
       };
       
@@ -1199,7 +1142,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
         type: 'mp',
         entity_type: 'meal_plan',
         entity_id: response.plan_id,
-        position: position
+        position
       });
       
       if (!objectResponse.success) {
@@ -1208,43 +1151,27 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       
       console.log(`✅ Whiteboard object created with ID: ${objectResponse.data.id}`);
       
-      // Create new React Flow container node (meal plan container)
-      const newContainerNode = {
-        id: `meal-plan-${response.plan_id}`,
-        type: 'mealPlanContainer',
-        position: {
-          x: position.x,
-          y: position.y
-        },
-        draggable: true, // Make container draggable
-        // Set dimensions at top level for React Flow
-        width: position.width,
-        height: position.height,
-        data: {
-          name: dayName,
-          mealPlanDbId: response.plan_id,
-          objectId: objectResponse.data.id,
-          recipeCount: 0,
-          backgroundColor: '#D1FAE5',
-          commentCount: 0,
-          hasNewComments: false,
-          onNameChange: handleMealPlanNodeNameChange,
-          onColorChange: handleMealPlanNodeColorChange,
-          onDelete: handleMealPlanNodeDelete,
-          onGenerateGroceryList: handleGenerateGroceryListFromMealPlanNode
-        },
-        style: {
-          width: position.width,
-          height: position.height
-        }
+      // Create meal plan node
+      const handlers = {
+        onNameChange: handleMealPlanNodeNameChange,
+        onColorChange: handleMealPlanNodeColorChange,
+        onDelete: handleMealPlanNodeDelete,
+        onGenerateGroceryList: handleGenerateGroceryListFromMealPlanNode
       };
       
-      console.log('✅ Creating new React Flow meal plan node:', newContainerNode);
+      const mealPlanData = {
+        id: response.plan_id,
+        name: dayName,
+        backgroundColor: '#D1FAE5'
+      };
       
-      // Add to React Flow nodes
-      setNodes(prevNodes => [...prevNodes, newContainerNode]);
+      const newNode = createMealPlanNode(mealPlanData, position, handlers);
+      newNode.data.objectId = objectResponse.data.id;
+      newNode.data.recipeCount = 0;
+      newNode.data.commentCount = 0;
+      newNode.data.hasNewComments = false;
       
-      // Remove old widget creation - using React Flow nodes now
+      setNodes(prevNodes => [...prevNodes, newNode]);
       toast.success(`Created ${dayName} meal plan!`);
       
     } catch (error) {
@@ -1252,7 +1179,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       toast.error('Failed to create meal plan: ' + error.message);
     }
   };
-
   // ====================================
   // TAG HANDLERS
   // ====================================
