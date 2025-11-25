@@ -998,21 +998,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     ));
   };
 
-  const handleItemChecked = (widgetId, itemId, checked) => {
-    // TODO: Broadcast via WebSocket
-    console.log(`Item ${itemId} checked: ${checked}`);
-  };
-
-  const handleItemAdded = (widgetId, item) => {
-    // TODO: Broadcast via WebSocket
-    console.log('Item added:', item);
-  };
-
-  const handleItemRemoved = (widgetId, itemId) => {
-    // TODO: Broadcast via WebSocket
-    console.log('Item removed:', itemId);
-  };
-
   // ====================================
   // MEAL PLAN WIDGET HANDLERS
   // ====================================
