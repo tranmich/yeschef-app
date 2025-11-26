@@ -414,8 +414,8 @@ export function useRecipeNodes() {
     // Single operations
     addRecipe,
     deleteRecipe: handleDeleteRecipe,
-    updateTags: handleTagsChange,
-    updateColor: handleRecipeColorChange,
+    updateRecipeTags: handleTagsChange,
+    updateRecipeColor: handleRecipeColorChange,
     
     // UI interactions
     handleRecipeClick,
