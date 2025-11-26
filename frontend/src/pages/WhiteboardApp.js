@@ -509,9 +509,10 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       console.log('📦 Whiteboard objects:', whiteboardData.objects);
       
       // Filter whiteboard objects that have meal_plan references
+      // Database stores meal plans with type='container'
       const mealPlanObjects = whiteboardData.objects?.filter(obj => {
-        console.log('🔍 Checking object:', obj.object_type, obj.entity_type, obj.entity_id, obj.mid);
-        return (obj.entity_type === 'meal_plan' || obj.object_type === 'mp') && (obj.entity_id || obj.mid);
+        console.log('🔍 Checking object:', obj.type, obj.object_type, obj.entity_type, obj.entity_id, obj.mid);
+        return (obj.type === 'container' || obj.entity_type === 'meal_plan' || obj.object_type === 'mp') && (obj.entity_id || obj.mid);
       }) || [];
       
       if (mealPlanObjects.length === 0) {

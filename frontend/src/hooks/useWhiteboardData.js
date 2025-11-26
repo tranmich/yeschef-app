@@ -162,7 +162,16 @@ export function useWhiteboardData() {
           
           // Handle other types (grocery lists, meal plans, etc.)
           // TODO: Add handlers for other node types
-          console.warn(`⚠️ Unknown object type: ${obj.type}, entity_type: ${obj.entity_type}`);
+          console.warn(`⚠️ Unknown object type - cannot render:`, {
+            id: obj.id,
+            type: obj.type,
+            entity_type: obj.entity_type,
+            object_type: obj.object_type,
+            rid: obj.rid,
+            gid: obj.gid,
+            mid: obj.mid,
+            position: obj.position
+          });
           
           return null;
         })
