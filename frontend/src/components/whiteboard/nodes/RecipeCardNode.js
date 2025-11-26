@@ -168,6 +168,12 @@ const RecipeCardNode = ({ data, id, selected }) => {
       recipeName: name
     });
     
+    console.log('🔍 [RecipeCardNode] Handler check:', {
+      hasOnColorChange: !!onColorChange,
+      onColorChangeType: typeof onColorChange,
+      allDataProps: Object.keys(data)
+    });
+    
     setCardColor(color);
     setShowColorPicker(false);
     
@@ -176,7 +182,16 @@ const RecipeCardNode = ({ data, id, selected }) => {
       onColorChange(id, color, object_id);
       console.log('🎨 [RecipeCardNode] Handler called successfully');
     } else {
-      console.warn('⚠️ [RecipeCardNode] No onColorChange handler provided!');
+      console.error('❌ [RecipeCardNode] No onColorChange handler provided!', {
+        nodeId: id,
+        recipeName: name,
+        recipeId: recipe_id,
+        dataKeys: Object.keys(data),
+        onClickExists: !!data.onClick,
+        onDeleteExists: !!data.onDelete,
+        onTagsChangeExists: !!data.onTagsChange,
+        onColorChangeExists: !!data.onColorChange
+      });
     }
   };
 
