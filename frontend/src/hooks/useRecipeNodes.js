@@ -22,14 +22,21 @@ export function useRecipeNodes() {
   const {
     whiteboardId,
     nodes,
+    setNodes,
     addNode,
-    updateNode,
     deleteNode,
     setSelectedRecipeForDetail,
     setIsRecipeDetailOpen,
   } = useWhiteboard();
   
   const { addRecipes: addRecipesToCache, getRecipe } = useRecipeCache();
+  
+  // Helper to update a single node
+  const updateNode = useCallback((nodeId, updates) => {
+    setNodes(prevNodes => prevNodes.map(n =>
+      n.id === nodeId ? { ...n, data: { ...n.data, ...updates } } : n
+    ));
+  }, [setNodes]);
   
   // ==========================================
   // ADD RECIPE TO CANVAS
