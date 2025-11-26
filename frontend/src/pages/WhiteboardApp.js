@@ -851,10 +851,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }
   };
 
-  // OLD FLOATING WIDGET HANDLERS REMOVED - Now using React Flow nodes instead
-  // These handlers were for GroceryListFloatingWidget and MealPlanFloatingWidget
-  // which have been replaced by GroceryListNode and MealPlanContainerNode
-
   const handleMealPlanNameChange = async (widgetId, newName) => {
     // Update local state immediately (optimistic update)
     setMealPlanWidgets(mealPlanWidgets.map(w =>
