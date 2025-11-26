@@ -61,7 +61,7 @@ export function useRecipeNodes() {
       
       // 3. Save to whiteboard database
       const savedObject = await whiteboardAPI.createObject(whiteboardId, {
-        type: 'r',  // Backend shorthand for recipe
+        type: 'rc',  // Database constraint requires 'rc' for recipe cards
         entity_type: 'recipe',
         entity_id: recipe.id,
         position: [position.x, position.y, 300, 400, 0],  // [x, y, width, height, z_index]

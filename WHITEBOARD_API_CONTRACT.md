@@ -24,12 +24,12 @@ CONSTRAINT valid_object_type CHECK (object_type IN ('rc', 'note', 'image', 'list
 
 ### **Backend API Expected Values (whiteboards.py:661)**
 
-| Object Type | Backend Code | Database Value | Frontend Node Type | Description |
+| Object Type | Frontend Sends | Database Stores | Frontend Node Type | Description |
 |---|---|---|---|---|
-| Recipe Card | `'r'` | `'rc'` (stored as `'r'`) | `'recipeCard'` | Recipe on canvas |
-| Note Block | `'nt'` | `'note'` | `'note'` | Text note |
-| Grocery List | `'gl'` | `'list'` | `'groceryListNode'` | Shopping list |
-| Meal Plan | `'mp'` | `'container'` | `'mealPlanContainer'` | Meal plan box |
+| Recipe Card | `'rc'` | `'rc'` | `'recipeCard'` | Recipe on canvas |
+| Note Block | `'note'` | `'note'` | `'note'` | Text note |
+| Grocery List | `'list'` | `'list'` | `'groceryListNode'` | Shopping list |
+| Meal Plan | `'container'` | `'container'` | `'mealPlanContainer'` | Meal plan box |
 | Activity Feed | `'af'` | (not in schema) | `'activityFeed'` | Activity widget |
 | Image | `'img'` | `'image'` | `'image'` | Image object |
 | Link | `'lnk'` | `'link'` | `'link'` | URL link |
@@ -48,7 +48,7 @@ POST /api/v2/whiteboard/{whiteboard_id}/o
 ```javascript
 {
   // REQUIRED
-  "type": "r",              // Backend shorthand: 'r', 'nt', 'gl', 'mp', 'af', 'img', 'lnk'
+  "type": "rc",             // Database values: 'rc', 'note', 'list', 'container', 'image', 'link'
   
   // OPTIONAL (for linked entities)
   "entity_type": "recipe",  // Full name: 'recipe', 'grocery_list', 'meal_plan'
@@ -82,7 +82,7 @@ mid = entity_id if entity_type == 'meal_plan' else None
 **Frontend (useRecipeNodes.js):**
 ```javascript
 await whiteboardAPI.createObject(whiteboardId, {
-  type: 'r',                    // ✅ CORRECT
+  type: 'rc',                   // ✅ CORRECT - matches database constraint
   entity_type: 'recipe',        // ✅ CORRECT
   entity_id: recipe.id,         // ✅ CORRECT
   position: [x, y, 300, 400, 0],
@@ -94,7 +94,7 @@ await whiteboardAPI.createObject(whiteboardId, {
 **Backend Stores:**
 ```sql
 INSERT INTO wbo (wid, t, rid, gid, mid, p, c, tags, ...)
-VALUES (59, 'r', 2615, NULL, NULL, [x,y,w,h,z], {}, [], ...)
+VALUES (59, 'rc', 2615, NULL, NULL, [x,y,w,h,z], {}, [], ...)
 ```
 
 ---
@@ -104,7 +104,7 @@ VALUES (59, 'r', 2615, NULL, NULL, [x,y,w,h,z], {}, [], ...)
 **Frontend (nodeCreators.js):**
 ```javascript
 await whiteboardAPI.createObject(whiteboardId, {
-  type: 'gl',                   // ✅ CORRECT
+  type: 'list',                 // ✅ CORRECT - matches database constraint
   entity_type: 'grocery_list',  // ✅ CORRECT
   entity_id: groceryListId,     // ✅ CORRECT
   position: [x, y, 350, 500, 0],
@@ -118,7 +118,7 @@ await whiteboardAPI.createObject(whiteboardId, {
 **Backend Stores:**
 ```sql
 INSERT INTO wbo (wid, t, rid, gid, mid, p, c, ...)
-VALUES (59, 'gl', NULL, 456, NULL, [x,y,w,h,z], {"items": [...]}, ...)
+VALUES (59, 'list', NULL, 456, NULL, [x,y,w,h,z], {"items": [...]}, ...)
 ```
 
 ---
@@ -128,7 +128,7 @@ VALUES (59, 'gl', NULL, 456, NULL, [x,y,w,h,z], {"items": [...]}, ...)
 **Frontend (nodeCreators.js):**
 ```javascript
 await whiteboardAPI.createObject(whiteboardId, {
-  type: 'nt',                   // ✅ CORRECT
+  type: 'note',                 // ✅ CORRECT - matches database constraint
   entity_type: null,            // No linked entity
   entity_id: null,
   position: [x, y, 300, 200, 0],
@@ -142,7 +142,7 @@ await whiteboardAPI.createObject(whiteboardId, {
 **Backend Stores:**
 ```sql
 INSERT INTO wbo (wid, t, rid, gid, mid, p, c, ...)
-VALUES (59, 'nt', NULL, NULL, NULL, [x,y,w,h,z], {"html": "..."}, ...)
+VALUES (59, 'note', NULL, NULL, NULL, [x,y,w,h,z], {"html": "..."}, ...)
 ```
 
 ---
@@ -152,7 +152,7 @@ VALUES (59, 'nt', NULL, NULL, NULL, [x,y,w,h,z], {"html": "..."}, ...)
 **Frontend (nodeCreators.js):**
 ```javascript
 await whiteboardAPI.createObject(whiteboardId, {
-  type: 'mp',                   // ✅ CORRECT
+  type: 'container',            // ✅ CORRECT - matches database constraint
   entity_type: 'meal_plan',     // ✅ CORRECT
   entity_id: mealPlanId,        // ✅ CORRECT
   position: [x, y, 600, 800, 0],
@@ -166,7 +166,7 @@ await whiteboardAPI.createObject(whiteboardId, {
 **Backend Stores:**
 ```sql
 INSERT INTO wbo (wid, t, rid, gid, mid, p, c, ...)
-VALUES (59, 'mp', NULL, NULL, 789, [x,y,w,h,z], {"name": "Monday"}, ...)
+VALUES (59, 'container', NULL, NULL, 789, [x,y,w,h,z], {"name": "Monday"}, ...)
 ```
 
 ---
@@ -178,22 +178,25 @@ VALUES (59, 'mp', NULL, NULL, 789, [x,y,w,h,z], {"name": "Monday"}, ...)
 ```javascript
 // ❌ WRONG
 {
-  type: 'recipe',           // Backend doesn't understand this
-  type: 'recipeCard',       // Backend doesn't understand this
-  type: 'groceryListNode',  // Backend doesn't understand this
+  type: 'recipe',           // Database doesn't accept this
+  type: 'recipeCard',       // Database doesn't accept this
+  type: 'groceryListNode',  // Database doesn't accept this
+  type: 'r',                // Too short - not in constraint
+  type: 'gl',               // Too short - not in constraint
 }
 ```
 
-### **✅ CORRECT - Use Backend Shorthand**
+### **✅ CORRECT - Use Database Constraint Values**
 
 ```javascript
-// ✅ CORRECT
+// ✅ CORRECT - Must match database CHECK constraint
 {
-  type: 'r',      // Recipe
-  type: 'nt',     // Note
-  type: 'gl',     // Grocery list
-  type: 'mp',     // Meal plan
-  type: 'af',     // Activity feed
+  type: 'rc',         // Recipe card
+  type: 'note',       // Note
+  type: 'list',       // Grocery list
+  type: 'container',  // Meal plan container
+  type: 'image',      // Image
+  type: 'link',       // Link
 }
 ```
 
