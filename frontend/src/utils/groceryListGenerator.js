@@ -119,28 +119,20 @@ export function extractAllIngredients(recipes) {
 }
 
 /**
- * Fetch recipes by IDs (for meal plan generation)
- * @param {Array} recipeIds - Array of recipe IDs
- * @returns {Promise<Array>} Full recipe objects
- */
-export async function fetchRecipesByIds(recipeIds) {
-  const recipePromises = recipeIds.map(id => apiCall(`/api/recipes/${id}`));
-  const responses = await Promise.all(recipePromises);
-  return responses.map(r => r.recipe || r.data).filter(Boolean);
-}
-
-/**
- * Fetch recipes from an array of recipe objects with IDs
- * @param {Array} recipeArray - Array of recipe objects with {id}
+ * Fetch recipes from an array of recipe objects with IDs or plain IDs
+ * @param {Array} recipeArray - Array of recipe objects with {id} or plain IDs
  * @returns {Promise<Array>} Full recipe objects
  */
 export async function fetchRecipesByIds(recipeArray) {
   const recipePromises = recipeArray.map(async (recipe) => {
     try {
-      const response = await apiCall(`/api/recipes/${recipe.id}`);
+      // Handle both {id: 123} and plain 123 formats
+      const recipeId = typeof recipe === 'object' ? recipe.id : recipe;
+      const response = await apiCall(`/api/recipes/${recipeId}`);
       return response.recipe || response.data || null;
     } catch (err) {
-      console.error(`Failed to fetch recipe ${recipe.id}:`, err);
+      const recipeId = typeof recipe === 'object' ? recipe.id : recipe;
+      console.error(`Failed to fetch recipe ${recipeId}:`, err);
       return null;
     }
   });
