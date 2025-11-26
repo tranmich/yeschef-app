@@ -320,6 +320,52 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     }, 2000) // Wait 2 seconds after last change
   ).current;
 
+  // ==========================================
+  // HANDLER FUNCTIONS (Used by nodesWithHandlers useMemo)
+  // ==========================================
+  
+  // Note handlers
+  const handleNoteChange = useCallback((nodeId, newContent) => {
+    console.log('📝 Note content changed:', nodeId);
+    setNodes(prevNodes => prevNodes.map(n =>
+      n.id === nodeId ? { ...n, data: { ...n.data, content: newContent } } : n
+    ));
+    
+    // Trigger debounced save
+    const node = nodes.find(n => n.id === nodeId);
+    if (node && node.data.object_id) {
+      debouncedNoteSave.current(whiteboardId, node.data.object_id, {
+        name: node.data.name || 'Note',
+        content: newContent,
+        backgroundColor: node.data.backgroundColor,
+        fontSize: node.data.fontSize
+      });
+    }
+  }, [nodes, whiteboardId, debouncedNoteSave]);
+  
+  const handleDeleteObject = useCallback(async (objectId) => {
+    try {
+      console.log('🗑️ Deleting object:', objectId);
+      await whiteboardAPI.deleteObject(whiteboardId, objectId);
+      
+      // Remove from canvas
+      setNodes(prevNodes => prevNodes.filter(n => n.data.object_id !== objectId));
+      
+      console.log('✅ Object deleted');
+      toast.success('Deleted!');
+    } catch (error) {
+      console.error('❌ Failed to delete object:', error);
+      toast.error('Delete failed');
+    }
+  }, [whiteboardId, toast]);
+  
+  // Meal plan handlers (stubs for now - implement when needed)
+  const handleDeleteMealPlan = useCallback(async (mealPlanId) => {
+    console.log('🗑️ Delete meal plan:', mealPlanId);
+    toast.info('Meal plan delete not yet implemented');
+    // TODO: Implement meal plan deletion
+  }, [toast]);
+
   // Helper function to enforce z-index for recipes in meal plans
   const enforceZIndex = useCallback((nodes) => {
     return nodes.map(node => {
