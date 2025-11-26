@@ -208,10 +208,11 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     return commentCountMap.get(`${objectType}-${objectId}`) || 0;
   }, [commentCountMap]);
 
-  // 🆕 ATTACH HANDLERS TO NODES
+  // 🆕 ATTACH HANDLERS TO ALL NODES
   // Nodes loaded from database don't have handlers - add them here!
   const nodesWithHandlers = useMemo(() => {
     return nodes.map(node => {
+      // Recipe cards
       if (node.type === 'recipeCard') {
         return {
           ...node,
@@ -225,9 +226,76 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
           }
         };
       }
+      
+      // Notes
+      if (node.type === 'note') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onChange: handleNoteChange,
+            onDelete: (nodeId, objectId) => {
+              if (window.confirm('Delete this note?')) {
+                handleDeleteObject(objectId);
+              }
+            },
+          }
+        };
+      }
+      
+      // Grocery lists
+      if (node.type === 'groceryListNode') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onItemChecked: handleGroceryListItemChecked,
+            onItemRemoved: handleGroceryListItemRemoved,
+            onItemAdded: handleGroceryListItemAdded,
+            onNameChange: handleGroceryListNameChange,
+            onDelete: (nodeId, dbId) => {
+              if (window.confirm('Delete this grocery list?')) {
+                handleDeleteGroceryList(dbId);
+              }
+            },
+          }
+        };
+      }
+      
+      // Meal plan containers
+      if (node.type === 'mealPlanContainer') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onRecipeClick: openRecipeDetail,
+            onDelete: (nodeId, mealPlanId) => {
+              if (window.confirm('Delete this meal plan?')) {
+                handleDeleteMealPlan(mealPlanId);
+              }
+            },
+          }
+        };
+      }
+      
+      // Return other node types unchanged
       return node;
     });
-  }, [nodes, openRecipeDetail, deleteRecipeFromCanvas, updateRecipeTags, updateRecipeColor]);
+  }, [
+    nodes,
+    openRecipeDetail,
+    deleteRecipeFromCanvas,
+    updateRecipeTags,
+    updateRecipeColor,
+    handleNoteChange,
+    handleDeleteObject,
+    handleGroceryListItemChecked,
+    handleGroceryListItemRemoved,
+    handleGroceryListItemAdded,
+    handleGroceryListNameChange,
+    handleDeleteGroceryList,
+    handleDeleteMealPlan,
+  ]);
 
   // 🆕 Debounced note save function (saves after 2 seconds of inactivity)
   const debouncedNoteSave = useRef(
