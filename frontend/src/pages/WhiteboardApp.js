@@ -254,6 +254,86 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     // TODO: Implement meal plan deletion
   }, [toast]);
 
+  // Grocery list handlers (must be defined before useMemo!)
+  const handleGroceryListNameChange = useCallback((nodeId, newName) => {
+    setNodes(prevNodes => prevNodes.map(n =>
+      n.id === nodeId ? { ...n, data: { ...n.data, name: newName } } : n
+    ));
+    setTimeout(() => handleSave(), 500);
+    toast.success(`Renamed to "${newName}"`);
+  }, [nodes, toast]);
+
+  const handleGroceryListColorChange = useCallback((nodeId, newColor) => {
+    setNodes(prevNodes => prevNodes.map(n =>
+      n.id === nodeId ? { ...n, data: { ...n.data, backgroundColor: newColor } } : n
+    ));
+  }, []);
+
+  const handleGroceryListItemChecked = useCallback((nodeId, itemId, checked) => {
+    setNodes(prevNodes => prevNodes.map(n => {
+      if (n.id === nodeId) {
+        const updatedItems = n.data.items.map(item =>
+          item.id === itemId ? { ...item, checked } : item
+        );
+        return { ...n, data: { ...n.data, items: updatedItems } };
+      }
+      return n;
+    }));
+    setTimeout(() => handleSave(), 500);
+  }, []);
+
+  const handleGroceryListItemAdded = useCallback((nodeId, newItem) => {
+    setNodes(prevNodes => prevNodes.map(n => {
+      if (n.id === nodeId) {
+        const updatedItems = [newItem, ...n.data.items];
+        return { ...n, data: { ...n.data, items: updatedItems } };
+      }
+      return n;
+    }));
+    setTimeout(() => handleSave(), 500);
+  }, []);
+
+  const handleGroceryListItemRemoved = useCallback((nodeId, itemId) => {
+    setNodes(prevNodes => prevNodes.map(n => {
+      if (n.id === nodeId) {
+        const updatedItems = n.data.items.filter(item => item.id !== itemId);
+        return { ...n, data: { ...n.data, items: updatedItems } };
+      }
+      return n;
+    }));
+    setTimeout(() => handleSave(), 500);
+  }, []);
+
+  const handleGroceryListItemsReordered = useCallback((nodeId, reorderedItems) => {
+    setNodes(prevNodes => prevNodes.map(n => {
+      if (n.id === nodeId) {
+        return { ...n, data: { ...n.data, items: reorderedItems } };
+      }
+      return n;
+    }));
+    setTimeout(() => handleSave(), 500);
+  }, []);
+
+  const handleGroceryListDelete = useCallback(async (nodeId) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    const dbId = node.data.dbId;
+    const listName = node.data.name;
+    
+    if (window.confirm(`Delete grocery list "${listName}"?`)) {
+      setNodes(prevNodes => prevNodes.filter(n => n.id !== nodeId));
+      if (dbId && whiteboardId) {
+        try {
+          await whiteboardAPI.deleteWhiteboardGroceryList(whiteboardId, dbId);
+        } catch (error) {
+          console.error('❌ Failed to delete from database:', error);
+        }
+      }
+      toast.success('Grocery list deleted');
+    }
+  }, [nodes, whiteboardId, toast]);
+
   // 🆕 ATTACH HANDLERS TO ALL NODES
   // Nodes loaded from database don't have handlers - add them here!
   const nodesWithHandlers = useMemo(() => {
@@ -883,110 +963,6 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     } catch (error) {
       console.error('❌ Error generating grocery list:', error);
       toast.error(error.message || 'Failed to generate grocery list');
-    }
-  };
-  const handleGroceryListNameChange = (nodeId, newName) => {
-    // Update node data
-    setNodes(prevNodes => prevNodes.map(n =>
-      n.id === nodeId ? { ...n, data: { ...n.data, name: newName } } : n
-    ));
-    
-    // Auto-save after a short delay (debounce)
-    setTimeout(() => {
-      handleSave();
-    }, 500);
-    
-    toast.success(`Renamed to "${newName}"`);
-  };
-
-  const handleGroceryListColorChange = (nodeId, newColor) => {
-    setNodes(prevNodes => prevNodes.map(n =>
-      n.id === nodeId ? { ...n, data: { ...n.data, backgroundColor: newColor } } : n
-    ));
-  };
-
-  const handleGroceryListItemChecked = (nodeId, itemId, checked) => {
-    setNodes(prevNodes => prevNodes.map(n => {
-      if (n.id === nodeId) {
-        const updatedItems = n.data.items.map(item =>
-          item.id === itemId ? { ...item, checked } : item
-        );
-        return { ...n, data: { ...n.data, items: updatedItems } };
-      }
-      return n;
-    }));
-    
-    // Auto-save after checking/unchecking
-    setTimeout(() => handleSave(), 500);
-  };
-
-  const handleGroceryListItemAdded = (nodeId, newItem) => {
-    setNodes(prevNodes => prevNodes.map(n => {
-      if (n.id === nodeId) {
-        // Add new item at the TOP of the list
-        const updatedItems = [newItem, ...n.data.items];
-        return { ...n, data: { ...n.data, items: updatedItems } };
-      }
-      return n;
-    }));
-    
-    // FIXED: Auto-save after adding item
-    setTimeout(() => handleSave(), 500);
-  };
-
-  const handleGroceryListItemRemoved = (nodeId, itemId) => {
-    setNodes(prevNodes => prevNodes.map(n => {
-      if (n.id === nodeId) {
-        const updatedItems = n.data.items.filter(item => item.id !== itemId);
-        return { ...n, data: { ...n.data, items: updatedItems } };
-      }
-      return n;
-    }));
-    
-    // Auto-save after removal
-    setTimeout(() => handleSave(), 500);
-  };
-
-  const handleGroceryListItemsReordered = (nodeId, reorderedItems) => {
-    // Update node data with reordered items
-    setNodes(prevNodes => prevNodes.map(n => {
-      if (n.id === nodeId) {
-        return { ...n, data: { ...n.data, items: reorderedItems } };
-      }
-      return n;
-    }));
-    
-    // Auto-save after reordering
-    setTimeout(() => {
-      handleSave();
-    }, 500);
-  };
-
-  const handleGroceryListDelete = async (nodeId) => {
-    const node = nodes.find(n => n.id === nodeId);
-    
-    if (!node) {
-      console.error('❌ Node not found:', nodeId);
-      return;
-    }
-
-    const dbId = node.data.dbId;
-    const listName = node.data.name;
-
-    if (window.confirm(`Delete grocery list "${listName}"?`)) {
-      // Remove from React Flow
-      setNodes(prevNodes => prevNodes.filter(n => n.id !== nodeId));
-
-      // Delete from database if it was saved
-      if (dbId && whiteboardId) {
-        try {
-          await whiteboardAPI.deleteWhiteboardGroceryList(whiteboardId, dbId);
-        } catch (error) {
-          console.error('❌ Error deleting grocery list:', error);
-        }
-      }
-
-      toast.success('Grocery list deleted');
     }
   };
 
