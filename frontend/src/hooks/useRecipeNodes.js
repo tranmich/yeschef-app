@@ -95,7 +95,7 @@ export function useRecipeNodes() {
       console.error('❌ Failed to add recipe:', error);
       throw error;
     }
-  }, [whiteboardId, addRecipes, addNode]);
+  }, [whiteboardId, addRecipesToCache, addNode]);
   
   // ==========================================
   // DELETE RECIPE FROM CANVAS

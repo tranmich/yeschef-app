@@ -16,7 +16,7 @@ import { ReactFlow, Controls, Background, useReactFlow, Panel, applyNodeChanges 
 import '@xyflow/react/dist/style.css';
 import { useAuth } from '../contexts/AuthContext';
 import { RecipeCacheProvider, useRecipeCache } from '../contexts/RecipeCacheContext';
-import { WhiteboardProvider } from '../contexts/WhiteboardContext';
+import { WhiteboardProvider, useWhiteboard } from '../contexts/WhiteboardContext';
 import { useWhiteboardData } from '../hooks/useWhiteboardData';
 import { useRecipeNodes } from '../hooks/useRecipeNodes';
 import whiteboardAPI from '../services/whiteboardAPI';
@@ -72,9 +72,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   
   // 🆕 Week 2: Whiteboard Data Hook - handles loading, validation, batch fetch!
   const { 
-    loadWhiteboard: loadWhiteboardData,
-    isLoading: dataLoading,
-    error: dataError 
+    loadWhiteboard: loadWhiteboardData
   } = useWhiteboardData();
   
   // 🆕 Week 2: Recipe Operations Hook - handles add/delete/update recipe nodes!
@@ -97,52 +95,64 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   // 🆕 AbortController for request cancellation
   const abortControllerRef = useRef(null);
 
-  // Whiteboard state
-  const [whiteboard, setWhiteboard] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // ==========================================
+  // GET STATE FROM CONTEXT (Single Source of Truth!)
+  // ==========================================
+  const {
+    // Core whiteboard state
+    whiteboard,
+    setWhiteboard,
+    loading,
+    setLoading,
+    error,
+    setError,
+    
+    // React Flow state
+    nodes,
+    setNodes,
+    canvasViewport,
+    setCanvasViewport,
+    
+    // UI state
+    isPickerOpen,
+    setIsPickerOpen,
+    isShortcutsModalOpen,
+    setIsShortcutsModalOpen,
+    isTagSidebarOpen,
+    setIsTagSidebarOpen,
+    isCommentsSidebarOpen,
+    setIsCommentsSidebarOpen,
+    isRecipeDetailOpen,
+    setIsRecipeDetailOpen,
+    
+    // Selection state
+    selectedRecipes,
+    setSelectedRecipes,
+    selectedTags,
+    setSelectedTags,
+    selectedNote,
+    setSelectedNote,
+    selectedObjectForComments,
+    setSelectedObjectForComments,
+    selectedRecipeForDetail,
+    setSelectedRecipeForDetail,
+    
+    // Comment state
+    commentCounts,
+    setCommentCounts,
+    
+    // Widget state
+    groceryListWidgets,
+    setGroceryListWidgets,
+    mealPlanWidgets,
+    setMealPlanWidgets,
+  } = useWhiteboard();
 
-  // React Flow state
-  const [nodes, setNodes] = useState([]);
+  // Local refs (optimization, not state)
   const nodesRef = useRef(nodes); // Keep track of latest nodes for save
-  // Edges removed - connection lines feature not needed
-
-  // Recipe Picker Panel state
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
-
-  // Keyboard Shortcuts Modal state
-  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
-
-  // Grocery List Widget state
-  const [groceryListWidgets, setGroceryListWidgets] = useState([]);
   
-  // Meal Plan Widget state  
-  const [mealPlanWidgets, setMealPlanWidgets] = useState([]);
-  
-  const [selectedRecipes, setSelectedRecipes] = useState([]);
-  // Connection lines removed - feature not needed
-  
-  // Track canvas viewport for zoom/pan - Increased default zoom from 0.5 to 0.8 for better readability
-  const [canvasViewport, setCanvasViewport] = useState({ x: 0, y: 0, zoom: 0.8 });
-
-  // Comments sidebar state
-  const [isCommentsSidebarOpen, setIsCommentsSidebarOpen] = useState(false);
-  const [selectedObjectForComments, setSelectedObjectForComments] = useState(null);
-  
-  // Note toolbar state (context-sensitive like Illustrator)
-  const [selectedNote, setSelectedNote] = useState(null);
+  // Local UI state (not in context - component-specific)
   const [noteToolbarVisible, setNoteToolbarVisible] = useState(false);
-  
-  // Comment counts state
-  const [commentCounts, setCommentCounts] = useState({});
-  
-  // Tag filtering state
-  const [selectedTags, setSelectedTags] = useState([]);
-  const [isTagSidebarOpen, setIsTagSidebarOpen] = useState(false);
-  
-  // Recipe Detail Modal state
-  const [selectedRecipeForDetail, setSelectedRecipeForDetail] = useState(null);
-  const [isRecipeDetailOpen, setIsRecipeDetailOpen] = useState(false);
   
   // Keep nodesRef in sync with nodes state for reliable saves
   useEffect(() => {
@@ -402,30 +412,17 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
 
       console.log('📥 Loading whiteboard with useWhiteboardData hook...');
       
-      // 🎯 THE MAGIC: One hook call replaces 150+ lines of old code!
-      const result = await loadWhiteboardData();
+      // 🎯 THE MAGIC: Hook manages loading via context, sets nodes automatically
+      await loadWhiteboardData();
       
-      if (result.success) {
-        setWhiteboard(result.whiteboard);
-        
-        // 🎯 SET THE NODES! This is what actually displays recipes/notes on canvas
-        if (result.nodes && result.nodes.length > 0) {
-          setNodes(result.nodes);
-          console.log(`✅ Loaded ${result.nodes.length} nodes onto canvas`);
-        }
-        
-        console.log('✅ Whiteboard loaded successfully!');
-        console.log(`   📦 Loaded ${result.stats.recipes} recipes, ${result.stats.notes} notes`);
-        
-        // Load additional whiteboard features (grocery lists, meal plans, comments)
-        if (result.whiteboard?.id) {
-          await loadSavedGroceryLists(result.whiteboard.id);
-          await loadSavedMealPlanDays(result.whiteboard);
-          await fetchCommentCounts(result.whiteboard.id);
-        }
-      } else {
-        setError(result.error || 'Failed to load whiteboard');
-        toast.error('Failed to load whiteboard');
+      console.log('✅ Whiteboard loaded by hook - loading additional features...');
+      
+      // Load additional whiteboard features (grocery lists, meal plans, comments)
+      if (whiteboard?.id || whiteboardId) {
+        const wbId = whiteboard?.id || whiteboardId;
+        await loadSavedGroceryLists(wbId);
+        await loadSavedMealPlanDays(whiteboard);
+        await fetchCommentCounts(wbId);
       }
     } catch (err) {
       console.error('Error loading whiteboard:', err);
