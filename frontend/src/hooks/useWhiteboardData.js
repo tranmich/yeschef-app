@@ -75,14 +75,17 @@ export function useWhiteboardData() {
         return;
       }
       
-      const whiteboard = whiteboardData?.whiteboard || whiteboardData?.data || null;
+      // Backend returns: { success: true, data: { whiteboard: {...} } }
+      // apiCall returns the full response, so we need: whiteboardData.data.whiteboard
+      const whiteboard = whiteboardData?.data?.whiteboard || whiteboardData?.whiteboard || null;
       
       if (!whiteboard) {
+        console.error('❌ Whiteboard data not found in response:', whiteboardData);
         throw new Error('Whiteboard data not found in response');
       }
       
+      console.log(`✅ Whiteboard metadata loaded: ${whiteboard.name} (${whiteboard.object_count} objects)`);
       setWhiteboard(whiteboard);
-      console.log('✅ Whiteboard metadata loaded');
       
       // 2. Load saved objects (parallel)
       const [nodes, commentCounts] = await Promise.all([
