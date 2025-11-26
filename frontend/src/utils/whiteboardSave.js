@@ -18,6 +18,7 @@ export async function saveRecipeNodes(nodes, whiteboardId) {
   const recipeNodes = nodes
     .filter(node => node.type === 'recipeCard' && node.data.recipe_id)
     .map(node => ({
+      object_id: node.data.object_id,  // Include object_id so backend knows which object to update
       recipe_id: node.data.recipe_id,
       tags: node.data.tags || [],
       position: {
