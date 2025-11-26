@@ -346,13 +346,16 @@ export function useWhiteboardData() {
       posY = obj.position.y || 150;
     }
     
+    // Extract background color from style object or fallback to legacy field
+    const bgColor = obj.style?.backgroundColor || obj.background_color || '#FFFFFF';
+    
     // Use factory for consistent structure
     return createRecipeNode({
       recipeId: recipe.id,
       objectId: obj.id,
       position: { x: posX, y: posY },
       tags: obj.tags || [],
-      backgroundColor: obj.background_color || '#FFFFFF',
+      backgroundColor: bgColor,
       commentCount: 0,  // Will be updated by comment counts
       hasNewComments: false,
       // Handlers will be added by WhiteboardApp

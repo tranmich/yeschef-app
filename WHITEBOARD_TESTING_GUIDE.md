@@ -22,9 +22,9 @@ Before you start testing:
 
 #### **1. Whiteboard Loading & Display**
 - [x ] **Load whiteboard** - Does the whiteboard load without errors?
-- [ ] **View existing objects** - Do all saved items appear correctly?
+- [x ] **View existing objects** - Do all saved items appear correctly?
 - [x ] **Canvas controls** - Can you pan, zoom, and navigate?
-- [ ] **Recipe cache** - Do recipes load and display properly?
+- [x ] **Recipe cache** - Do recipes load and display properly?
 
 **Expected Result:** Whiteboard loads with all saved objects visible  
 **If Fails:** Check console for errors, verify API calls in Network tab

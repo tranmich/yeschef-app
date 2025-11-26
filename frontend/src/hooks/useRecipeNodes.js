@@ -188,15 +188,20 @@ export function useRecipeNodes() {
         return;
       }
       
-      // Update in database
+      // Update in database using 'style' field (backend expects style object)
       await whiteboardAPI.updateObject(whiteboardId, node.data.object_id, {
-        background_color: color
+        style: {
+          backgroundColor: color,
+          borderColor: node.data.borderColor || '#e5e7eb',
+          borderWidth: node.data.borderWidth || 1,
+          borderRadius: node.data.borderRadius || 8
+        }
       });
       
       // Update in local state
       updateNode(nodeId, { backgroundColor: color });
       
-      console.log('✅ Color updated');
+      console.log('✅ Color updated and saved');
       
     } catch (error) {
       console.error('❌ Failed to update color:', error);
@@ -222,15 +227,12 @@ export function useRecipeNodes() {
       return;
     }
     
-    // Open detail modal
+    console.log('📖 Opening recipe detail for:', recipe.title || recipe.name);
+    
+    // Open detail modal using local state
     setSelectedRecipe(recipe);
     setIsDetailOpen(true);
-    
-    // Also use context method if available
-    if (openRecipeDetail) {
-      openRecipeDetail(recipe);
-    }
-  }, [getRecipe, openRecipeDetail]);
+  }, [getRecipe]);
   
   // ==========================================
   // CLOSE RECIPE DETAIL MODAL
