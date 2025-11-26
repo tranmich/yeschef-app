@@ -381,7 +381,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
             onNameChange: handleGroceryListNameChange,
             onDelete: (nodeId, dbId) => {
               if (window.confirm('Delete this grocery list?')) {
-                handleDeleteGroceryList(dbId);
+                handleGroceryListDelete(dbId);
               }
             },
           }
@@ -419,7 +419,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     handleGroceryListItemRemoved,
     handleGroceryListItemAdded,
     handleGroceryListNameChange,
-    handleDeleteGroceryList,
+    handleGroceryListDelete,
     handleDeleteMealPlan,
   ]);
 
