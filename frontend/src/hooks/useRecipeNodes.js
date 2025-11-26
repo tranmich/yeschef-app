@@ -61,10 +61,10 @@ export function useRecipeNodes() {
       
       // 3. Save to whiteboard database
       const savedObject = await whiteboardAPI.createObject(whiteboardId, {
-        type: 'recipe',
+        type: 'r',  // Backend shorthand for recipe
         entity_type: 'recipe',
         entity_id: recipe.id,
-        position: [position.x, position.y],
+        position: [position.x, position.y, 300, 400, 0],  // [x, y, width, height, z_index]
         tags: [],
         background_color: '#FFFFFF'
       });

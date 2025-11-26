@@ -500,6 +500,12 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   const loadSavedMealPlanDays = async (whiteboardData) => {
     try {
       console.log('📅 Loading saved meal plan day boxes from whiteboard...');
+      
+      if (!whiteboardData) {
+        console.log('⚠️ No whiteboard data available yet');
+        return;
+      }
+      
       console.log('📦 Whiteboard objects:', whiteboardData.objects);
       
       // Filter whiteboard objects that have meal_plan references
