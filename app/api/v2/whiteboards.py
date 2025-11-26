@@ -440,7 +440,7 @@ def get_whiteboard(wid):
             
             objects.append({
                 'id': obj_row['id'],
-                'type': obj_row['t'],  # Compact type code (e.g., 'nt' for notes)
+                'type': obj_row['t'],  # Database type: 'rc', 'note', 'list', 'container', etc.
                 'object_type': obj_row['t'],  # Alias for backward compatibility
                 'entity_type': entity_type,
                 'entity_id': entity_id,
@@ -658,7 +658,7 @@ def create_object(wid):
             return jsonify({'success': False, 'error': 'Whiteboard not found or access denied'}), 404
         
         # Extract object data
-        obj_type = data.get('type', 'r')  # Default to recipe
+        obj_type = data.get('type', 'rc')  # Default to recipe card (matches DB constraint)
         entity_type = data.get('entity_type')
         entity_id = data.get('entity_id')
         position = data.get('position', [0, 0, 300, 400, 0])
@@ -719,7 +719,7 @@ def create_object(wid):
                     event_data=event_data,
                     title=recipe_title
                 )
-            elif obj_type == 'nt':  # Note added
+            elif obj_type == 'note':  # Note added (database stores as 'note', not 'nt')
                 note_preview = content.get('html', '')[:100] if isinstance(content, dict) else ''
                 event_data['note_preview'] = note_preview
                 
@@ -1108,6 +1108,7 @@ def bulk_update_objects(wid):
         
         # Process each object
         for obj in objects:
+            object_id = obj.get('object_id')  # Get object_id if provided
             recipe_id = obj.get('recipe_id')
             position = obj.get('position', {})
             tags = obj.get('tags', [])  # Get tags array
@@ -1124,11 +1125,17 @@ def bulk_update_objects(wid):
                 int(position.get('z', 0))
             ]
             
-            # Check if object already exists
-            cursor.execute("""
-                SELECT id, tags FROM wbo
-                WHERE wid = %s AND rid = %s AND deleted_at IS NULL
-            """, (wid, recipe_id))
+            # Check if object already exists (prefer object_id, fallback to rid match)
+            if object_id:
+                cursor.execute("""
+                    SELECT id, tags FROM wbo
+                    WHERE id = %s AND wid = %s AND deleted_at IS NULL
+                """, (object_id, wid))
+            else:
+                cursor.execute("""
+                    SELECT id, tags FROM wbo
+                    WHERE wid = %s AND rid = %s AND deleted_at IS NULL
+                """, (wid, recipe_id))
             
             existing = cursor.fetchone()
             
