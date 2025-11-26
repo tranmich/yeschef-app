@@ -1322,8 +1322,8 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     try {
       console.log('💾 Saving whiteboard...', 'ID:', saveWhiteboardId);
       
-      // Use nodesRef.current to get the latest state
-      const currentNodes = nodesRef.current;
+      // Use nodes directly - it's always current (nodesRef can be stale)
+      const currentNodes = nodes;
 
       // Callback to update node with new dbId after creating grocery list
       const updateNodeWithDbId = (nodeId, dbId) => {
