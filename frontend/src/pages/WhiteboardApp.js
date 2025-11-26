@@ -337,10 +337,19 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
   // 🆕 ATTACH HANDLERS TO ALL NODES
   // Nodes loaded from database don't have handlers - add them here!
   const nodesWithHandlers = useMemo(() => {
+    console.log('🔧 [nodesWithHandlers] Attaching handlers to nodes...');
+    console.log('🔧 [nodesWithHandlers] Input nodes:', nodes.length);
+    console.log('🔧 [nodesWithHandlers] Handlers available:', {
+      openRecipeDetail: !!openRecipeDetail,
+      deleteRecipeFromCanvas: !!deleteRecipeFromCanvas,
+      updateRecipeTags: !!updateRecipeTags,
+      updateRecipeColor: !!updateRecipeColor
+    });
+    
     return nodes.map(node => {
       // Recipe cards
       if (node.type === 'recipeCard') {
-        return {
+        const nodeWithHandlers = {
           ...node,
           data: {
             ...node.data,
@@ -351,6 +360,10 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
             onTagFilterClick: (tag) => console.log('🏷️ Tag filter:', tag),
           }
         };
+        console.log('✅ [nodesWithHandlers] Added handlers to recipe:', node.id, {
+          hasOnColorChange: !!nodeWithHandlers.data.onColorChange
+        });
+        return nodeWithHandlers;
       }
       
       // Notes
