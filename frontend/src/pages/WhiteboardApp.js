@@ -968,8 +968,7 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
       
       // Create note in backend
       const noteData = {
-        type: 'nt',
-        object_type: 'note',
+        type: 'note',  // Database constraint requires 'note' not 'nt'
         position: [position.x, position.y, 300, 250, 0],
         content: {
           type: 'note',
