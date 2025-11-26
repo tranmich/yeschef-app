@@ -208,6 +208,27 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
     return commentCountMap.get(`${objectType}-${objectId}`) || 0;
   }, [commentCountMap]);
 
+  // 🆕 ATTACH HANDLERS TO NODES
+  // Nodes loaded from database don't have handlers - add them here!
+  const nodesWithHandlers = useMemo(() => {
+    return nodes.map(node => {
+      if (node.type === 'recipeCard') {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onClick: openRecipeDetail,
+            onDelete: deleteRecipeFromCanvas,
+            onTagsChange: updateRecipeTags,
+            onColorChange: updateRecipeColor,
+            onTagFilterClick: (tag) => console.log('🏷️ Tag filter:', tag),
+          }
+        };
+      }
+      return node;
+    });
+  }, [nodes, openRecipeDetail, deleteRecipeFromCanvas, updateRecipeTags, updateRecipeColor]);
+
   // 🆕 Debounced note save function (saves after 2 seconds of inactivity)
   const debouncedNoteSave = useRef(
     debounce(async (whiteboardId, noteId, noteData) => {
@@ -1720,12 +1741,12 @@ const WhiteboardApp = ({ householdId, whiteboardId, onBack }) => {
 
   // Filter nodes by selected tags (AND logic - must have ALL selected tags)
   const filteredNodes = selectedTags.length > 0
-    ? nodes.filter(node => {
+    ? nodesWithHandlers.filter(node => {
         const nodeTags = node.data?.tags || [];
         // Node must have ALL selected tags
         return selectedTags.every(tag => nodeTags.includes(tag));
       })
-    : nodes; // Show all nodes if no tags selected
+    : nodesWithHandlers; // Show all nodes if no tags selected (with handlers attached!)
   
   // Desktop view (React Flow canvas)
   return (
