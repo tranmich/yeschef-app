@@ -127,11 +127,11 @@ export function useWhiteboardData() {
         return [];
       }
       
-      // Get unique recipe IDs
+      // Get unique recipe IDs (handle both entity_id and rid formats)
       const recipeIds = [...new Set(
         savedObjects
-          .filter(obj => obj.entity_type === 'recipe' && obj.entity_id)
-          .map(obj => obj.entity_id)
+          .filter(obj => (obj.type === 'rc' || obj.entity_type === 'recipe') && (obj.entity_id || obj.rid))
+          .map(obj => obj.entity_id || obj.rid)
       )];
       
       console.log(`🏠 Found ${recipeIds.length} unique recipes to load`);
@@ -144,16 +144,17 @@ export function useWhiteboardData() {
       // Convert saved objects to React Flow nodes
       const nodes = savedObjects
         .map(obj => {
-          // Handle notes
-          if (obj.type === 'nt' || obj.object_type === 'note') {
+          // Handle notes (type='note' from database)
+          if (obj.type === 'note' || obj.object_type === 'note') {
             return createNoteNode(obj);
           }
           
-          // Handle recipes
-          if (obj.entity_type === 'recipe' && obj.entity_id) {
-            const recipe = recipeMap[obj.entity_id];
+          // Handle recipes (type='rc' from database, entity_type='recipe', or rid set)
+          if (obj.type === 'rc' || obj.entity_type === 'recipe' || obj.rid) {
+            const recipeId = obj.entity_id || obj.rid;
+            const recipe = recipeMap[recipeId];
             if (!recipe) {
-              console.warn(`⚠️ Recipe ${obj.entity_id} not found, skipping`);
+              console.warn(`⚠️ Recipe ${recipeId} not found, skipping object ${obj.id}`);
               return null;
             }
             return createRecipeNodeFromSavedObject(obj, recipe);
@@ -161,6 +162,7 @@ export function useWhiteboardData() {
           
           // Handle other types (grocery lists, meal plans, etc.)
           // TODO: Add handlers for other node types
+          console.warn(`⚠️ Unknown object type: ${obj.type}, entity_type: ${obj.entity_type}`);
           
           return null;
         })
