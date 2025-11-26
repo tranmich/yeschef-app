@@ -165,27 +165,39 @@ export function useRecipeNodes() {
     try {
       console.log('🏷️ Updating tags for node:', nodeId, newTags);
       
-      // Find the node to get object_id
-      const node = nodes.find(n => n.id === nodeId);
-      if (!node || !node.data.object_id) {
-        console.warn('⚠️ Cannot update tags: node or object_id not found');
-        return;
-      }
+      // Use setNodes with updater to avoid 'nodes' dependency
+      let objectId = null;
       
-      // Update in database
-      await whiteboardAPI.updateObject(whiteboardId, node.data.object_id, {
-        tags: newTags
+      setNodes(prevNodes => {
+        const node = prevNodes.find(n => n.id === nodeId);
+        if (node?.data?.object_id) {
+          objectId = node.data.object_id;
+        }
+        
+        if (!objectId) {
+          console.warn('⚠️ Cannot update tags: node or object_id not found');
+          return prevNodes;
+        }
+        
+        // Update tags immediately (optimistic update)
+        return prevNodes.map(n =>
+          n.id === nodeId ? { ...n, data: { ...n.data, tags: newTags } } : n
+        );
       });
       
-      // Update in local state
-      updateNode(nodeId, { tags: newTags });
+      if (!objectId) return;
+      
+      // Update in database
+      await whiteboardAPI.updateObject(whiteboardId, objectId, {
+        tags: newTags
+      });
       
       console.log('✅ Tags updated');
       
     } catch (error) {
       console.error('❌ Failed to update tags:', error);
     }
-  }, [whiteboardId, nodes, updateNode]);
+  }, [whiteboardId, setNodes]);
   
   // ==========================================
   // UPDATE RECIPE COLOR
@@ -200,16 +212,30 @@ export function useRecipeNodes() {
     console.log('🎨 [useRecipeNodes] handleRecipeColorChange called:', { nodeId, color });
     
     try {
-      // Find the node to get object_id
-      const node = nodes.find(n => n.id === nodeId);
-      console.log('🔍 [useRecipeNodes] Found node:', {
-        found: !!node,
-        nodeId: node?.id,
-        objectId: node?.data?.object_id,
-        currentColor: node?.data?.backgroundColor
+      // Use setNodes with updater function to find node and get object_id
+      // This avoids needing 'nodes' in dependencies
+      let objectId = null;
+      
+      setNodes(prevNodes => {
+        const node = prevNodes.find(n => n.id === nodeId);
+        if (node?.data?.object_id) {
+          objectId = node.data.object_id;
+        }
+        
+        console.log('🔍 [useRecipeNodes] Found node:', {
+          found: !!node,
+          nodeId: node?.id,
+          objectId: node?.data?.object_id,
+          currentColor: node?.data?.backgroundColor
+        });
+        
+        // Update the color immediately (optimistic update)
+        return prevNodes.map(n =>
+          n.id === nodeId ? { ...n, data: { ...n.data, backgroundColor: color } } : n
+        );
       });
       
-      if (!node || !node.data.object_id) {
+      if (!objectId) {
         console.error('❌ [useRecipeNodes] Cannot update color: node or object_id not found');
         return;
       }
@@ -217,29 +243,23 @@ export function useRecipeNodes() {
       // Prepare style update
       const styleUpdate = {
         backgroundColor: color,
-        borderColor: node.data.borderColor || '#e5e7eb',
-        borderWidth: node.data.borderWidth || 1,
-        borderRadius: node.data.borderRadius || 8
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        borderRadius: 8
       };
       
       console.log('📤 [useRecipeNodes] Sending to database:', {
         whiteboardId,
-        objectId: node.data.object_id,
+        objectId,
         styleUpdate
       });
       
       // Update in database using 'style' field (backend expects style object)
-      const response = await whiteboardAPI.updateObject(whiteboardId, node.data.object_id, {
+      const response = await whiteboardAPI.updateObject(whiteboardId, objectId, {
         style: styleUpdate
       });
       
       console.log('✅ [useRecipeNodes] Database response:', response);
-      
-      // Update in local state
-      console.log('🔄 [useRecipeNodes] Updating local state via updateNode...');
-      updateNode(nodeId, { backgroundColor: color });
-      console.log('✅ [useRecipeNodes] Local state updated');
-      
       console.log('🎉 [useRecipeNodes] Color update complete!');
       
     } catch (error) {
@@ -249,7 +269,7 @@ export function useRecipeNodes() {
         stack: error.stack
       });
     }
-  }, [whiteboardId, nodes, updateNode]);
+  }, [whiteboardId, setNodes]);
   
   // ==========================================
   // HANDLE RECIPE CLICK (OPEN DETAIL)
