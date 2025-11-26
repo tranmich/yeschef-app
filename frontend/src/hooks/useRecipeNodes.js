@@ -33,9 +33,24 @@ export function useRecipeNodes() {
   
   // Helper to update a single node
   const updateNode = useCallback((nodeId, updates) => {
-    setNodes(prevNodes => prevNodes.map(n =>
-      n.id === nodeId ? { ...n, data: { ...n.data, ...updates } } : n
-    ));
+    console.log('🔄 [updateNode] Updating node:', { nodeId, updates });
+    
+    setNodes(prevNodes => {
+      const updatedNodes = prevNodes.map(n => {
+        if (n.id === nodeId) {
+          console.log('✏️ [updateNode] Found node to update:', {
+            nodeId: n.id,
+            oldData: n.data,
+            updates
+          });
+          return { ...n, data: { ...n.data, ...updates } };
+        }
+        return n;
+      });
+      
+      console.log('✅ [updateNode] Nodes updated, triggering re-render');
+      return updatedNodes;
+    });
   }, [setNodes]);
   
   // ==========================================
@@ -182,33 +197,57 @@ export function useRecipeNodes() {
    * @param {string} color - Hex color code
    */
   const handleRecipeColorChange = useCallback(async (nodeId, color) => {
+    console.log('🎨 [useRecipeNodes] handleRecipeColorChange called:', { nodeId, color });
+    
     try {
-      console.log('🎨 Updating color for node:', nodeId, color);
-      
       // Find the node to get object_id
       const node = nodes.find(n => n.id === nodeId);
+      console.log('🔍 [useRecipeNodes] Found node:', {
+        found: !!node,
+        nodeId: node?.id,
+        objectId: node?.data?.object_id,
+        currentColor: node?.data?.backgroundColor
+      });
+      
       if (!node || !node.data.object_id) {
-        console.warn('⚠️ Cannot update color: node or object_id not found');
+        console.error('❌ [useRecipeNodes] Cannot update color: node or object_id not found');
         return;
       }
       
-      // Update in database using 'style' field (backend expects style object)
-      await whiteboardAPI.updateObject(whiteboardId, node.data.object_id, {
-        style: {
-          backgroundColor: color,
-          borderColor: node.data.borderColor || '#e5e7eb',
-          borderWidth: node.data.borderWidth || 1,
-          borderRadius: node.data.borderRadius || 8
-        }
+      // Prepare style update
+      const styleUpdate = {
+        backgroundColor: color,
+        borderColor: node.data.borderColor || '#e5e7eb',
+        borderWidth: node.data.borderWidth || 1,
+        borderRadius: node.data.borderRadius || 8
+      };
+      
+      console.log('📤 [useRecipeNodes] Sending to database:', {
+        whiteboardId,
+        objectId: node.data.object_id,
+        styleUpdate
       });
       
-      // Update in local state
-      updateNode(nodeId, { backgroundColor: color });
+      // Update in database using 'style' field (backend expects style object)
+      const response = await whiteboardAPI.updateObject(whiteboardId, node.data.object_id, {
+        style: styleUpdate
+      });
       
-      console.log('✅ Color updated and saved');
+      console.log('✅ [useRecipeNodes] Database response:', response);
+      
+      // Update in local state
+      console.log('🔄 [useRecipeNodes] Updating local state via updateNode...');
+      updateNode(nodeId, { backgroundColor: color });
+      console.log('✅ [useRecipeNodes] Local state updated');
+      
+      console.log('🎉 [useRecipeNodes] Color update complete!');
       
     } catch (error) {
-      console.error('❌ Failed to update color:', error);
+      console.error('❌ [useRecipeNodes] Failed to update color:', error);
+      console.error('❌ [useRecipeNodes] Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
     }
   }, [whiteboardId, nodes, updateNode]);
   

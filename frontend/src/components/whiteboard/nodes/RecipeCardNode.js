@@ -159,11 +159,24 @@ const RecipeCardNode = ({ data, id, selected }) => {
 
   // Color picker handlers
   const handleColorChange = (color) => {
+    console.log('🎨 [RecipeCardNode] Color picker clicked:', {
+      nodeId: id,
+      recipeId: recipe_id,
+      objectId: object_id,
+      oldColor: cardColor,
+      newColor: color,
+      recipeName: name
+    });
+    
     setCardColor(color);
     setShowColorPicker(false);
     
     if (onColorChange) {
+      console.log('🎨 [RecipeCardNode] Calling onColorChange handler...');
       onColorChange(id, color, object_id);
+      console.log('🎨 [RecipeCardNode] Handler called successfully');
+    } else {
+      console.warn('⚠️ [RecipeCardNode] No onColorChange handler provided!');
     }
   };
 
