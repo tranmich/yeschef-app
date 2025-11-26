@@ -25,14 +25,11 @@ export function useRecipeNodes() {
     addNode,
     updateNode,
     deleteNode,
-    openRecipeDetail,
+    setSelectedRecipeForDetail,
+    setIsRecipeDetailOpen,
   } = useWhiteboard();
   
   const { addRecipes: addRecipesToCache, getRecipe } = useRecipeCache();
-  
-  // Local state for recipe detail modal
-  const [selectedRecipe, setSelectedRecipe] = useState(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
   
   // ==========================================
   // ADD RECIPE TO CANVAS
@@ -229,10 +226,10 @@ export function useRecipeNodes() {
     
     console.log('📖 Opening recipe detail for:', recipe.title || recipe.name);
     
-    // Open detail modal using local state
-    setSelectedRecipe(recipe);
-    setIsDetailOpen(true);
-  }, [getRecipe]);
+    // Open detail modal using context state
+    setSelectedRecipeForDetail(recipe);
+    setIsRecipeDetailOpen(true);
+  }, [getRecipe, setSelectedRecipeForDetail, setIsRecipeDetailOpen]);
   
   // ==========================================
   // CLOSE RECIPE DETAIL MODAL
@@ -242,9 +239,9 @@ export function useRecipeNodes() {
    * Close the recipe detail modal
    */
   const closeRecipeDetail = useCallback(() => {
-    setIsDetailOpen(false);
-    setSelectedRecipe(null);
-  }, []);
+    setIsRecipeDetailOpen(false);
+    setSelectedRecipeForDetail(null);
+  }, [setIsRecipeDetailOpen, setSelectedRecipeForDetail]);
   
   // ==========================================
   // HANDLE TAG FILTER CLICK
@@ -388,9 +385,5 @@ export function useRecipeNodes() {
     getRecipeNode,
     isRecipeOnCanvas,
     getAllRecipeNodes,
-    
-    // Modal state
-    selectedRecipe,
-    isDetailOpen,
   };
 }
